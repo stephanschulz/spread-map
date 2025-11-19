@@ -7,7 +7,7 @@ Also generates an Excel file with colored universes for Google Sheets.
 
 import csv
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 # Configuration
 COLS_PER_UNIVERSE = 15
@@ -17,9 +17,9 @@ UNIVERSES_VERTICAL = 6    # 6 rows of universes (original + 5 downward)
 
 def generate_cell_label(row_in_universe, col_in_universe, universe_num):
     """
-    Generate a cell label in the format: NN-U#-B#
+    Generate a cell label with line break: NN\nU#-B#
     row_in_universe: 1-20
-    col_in_universe: 0-14
+    col_in_universe: 0-14 (maps to B1-B15)
     universe_num: 1-36
     """
     # Row number with zero padding (01-20)
@@ -28,11 +28,12 @@ def generate_cell_label(row_in_universe, col_in_universe, universe_num):
     # Universe label (U1, U2, etc.)
     universe_label = f"U{universe_num}"
     
-    # B label cycles through B1, B2, B3 for each column
-    b_num = (col_in_universe % 3) + 1
+    # B label goes from B1 to B15 (one per column in the universe)
+    b_num = col_in_universe + 1
     b_label = f"B{b_num}"
     
-    return f"{row_label}-{universe_label}-{b_label}"
+    # Format with line breaks: row number on first line, U#-B# on second line, empty line at bottom
+    return f"{row_label}\n{universe_label}-{b_label}\n"
 
 def generate_map():
     """Generate the complete map with all universes."""
@@ -141,32 +142,49 @@ def save_to_excel(grid, filename='map.xlsx'):
     header_fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
     header_font = Font(bold=True)
     center_align = Alignment(horizontal='center', vertical='center')
+    center_align_wrap = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    
+    # Light grey border for all cells
+    light_grey_side = Side(style='thin', color='D3D3D3')
+    light_grey_border = Border(left=light_grey_side, right=light_grey_side, 
+                               top=light_grey_side, bottom=light_grey_side)
     
     # Write data and apply formatting
     for row_idx, row_data in enumerate(grid, start=1):
         for col_idx, cell_value in enumerate(row_data, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=cell_value)
-            cell.alignment = center_align
+            
+            # Apply light grey border to all cells
+            cell.border = light_grey_border
             
             # Style header row and column
             if row_idx == 1 or col_idx == 1:
+                cell.alignment = center_align
                 cell.fill = header_fill
                 cell.font = header_font
             else:
+                # Apply wrap text alignment to data cells
+                cell.alignment = center_align_wrap
+                
                 # Determine universe number from cell content
-                # Cell format: NN-U#-B# (e.g., 01-U1-B1)
-                if isinstance(cell_value, str) and '-U' in cell_value:
+                # Cell format: NN\nU#-B#\n (e.g., 01\nU1-B1\n)
+                if isinstance(cell_value, str) and 'U' in cell_value:
                     try:
-                        # Extract universe number
-                        parts = cell_value.split('-')
-                        universe_str = parts[1]  # U1, U2, etc.
-                        universe_num = int(universe_str[1:])  # Extract number
-                        
-                        # Apply color for this universe
-                        if universe_num in colors:
-                            cell.fill = PatternFill(start_color=colors[universe_num], 
-                                                   end_color=colors[universe_num], 
-                                                   fill_type='solid')
+                        # Split by newline and get second part
+                        lines = cell_value.split('\n')
+                        if len(lines) >= 2:
+                            # Second line contains U#-B#
+                            second_line = lines[1]
+                            # Extract universe number (format: U#-B#)
+                            parts = second_line.split('-')
+                            universe_str = parts[0]  # U1, U2, etc.
+                            universe_num = int(universe_str[1:])  # Extract number
+                            
+                            # Apply color for this universe
+                            if universe_num in colors:
+                                cell.fill = PatternFill(start_color=colors[universe_num], 
+                                                       end_color=colors[universe_num], 
+                                                       fill_type='solid')
                     except (IndexError, ValueError):
                         pass
     
@@ -182,6 +200,10 @@ def save_to_excel(grid, filename='map.xlsx'):
                 pass
         adjusted_width = min(max_length + 2, 15)
         ws.column_dimensions[column].width = adjusted_width
+    
+    # Set row heights for data rows (taller to accommodate two lines)
+    for row_idx in range(2, len(grid) + 1):  # Skip header row
+        ws.row_dimensions[row_idx].height = 30
     
     wb.save(filename)
     print(f"Generated {filename}")
