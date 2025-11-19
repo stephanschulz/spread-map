@@ -2,9 +2,12 @@
 """
 Generate a CSV map with multiple universes arranged in a grid.
 Each universe is 15 columns x 20 rows.
+Also generates an Excel file with colored universes for Google Sheets.
 """
 
 import csv
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Font, Alignment
 
 # Configuration
 COLS_PER_UNIVERSE = 15
@@ -74,6 +77,49 @@ def generate_map():
     
     return grid
 
+def generate_universe_colors():
+    """
+    Generate distinct colors arranged so neighbors are maximally different.
+    Uses a strategic color pattern for the 6x6 grid.
+    """
+    # 12 highly distinct base colors spread across the color spectrum
+    base_colors = [
+        'FF6B6B',  # Bright Red
+        '4ECDC4',  # Turquoise
+        'FFE66D',  # Bright Yellow
+        '95E1D3',  # Mint
+        'FF8B94',  # Pink
+        'A8E6CF',  # Light Green
+        'FFD93D',  # Golden Yellow
+        '6BCF7F',  # Green
+        'FFA07A',  # Light Salmon
+        '87CEEB',  # Sky Blue
+        'DDA15E',  # Tan/Brown
+        'B4A7D6',  # Lavender
+    ]
+    
+    # Pattern for 6x6 grid - each number represents which base color to use
+    # This pattern ensures no adjacent cells have the same color
+    # Pattern uses modulo-style distribution for maximum contrast
+    color_pattern = [
+        [0, 3, 1, 4, 2, 5],
+        [6, 9, 7, 10, 8, 11],
+        [1, 4, 2, 5, 0, 3],
+        [7, 10, 8, 11, 6, 9],
+        [2, 5, 0, 3, 1, 4],
+        [8, 11, 6, 9, 7, 10],
+    ]
+    
+    # Build the color map for all 36 universes
+    colors = {}
+    for row in range(6):
+        for col in range(6):
+            universe_num = (row * 6) + col + 1
+            color_idx = color_pattern[row][col]
+            colors[universe_num] = base_colors[color_idx]
+    
+    return colors
+
 def save_to_csv(grid, filename='map.csv'):
     """Save the grid to a CSV file."""
     with open(filename, 'w', newline='') as f:
@@ -81,9 +127,71 @@ def save_to_csv(grid, filename='map.csv'):
         writer.writerows(grid)
     print(f"Generated {filename}")
     print(f"  Total size: {len(grid)} rows x {len(grid[0])} columns (including headers)")
-    print(f"  Universes: {UNIVERSES_HORIZONTAL} x {UNIVERSES_VERTICAL} = {UNIVERSES_HORIZONTAL * UNIVERSES_VERTICAL} total")
+
+def save_to_excel(grid, filename='map.xlsx'):
+    """Save the grid to an Excel file with colored universes."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Universe Map"
+    
+    # Get universe colors
+    colors = generate_universe_colors()
+    
+    # Header style (bold, gray background)
+    header_fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
+    header_font = Font(bold=True)
+    center_align = Alignment(horizontal='center', vertical='center')
+    
+    # Write data and apply formatting
+    for row_idx, row_data in enumerate(grid, start=1):
+        for col_idx, cell_value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=cell_value)
+            cell.alignment = center_align
+            
+            # Style header row and column
+            if row_idx == 1 or col_idx == 1:
+                cell.fill = header_fill
+                cell.font = header_font
+            else:
+                # Determine universe number from cell content
+                # Cell format: NN-U#-B# (e.g., 01-U1-B1)
+                if isinstance(cell_value, str) and '-U' in cell_value:
+                    try:
+                        # Extract universe number
+                        parts = cell_value.split('-')
+                        universe_str = parts[1]  # U1, U2, etc.
+                        universe_num = int(universe_str[1:])  # Extract number
+                        
+                        # Apply color for this universe
+                        if universe_num in colors:
+                            cell.fill = PatternFill(start_color=colors[universe_num], 
+                                                   end_color=colors[universe_num], 
+                                                   fill_type='solid')
+                    except (IndexError, ValueError):
+                        pass
+    
+    # Auto-adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 15)
+        ws.column_dimensions[column].width = adjusted_width
+    
+    wb.save(filename)
+    print(f"Generated {filename}")
+    print(f"  Total size: {len(grid)} rows x {len(grid[0])} columns (including headers)")
+    print(f"  Each universe has its own color")
 
 if __name__ == '__main__':
     grid = generate_map()
     save_to_csv(grid)
+    save_to_excel(grid)
+    print(f"\nUniverse layout:")
+    print(f"  Universes: {UNIVERSES_HORIZONTAL} x {UNIVERSES_VERTICAL} = {UNIVERSES_HORIZONTAL * UNIVERSES_VERTICAL} total")
 
