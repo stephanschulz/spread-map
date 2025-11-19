@@ -130,7 +130,7 @@ def save_to_csv(grid, filename='map.csv'):
     print(f"  Total size: {len(grid)} rows x {len(grid[0])} columns (including headers)")
 
 def save_to_excel(grid, filename='map.xlsx'):
-    """Save the grid to an Excel file with colored universes."""
+    """Save the grid to an Excel file with colored universes and square cells."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Universe Map"
@@ -140,9 +140,10 @@ def save_to_excel(grid, filename='map.xlsx'):
     
     # Header style (bold, gray background)
     header_fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
-    header_font = Font(bold=True)
+    header_font = Font(bold=True, size=9)
+    data_font = Font(size=9)  # Smaller font for data to fit better in square cells
     center_align = Alignment(horizontal='center', vertical='center')
-    center_align_wrap = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    top_center_align_wrap = Alignment(horizontal='center', vertical='top', wrap_text=True)
     
     # Light grey border for all cells
     light_grey_side = Side(style='thin', color='D3D3D3')
@@ -163,8 +164,9 @@ def save_to_excel(grid, filename='map.xlsx'):
                 cell.fill = header_fill
                 cell.font = header_font
             else:
-                # Apply wrap text alignment to data cells
-                cell.alignment = center_align_wrap
+                # Apply top-center alignment and font to data cells
+                cell.alignment = top_center_align_wrap
+                cell.font = data_font
                 
                 # Determine universe number from cell content
                 # Cell format: NN\nU#-B#\n (e.g., 01\nU1-B1\n)
@@ -188,22 +190,18 @@ def save_to_excel(grid, filename='map.xlsx'):
                     except (IndexError, ValueError):
                         pass
     
-    # Auto-adjust column widths
-    for col in ws.columns:
-        max_length = 0
-        column = col[0].column_letter
-        for cell in col:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = min(max_length + 2, 15)
-        ws.column_dimensions[column].width = adjusted_width
+    # Set fixed square cell dimensions
+    # Cell size chosen to accommodate 3 lines of text comfortably
+    cell_size = 50  # Width and height in Excel units
     
-    # Set row heights for data rows (taller to accommodate two lines)
-    for row_idx in range(2, len(grid) + 1):  # Skip header row
-        ws.row_dimensions[row_idx].height = 30
+    # Set all column widths to create square cells
+    for col_idx in range(1, len(grid[0]) + 1):
+        column_letter = ws.cell(row=1, column=col_idx).column_letter
+        ws.column_dimensions[column_letter].width = cell_size / 7  # Adjust for Excel's width units
+    
+    # Set all row heights to create square cells
+    for row_idx in range(1, len(grid) + 1):
+        ws.row_dimensions[row_idx].height = cell_size
     
     wb.save(filename)
     print(f"Generated {filename}")

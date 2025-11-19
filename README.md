@@ -35,7 +35,12 @@ U31  U32  U33  U34  U35  U36
 
 **Color Coding**: Each universe has a distinct color strategically chosen to maximize contrast with neighboring universes. Adjacent universes (horizontally and vertically) have visually different colors for easy identification.
 
-**Formatting**: All cells have light grey borders for clear visual separation. Each data cell displays its information on three lines (number, universe-band designation, and an empty line for spacing).
+**Formatting**: 
+- All cells are **square-shaped** with fixed dimensions for uniform grid appearance
+- Light grey borders on all cells for clear visual separation
+- Each data cell displays its information on three lines (number, universe-band designation, and an empty line for spacing)
+- Text is sized appropriately to fit within the square cells while remaining clearly visible
+- Text alignment: **horizontally centered** and **vertically top-aligned** for consistent readability
 
 ## Usage
 
