@@ -473,6 +473,32 @@
                 }
             }
             
+            // Draw large universe labels in the center of each universe (preview only)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            for (let universeRow = 0; universeRow < universesV; universeRow++) {
+                for (let universeCol = 0; universeCol < universesH; universeCol++) {
+                    const universeNum = (universeRow * universesH) + universeCol + 1;
+                    
+                    // Calculate center of universe
+                    const centerX = (universeCol * colsPerUniverse + colsPerUniverse / 2) * cellSize;
+                    const centerY = (universeRow * rowsPerUniverse + rowsPerUniverse / 2) * cellSize;
+                    
+                    // Draw large universe label
+                    const fontSize = Math.min(cellSize * 3, 120);
+                    ctx.font = `bold ${fontSize}px Arial`;
+                    
+                    // Draw text stroke (outline)
+                    ctx.strokeText(`U${universeNum}`, centerX, centerY);
+                    // Draw text fill
+                    ctx.fillText(`U${universeNum}`, centerX, centerY);
+                }
+            }
+            
             console.log('Grid image generated:', offCanvas.width, 'x', offCanvas.height);
             return offCanvas;
         }
