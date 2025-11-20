@@ -37,17 +37,17 @@
         }
         
         .zoom-controls {
-            margin: 12px 0;
+            margin: 6px 0;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         
         .zoom-btn {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             padding: 0;
-            font-size: 18px;
+            font-size: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -62,46 +62,60 @@
         
         .container {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
-            border-radius: 8px;
+            border-radius: 6px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            width: 280px;
-            padding: 15px;
+            width: 260px;
+            padding: 10px;
             z-index: 1000;
             color: white;
-            max-height: calc(100vh - 40px);
+            max-height: calc(100vh - 20px);
             overflow-y: auto;
+        }
+        
+        .container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        
+        .container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
         }
         
         h1 {
             color: #fff;
-            margin-bottom: 5px;
-            font-size: 18px;
+            margin-bottom: 3px;
+            font-size: 16px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-weight: 300;
         }
         
         .subtitle {
             color: #aaa;
-            margin-bottom: 15px;
-            font-size: 11px;
+            margin-bottom: 8px;
+            font-size: 10px;
         }
         
         .form-group {
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         
         label {
             display: block;
             color: #ccc;
             font-weight: 400;
-            margin-bottom: 5px;
-            font-size: 11px;
+            margin-bottom: 3px;
+            font-size: 10px;
         }
         
         .input-row {
@@ -117,10 +131,10 @@
         
         input[type="number"] {
             width: 100%;
-            padding: 6px 8px;
+            padding: 5px 6px;
             border: 1px solid #444;
             border-radius: 3px;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.2s;
             background: rgba(255, 255, 255, 0.1);
             color: white;
@@ -141,24 +155,24 @@
         .preview-box {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            padding: 10px;
-            margin: 12px 0;
+            border-radius: 3px;
+            padding: 6px 8px;
+            margin: 6px 0;
         }
         
         .preview-title {
             font-weight: 400;
             color: #aaa;
-            margin-bottom: 6px;
-            font-size: 11px;
+            margin-bottom: 4px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         
         .preview-info {
             color: #ccc;
-            font-size: 11px;
-            line-height: 1.6;
+            font-size: 10px;
+            line-height: 1.5;
         }
         
         .preview-info div {
@@ -180,15 +194,15 @@
         .divider {
             height: 1px;
             background: rgba(255, 255, 255, 0.1);
-            margin: 12px 0;
+            margin: 8px 0;
         }
         
         button {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             border: none;
-            border-radius: 4px;
-            font-size: 13px;
+            border-radius: 3px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
@@ -267,12 +281,39 @@
         }
         
         .section-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 400;
             color: #aaa;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .slider-row input[type="range"] {
+            flex: 1;
+        }
+        
+        .reset-btn {
+            padding: 4px 8px;
+            font-size: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ccc;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        
+        .reset-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
@@ -344,9 +385,16 @@
                         Show Points
                     </label>
                 </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 12px;">
+                    <label style="display: block; margin-bottom: 4px;">Load Point CSV:</label>
+                    <input type="file" id="csvFileInput" accept=".csv" style="font-size: 11px; width: 100%;">
+                </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
                     <label style="display: block;">Point Scale: <span id="pointScaleValue">1.0x</span></label>
-                    <input type="range" id="pointScale" min="0.01" max="10" step="0.01" value="1" style="width: 100%;">
+                    <div class="slider-row">
+                        <input type="range" id="pointScale" min="0.01" max="10" step="0.01" value="1">
+                        <button type="button" class="reset-btn" id="resetPointScale" title="Reset to auto-detected pitch">↻</button>
+                    </div>
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
                     <label style="display: block;">Point Size: <span id="pointSizeValue">5px</span></label>
@@ -407,41 +455,85 @@
         let pointCloudData = [];
         let pointCloudLoaded = false;
         let pointCloudBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+        let pointCloudPitch = { x: 0, y: 0 }; // Detected pitch/spacing
         
-        // Load point cloud data from CSV
+        // Parse CSV text into point cloud data
+        function parseCSV(csvText) {
+            const lines = csvText.trim().split('\n');
+            
+            // Skip header line
+            pointCloudData = [];
+            let minX = Infinity, maxX = -Infinity;
+            let minY = Infinity, maxY = -Infinity;
+            
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                if (parts.length >= 3) {
+                    const x = parseFloat(parts[1]); // px column
+                    const y = parseFloat(parts[2]); // py column
+                    if (!isNaN(x) && !isNaN(y)) {
+                        pointCloudData.push({ x, y });
+                        minX = Math.min(minX, x);
+                        maxX = Math.max(maxX, x);
+                        minY = Math.min(minY, y);
+                        maxY = Math.max(maxY, y);
+                    }
+                }
+            }
+            
+            // Detect pitch (fixed spacing) in Y direction
+            // Find unique Y values and calculate minimum non-zero difference
+            const uniqueY = [...new Set(pointCloudData.map(p => p.y))].sort((a, b) => a - b);
+            let minYDiff = Infinity;
+            for (let i = 1; i < uniqueY.length; i++) {
+                const diff = uniqueY[i] - uniqueY[i - 1];
+                if (diff > 0.001) { // Ignore tiny differences (floating point errors)
+                    minYDiff = Math.min(minYDiff, diff);
+                }
+            }
+            pointCloudPitch.y = minYDiff;
+            
+            // Same for X direction
+            const uniqueX = [...new Set(pointCloudData.map(p => p.x))].sort((a, b) => a - b);
+            let minXDiff = Infinity;
+            for (let i = 1; i < uniqueX.length; i++) {
+                const diff = uniqueX[i] - uniqueX[i - 1];
+                if (diff > 0.001) {
+                    minXDiff = Math.min(minXDiff, diff);
+                }
+            }
+            pointCloudPitch.x = minXDiff;
+            
+            // Store bounds for normalization
+            pointCloudBounds = { minX, maxX, minY, maxY };
+            pointCloudLoaded = true;
+            
+            console.log('Point cloud loaded:', pointCloudData.length, 'points');
+            console.log('X range:', minX, 'to', maxX, '(width:', maxX - minX, ')');
+            console.log('Y range:', minY, 'to', maxY, '(height:', maxY - minY, ')');
+            console.log('Detected pitch - X:', pointCloudPitch.x.toFixed(3), 'Y:', pointCloudPitch.y.toFixed(3));
+            
+            // Calculate ideal point scale to match cell size
+            // If pitch * baseCellSize * pointScale = baseCellSize, then pointScale = 1 / pitch
+            const baseCellSize = 60;
+            const idealScale = 1 / pointCloudPitch.y; // Use Y pitch as reference
+            console.log('Ideal point scale to match cells:', idealScale.toFixed(3));
+            
+            // Auto-set the point scale if not already manually adjusted
+            const currentScale = parseFloat(document.getElementById('pointScale').value);
+            if (Math.abs(currentScale - 1.0) < 0.01) { // Only auto-adjust if still at default
+                document.getElementById('pointScale').value = idealScale.toFixed(3);
+                document.getElementById('pointScaleValue').textContent = idealScale.toFixed(2) + 'x';
+                console.log('Auto-adjusted point scale to:', idealScale.toFixed(3));
+            }
+        }
+        
+        // Load point cloud data from CSV file
         async function loadPointCloud() {
             try {
                 const response = await fetch('layout.csv');
                 const csvText = await response.text();
-                const lines = csvText.trim().split('\n');
-                
-                // Skip header line
-                pointCloudData = [];
-                let minX = Infinity, maxX = -Infinity;
-                let minY = Infinity, maxY = -Infinity;
-                
-                for (let i = 1; i < lines.length; i++) {
-                    const parts = lines[i].split(',');
-                    if (parts.length >= 3) {
-                        const x = parseFloat(parts[1]); // px column
-                        const y = parseFloat(parts[2]); // py column
-                        if (!isNaN(x) && !isNaN(y)) {
-                            pointCloudData.push({ x, y });
-                            minX = Math.min(minX, x);
-                            maxX = Math.max(maxX, x);
-                            minY = Math.min(minY, y);
-                            maxY = Math.max(maxY, y);
-                        }
-                    }
-                }
-                // Store bounds for normalization
-                pointCloudBounds = { minX, maxX, minY, maxY };
-                pointCloudLoaded = true;
-                
-                console.log('Point cloud loaded:', pointCloudData.length, 'points');
-                console.log('X range:', minX, 'to', maxX, '(width:', maxX - minX, ')');
-                console.log('Y range:', minY, 'to', maxY, '(height:', maxY - minY, ')');
-                console.log('First 3 points:', pointCloudData.slice(0, 3));
+                parseCSV(csvText);
                 updatePreview(); // Redraw with points
             } catch (error) {
                 console.error('Failed to load point cloud:', error);
@@ -512,13 +604,14 @@
                                   py >= -50 && py <= ctx.canvas.height + 50;
                 if (isVisible) visibleCount++;
                 
-                // Draw point as a circle
+                // Draw point as a circle (scale size with grid zoom)
+                const scaledPointSize = pointSize * gridScale;
                 ctx.beginPath();
-                ctx.arc(px, py, pointSize, 0, Math.PI * 2);
+                ctx.arc(px, py, scaledPointSize, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
                 ctx.fill();
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.lineWidth = 1;
+                ctx.lineWidth = Math.max(1, gridScale);
                 ctx.stroke();
                 
                 drawnCount++;
@@ -1017,9 +1110,34 @@
         // Event listeners
         document.getElementById('mapForm').addEventListener('submit', generateExcel);
         
-        document.querySelectorAll('input').forEach(input => {
-            input.addEventListener('input', updatePreview);
-            input.addEventListener('change', updatePreview);
+        document.querySelectorAll('input:not(#csvFileInput)').forEach(input => {
+            input.addEventListener('input', () => {
+                updatePreview();
+                saveSettings();
+            });
+            input.addEventListener('change', () => {
+                updatePreview();
+                saveSettings();
+            });
+        });
+        
+        // CSV file upload handler
+        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        parseCSV(event.target.result);
+                        updatePreview();
+                        console.log('CSV file loaded successfully');
+                    } catch (error) {
+                        console.error('Failed to parse CSV:', error);
+                        alert('Failed to load CSV file. Make sure it has ID,px,py,pz,Universe columns.');
+                    }
+                };
+                reader.readAsText(file);
+            }
         });
         
         // Point cloud scale slider value display
@@ -1041,7 +1159,70 @@
             document.getElementById('pointOffsetYValue').textContent = this.value;
         });
         
+        // Reset point scale button
+        document.getElementById('resetPointScale').addEventListener('click', function() {
+            if (pointCloudPitch.y > 0) {
+                const idealScale = 1 / pointCloudPitch.y;
+                document.getElementById('pointScale').value = idealScale.toFixed(3);
+                document.getElementById('pointScaleValue').textContent = idealScale.toFixed(2) + 'x';
+                saveSettings();
+                updatePreview();
+                console.log('Reset point scale to ideal:', idealScale.toFixed(3));
+            } else {
+                alert('No point cloud loaded yet. Please load a CSV file first.');
+            }
+        });
+        
         // Initialize the application
+        // Save settings to localStorage
+        function saveSettings() {
+            const settings = {
+                cols: document.getElementById('cols').value,
+                rows: document.getElementById('rows').value,
+                universesH: document.getElementById('universes_h').value,
+                universesV: document.getElementById('universes_v').value,
+                showSpreadMap: document.getElementById('showSpreadMap').checked,
+                showPointCloud: document.getElementById('showPointCloud').checked,
+                pointScale: document.getElementById('pointScale').value,
+                pointSize: document.getElementById('pointSize').value,
+                pointOffsetX: document.getElementById('pointOffsetX').value,
+                pointOffsetY: document.getElementById('pointOffsetY').value
+            };
+            localStorage.setItem('spreadMapSettings', JSON.stringify(settings));
+            console.log('Settings saved:', settings);
+        }
+        
+        // Load settings from localStorage
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('spreadMapSettings');
+                if (saved) {
+                    const settings = JSON.parse(saved);
+                    console.log('Settings loaded:', settings);
+                    
+                    // Restore values
+                    if (settings.cols) document.getElementById('cols').value = settings.cols;
+                    if (settings.rows) document.getElementById('rows').value = settings.rows;
+                    if (settings.universesH) document.getElementById('universes_h').value = settings.universesH;
+                    if (settings.universesV) document.getElementById('universes_v').value = settings.universesV;
+                    if (settings.showSpreadMap !== undefined) document.getElementById('showSpreadMap').checked = settings.showSpreadMap;
+                    if (settings.showPointCloud !== undefined) document.getElementById('showPointCloud').checked = settings.showPointCloud;
+                    if (settings.pointScale) document.getElementById('pointScale').value = settings.pointScale;
+                    if (settings.pointSize) document.getElementById('pointSize').value = settings.pointSize;
+                    if (settings.pointOffsetX) document.getElementById('pointOffsetX').value = settings.pointOffsetX;
+                    if (settings.pointOffsetY) document.getElementById('pointOffsetY').value = settings.pointOffsetY;
+                    
+                    // Update slider displays
+                    document.getElementById('pointScaleValue').textContent = parseFloat(settings.pointScale || 1).toFixed(2) + 'x';
+                    document.getElementById('pointSizeValue').textContent = (settings.pointSize || 5) + 'px';
+                    document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX || 0;
+                    document.getElementById('pointOffsetYValue').textContent = settings.pointOffsetY || 0;
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+        
         function initApp() {
             console.log('=== Initializing App ===');
             console.log('Canvas exists:', !!document.getElementById('gridCanvas'));
@@ -1051,6 +1232,9 @@
                 cellsPerUniverse: !!document.getElementById('cellsPerUniverse'),
                 totalCells: !!document.getElementById('totalCells')
             });
+            
+            // Load saved settings
+            loadSettings();
             
             // Load point cloud data
             loadPointCloud();
@@ -1089,12 +1273,57 @@
             updatePreview();
         });
         
-        // Mouse wheel zoom
+        // Mouse wheel zoom (zoom to cursor position)
         document.getElementById('gridCanvas').addEventListener('wheel', function(e) {
             e.preventDefault();
+            
+            const canvas = e.target;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Calculate current zoom parameters
+            const oldZoom = zoom;
             const zoomSpeed = 0.1;
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
-            zoom = Math.max(0.1, Math.min(20, zoom * (1 + delta)));
+            const newZoom = Math.max(0.1, Math.min(20, zoom * (1 + delta)));
+            
+            // Calculate the mouse position in world space before zoom
+            // This requires knowing the current grid transform
+            const availableWidth = canvas.width * 0.9;
+            const availableHeight = canvas.height * 0.9;
+            
+            // Assuming cachedGridImage exists and has dimensions
+            if (cachedGridImage) {
+                const scaleX = availableWidth / cachedGridImage.width;
+                const scaleY = availableHeight / cachedGridImage.height;
+                const baseScale = Math.min(scaleX, scaleY);
+                
+                const oldScale = baseScale * oldZoom;
+                const newScale = baseScale * newZoom;
+                
+                const oldGridWidth = cachedGridImage.width * oldScale;
+                const oldGridHeight = cachedGridImage.height * oldScale;
+                const newGridWidth = cachedGridImage.width * newScale;
+                const newGridHeight = cachedGridImage.height * newScale;
+                
+                const oldBaseOffsetX = (canvas.width - oldGridWidth) / 2;
+                const oldBaseOffsetY = (canvas.height - oldGridHeight) / 2;
+                const newBaseOffsetX = (canvas.width - newGridWidth) / 2;
+                const newBaseOffsetY = (canvas.height - newGridHeight) / 2;
+                
+                // Mouse position relative to grid origin before zoom
+                const oldOffsetX = oldBaseOffsetX + panX;
+                const oldOffsetY = oldBaseOffsetY + panY;
+                const worldX = (mouseX - oldOffsetX) / oldScale;
+                const worldY = (mouseY - oldOffsetY) / oldScale;
+                
+                // Adjust pan so the same world point ends up under the mouse after zoom
+                panX = mouseX - newBaseOffsetX - worldX * newScale;
+                panY = mouseY - newBaseOffsetY - worldY * newScale;
+            }
+            
+            zoom = newZoom;
             updatePreview();
         }, { passive: false });
         
