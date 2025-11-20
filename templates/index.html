@@ -13,59 +13,65 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: #f5f5f5;
             padding: 20px;
         }
         
         .container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
             background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 600px;
-            width: 100%;
-            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 380px;
+            padding: 20px;
         }
         
         h1 {
             color: #333;
-            margin-bottom: 10px;
-            font-size: 28px;
+            margin-bottom: 5px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
+            color: #999;
+            margin-bottom: 20px;
+            font-size: 12px;
         }
         
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 15px;
         }
         
         label {
             display: block;
-            color: #333;
+            color: #555;
             font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 14px;
+            margin-bottom: 5px;
+            font-size: 12px;
         }
         
         .input-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 10px;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
         }
         
         input[type="number"] {
             width: 100%;
-            padding: 12px;
+            padding: 8px;
             border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 14px;
             transition: border-color 0.3s;
         }
         
@@ -75,81 +81,73 @@
         }
         
         .help-text {
-            font-size: 12px;
+            font-size: 10px;
             color: #999;
-            margin-top: 5px;
+            margin-top: 3px;
         }
         
         .preview-box {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 2px solid #667eea;
             border-radius: 8px;
-            padding: 20px;
-            margin: 25px 0;
-            display: none;
-        }
-        
-        .preview-box.show {
-            display: block;
+            padding: 12px;
+            margin: 15px 0;
         }
         
         .preview-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 13px;
         }
         
         .preview-info {
-            color: #666;
-            font-size: 14px;
-            line-height: 1.6;
+            color: #555;
+            font-size: 12px;
+            line-height: 1.8;
         }
         
         .preview-info div {
-            margin: 5px 0;
+            margin: 2px 0;
         }
         
         .preview-info strong {
-            color: #667eea;
+            color: #333;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 80px;
         }
         
-        .button-group {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
+        .preview-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 15px 0;
         }
         
         button {
-            flex: 1;
-            padding: 14px 24px;
+            width: 100%;
+            padding: 12px;
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
-        }
-        
-        .btn-preview {
-            background: #e0e0e0;
-            color: #333;
-        }
-        
-        .btn-preview:hover {
-            background: #d0d0d0;
-        }
-        
-        .btn-generate {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
         
-        .btn-generate:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
         }
         
-        .btn-generate:disabled {
+        button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
@@ -158,8 +156,9 @@
         .loading {
             display: none;
             text-align: center;
-            padding: 20px;
+            padding: 15px;
             color: #667eea;
+            font-size: 12px;
         }
         
         .loading.show {
@@ -167,13 +166,13 @@
         }
         
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 8px;
         }
         
         @keyframes spin {
@@ -185,78 +184,84 @@
             background: #fee;
             border: 2px solid #fcc;
             color: #c33;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
             display: none;
+            font-size: 12px;
         }
         
         .error.show {
             display: block;
         }
         
-        .divider {
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #e0e0e0, transparent);
-            margin: 30px 0;
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🌌 Universe Map Generator</h1>
-        <p class="subtitle">Create custom spreadsheet maps with colored universes</p>
+        <h1>🌌 Universe Map</h1>
+        <p class="subtitle">Generate custom spreadsheet maps</p>
         
         <form id="mapForm">
+            <div class="section-title">Universe Dimensions</div>
             <div class="form-group">
-                <label>Universe Dimensions</label>
                 <div class="input-row">
-                    <div>
+                    <div class="input-wrapper">
+                        <label>Columns</label>
                         <input type="number" id="cols" name="cols" value="20" min="1" max="50" required>
-                        <div class="help-text">Columns per universe</div>
+                        <div class="help-text">per universe</div>
                     </div>
-                    <div>
-                        <input type="number" id="rows" name="rows" value="13" min="1" max="50" required>
-                        <div class="help-text">Rows per universe</div>
+                    <div class="input-wrapper">
+                        <label>Rows</label>
+                        <input type="number" id="rows" name="rows" value="10" min="1" max="50" required>
+                        <div class="help-text">per universe</div>
                     </div>
                 </div>
             </div>
             
             <div class="divider"></div>
             
+            <div class="section-title">Grid Layout</div>
             <div class="form-group">
-                <label>Universe Grid Layout</label>
                 <div class="input-row">
-                    <div>
-                        <input type="number" id="universes_h" name="universes_h" value="6" min="1" max="10" required>
-                        <div class="help-text">Horizontal universes</div>
+                    <div class="input-wrapper">
+                        <label>Horizontal</label>
+                        <input type="number" id="universes_h" name="universes_h" value="9" min="1" max="10" required>
+                        <div class="help-text">universes</div>
                     </div>
-                    <div>
-                        <input type="number" id="universes_v" name="universes_v" value="6" min="1" max="10" required>
-                        <div class="help-text">Vertical universes</div>
+                    <div class="input-wrapper">
+                        <label>Vertical</label>
+                        <input type="number" id="universes_v" name="universes_v" value="5" min="1" max="10" required>
+                        <div class="help-text">universes</div>
                     </div>
                 </div>
             </div>
             
-            <div class="preview-box" id="previewBox">
+            <div class="preview-box">
                 <div class="preview-title">📊 Preview</div>
-                <div class="preview-info" id="previewInfo"></div>
+                <div class="preview-info" id="previewInfo">
+                    <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">-</span></div>
+                    <div><strong>Grid Size:</strong> <span class="preview-value" id="gridSize">-</span></div>
+                    <div><strong>Data Cols:</strong> <span class="preview-value" id="dataCols">-</span></div>
+                    <div><strong>Data Rows:</strong> <span class="preview-value" id="dataRows">-</span></div>
+                </div>
             </div>
             
-            <div class="button-group">
-                <button type="button" class="btn-preview" onclick="updatePreview()">
-                    👁️ Preview
-                </button>
-                <button type="submit" class="btn-generate">
-                    ⬇️ Generate Excel
-                </button>
-            </div>
+            <button type="submit">
+                ⬇️ Generate & Download Excel
+            </button>
             
             <div class="error" id="errorBox"></div>
             
             <div class="loading" id="loading">
                 <div class="spinner"></div>
-                <div>Generating your universe map...</div>
+                <div>Generating...</div>
             </div>
         </form>
     </div>
@@ -269,28 +274,28 @@
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Preview failed: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.error) {
                     showError(data.error);
                     return;
                 }
                 
-                const previewBox = document.getElementById('previewBox');
-                const previewInfo = document.getElementById('previewInfo');
+                document.getElementById('totalUniverses').textContent = data.total_universes;
+                document.getElementById('gridSize').textContent = data.grid_size;
+                document.getElementById('dataCols').textContent = data.total_cols;
+                document.getElementById('dataRows').textContent = data.total_rows;
                 
-                previewInfo.innerHTML = `
-                    <div><strong>Total Universes:</strong> ${data.total_universes}</div>
-                    <div><strong>Total Grid Size:</strong> ${data.grid_size}</div>
-                    <div><strong>Data Columns:</strong> ${data.total_cols}</div>
-                    <div><strong>Data Rows:</strong> ${data.total_rows}</div>
-                `;
-                
-                previewBox.classList.add('show');
                 hideError();
             })
             .catch(error => {
-                showError('Failed to generate preview: ' + error.message);
+                console.error('Preview error:', error);
+                // Don't show error to user for preview, just log it
             });
         }
         
@@ -298,7 +303,7 @@
             e.preventDefault();
             
             const loading = document.getElementById('loading');
-            const submitBtn = document.querySelector('.btn-generate');
+            const submitBtn = document.querySelector('button[type="submit"]');
             
             loading.classList.add('show');
             submitBtn.disabled = true;
@@ -319,7 +324,6 @@
                 return response.blob();
             })
             .then(blob => {
-                // Create download link
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -349,14 +353,23 @@
             document.getElementById('errorBox').classList.remove('show');
         }
         
-        // Auto-preview on load
-        window.addEventListener('load', updatePreview);
-        
-        // Update preview when inputs change
+        // Auto-update preview when inputs change
         document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', updatePreview);
             input.addEventListener('change', updatePreview);
+        });
+        
+        // Initial preview - trigger multiple times to ensure it loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(updatePreview, 100);
+            });
+        } else {
+            setTimeout(updatePreview, 100);
+        }
+        window.addEventListener('load', function() {
+            setTimeout(updatePreview, 200);
         });
     </script>
 </body>
 </html>
-

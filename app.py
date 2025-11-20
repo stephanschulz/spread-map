@@ -12,28 +12,23 @@ import csv
 
 app = Flask(__name__)
 
-def generate_universe_colors():
-    """Generate distinct colors with 20% transparency (80% opacity = CC)."""
+def generate_universe_colors(total_universes):
+    """Generate distinct colors with 20% transparency for any number of universes."""
+    # Extended color palette with more distinct colors
     base_colors = [
         'CCFF6B6B', 'CC4ECDC4', 'CCFFE66D', 'CC95E1D3', 'CCFF8B94', 'CCA8E6CF',
         'CCFFD93D', 'CC6BCF7F', 'CCFFA07A', 'CC87CEEB', 'CCDDA15E', 'CCB4A7D6',
-    ]
-    
-    color_pattern = [
-        [0, 3, 1, 4, 2, 5],
-        [6, 9, 7, 10, 8, 11],
-        [1, 4, 2, 5, 0, 3],
-        [7, 10, 8, 11, 6, 9],
-        [2, 5, 0, 3, 1, 4],
-        [8, 11, 6, 9, 7, 10],
+        'CCFFC0CB', 'CC98D8C8', 'CCFFD700', 'CC9370DB', 'CCFFA500', 'CC20B2AA',
+        'CCFF69B4', 'CC7FFFD4', 'CCFFDAB9', 'CC8FBC8F', 'CCFFC1CC', 'CCAFEEEE',
+        'CCFFB6C1', 'CC00CED1', 'CCFFA07A', 'CC9ACD32', 'CCFF7F50', 'CC48D1CC',
+        'CCFFD700', 'CC9932CC', 'CCFF8C00', 'CC00FA9A', 'CCDA70D6', 'CC32CD32',
     ]
     
     colors = {}
-    for row in range(6):
-        for col in range(6):
-            universe_num = (row * 6) + col + 1
-            color_idx = color_pattern[row][col]
-            colors[universe_num] = base_colors[color_idx]
+    for i in range(total_universes):
+        # Cycle through colors if we have more universes than colors
+        color_idx = i % len(base_colors)
+        colors[i + 1] = base_colors[color_idx]
     
     return colors
 
@@ -77,13 +72,13 @@ def generate_map_data(cols_per_universe, rows_per_universe, universes_horizontal
     
     return grid
 
-def create_excel_file(grid):
+def create_excel_file(grid, total_universes):
     """Create Excel file from grid data."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Universe Map"
     
-    colors = generate_universe_colors()
+    colors = generate_universe_colors(total_universes)
     
     # Styles
     header_fill = PatternFill(start_color='D3D3D3', end_color='D3D3D3', fill_type='solid')
@@ -161,8 +156,9 @@ def generate():
             return jsonify({'error': 'Universe counts must be between 1 and 10'}), 400
         
         # Generate data
+        total_universes = universes_h * universes_v
         grid = generate_map_data(cols, rows, universes_h, universes_v)
-        wb = create_excel_file(grid)
+        wb = create_excel_file(grid, total_universes)
         
         # Save to bytes
         output = io.BytesIO()
@@ -203,10 +199,11 @@ def preview():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    port = 5001
     print("\n🚀 Universe Map Generator Web App")
     print("=" * 50)
-    print("Opening at: http://localhost:5000")
+    print(f"Opening at: http://localhost:{port}")
     print("Press Ctrl+C to stop the server")
     print("=" * 50 + "\n")
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=port, host='127.0.0.1')
 

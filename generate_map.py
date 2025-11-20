@@ -83,46 +83,27 @@ def generate_map():
 
 def generate_universe_colors():
     """
-    Generate distinct colors arranged so neighbors are maximally different.
-    Uses a strategic color pattern for the 6x6 grid.
-    Colors include alpha channel for 20% transparency (80% opacity = CC).
+    Generate distinct colors with 20% transparency for any number of universes.
+    Colors include alpha channel (80% opacity = CC).
     """
-    # 12 highly distinct base colors spread across the color spectrum
+    # Extended color palette with more distinct colors
     # Format: AARRGGBB where AA=CC (80% opacity for 20% transparency)
     base_colors = [
-        'CCFF6B6B',  # Bright Red
-        'CC4ECDC4',  # Turquoise
-        'CCFFE66D',  # Bright Yellow
-        'CC95E1D3',  # Mint
-        'CCFF8B94',  # Pink
-        'CCA8E6CF',  # Light Green
-        'CCFFD93D',  # Golden Yellow
-        'CC6BCF7F',  # Green
-        'CCFFA07A',  # Light Salmon
-        'CC87CEEB',  # Sky Blue
-        'CCDDA15E',  # Tan/Brown
-        'CCB4A7D6',  # Lavender
+        'CCFF6B6B', 'CC4ECDC4', 'CCFFE66D', 'CC95E1D3', 'CCFF8B94', 'CCA8E6CF',
+        'CCFFD93D', 'CC6BCF7F', 'CCFFA07A', 'CC87CEEB', 'CCDDA15E', 'CCB4A7D6',
+        'CCFFC0CB', 'CC98D8C8', 'CCFFD700', 'CC9370DB', 'CCFFA500', 'CC20B2AA',
+        'CCFF69B4', 'CC7FFFD4', 'CCFFDAB9', 'CC8FBC8F', 'CCFFC1CC', 'CCAFEEEE',
+        'CCFFB6C1', 'CC00CED1', 'CCFFA07A', 'CC9ACD32', 'CCFF7F50', 'CC48D1CC',
+        'CCFFD700', 'CC9932CC', 'CCFF8C00', 'CC00FA9A', 'CCDA70D6', 'CC32CD32',
     ]
     
-    # Pattern for 6x6 grid - each number represents which base color to use
-    # This pattern ensures no adjacent cells have the same color
-    # Pattern uses modulo-style distribution for maximum contrast
-    color_pattern = [
-        [0, 3, 1, 4, 2, 5],
-        [6, 9, 7, 10, 8, 11],
-        [1, 4, 2, 5, 0, 3],
-        [7, 10, 8, 11, 6, 9],
-        [2, 5, 0, 3, 1, 4],
-        [8, 11, 6, 9, 7, 10],
-    ]
-    
-    # Build the color map for all 36 universes
+    # Build color map for universes (up to total count)
+    total_universes = UNIVERSES_HORIZONTAL * UNIVERSES_VERTICAL
     colors = {}
-    for row in range(6):
-        for col in range(6):
-            universe_num = (row * 6) + col + 1
-            color_idx = color_pattern[row][col]
-            colors[universe_num] = base_colors[color_idx]
+    for i in range(total_universes):
+        # Cycle through colors if we have more universes than colors
+        color_idx = i % len(base_colors)
+        colors[i + 1] = base_colors[color_idx]
     
     return colors
 
