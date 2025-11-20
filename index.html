@@ -348,7 +348,7 @@
                 <div class="input-row">
                     <div class="input-wrapper">
                         <label>Horizontal</label>
-                        <input type="number" id="universes_h" name="universes_h" value="9" min="1" max="20" required>
+                        <input type="number" id="universes_h" name="universes_h" value="6" min="1" max="20" required>
                         <div class="help-text">universes</div>
                     </div>
                     <div class="input-wrapper">
@@ -397,8 +397,8 @@
                     </div>
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Size: <span id="pointSizeValue">5px</span></label>
-                    <input type="range" id="pointSize" min="1" max="20" step="1" value="5" style="width: 100%;">
+                    <label style="display: block;">Point Size: <span id="pointSizeValue">20px</span></label>
+                    <input type="range" id="pointSize" min="1" max="20" step="1" value="20" style="width: 100%;">
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
                     <label style="display: block;">Point Offset X: <span id="pointOffsetXValue">0</span></label>
@@ -440,7 +440,7 @@
     
     <script>
         // Global state for zoom and pan
-        let zoom = 1.0;
+        let zoom = 0.8;
         let panX = 0;
         let panY = 0;
         let isDragging = false;
@@ -608,10 +608,10 @@
                 const scaledPointSize = pointSize * gridScale;
                 ctx.beginPath();
                 ctx.arc(px, py, scaledPointSize, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                 ctx.fill();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.lineWidth = Math.max(1, gridScale);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = Math.max(1, gridScale * 0.5);
                 ctx.stroke();
                 
                 drawnCount++;
@@ -826,7 +826,7 @@
             const showPoints = document.getElementById('showPointCloud')?.checked;
             if (showPoints && pointCloudLoaded && pointCloudData.length > 0) {
                 const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-                const pointSize = parseFloat(document.getElementById('pointSize')?.value || 5);
+                const pointSize = parseFloat(document.getElementById('pointSize')?.value || 20);
                 const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
                 const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
                 console.log('Drawing points:', pointCloudData.length, 'scale:', pointScale, 'size:', pointSize);
@@ -847,7 +847,7 @@
                 
                 const cols = parseInt(document.getElementById('cols').value) || 20;
                 const rows = parseInt(document.getElementById('rows').value) || 10;
-                const universesH = parseInt(document.getElementById('universes_h').value) || 9;
+                const universesH = parseInt(document.getElementById('universes_h').value) || 6;
                 const universesV = parseInt(document.getElementById('universes_v').value) || 5;
                 
                 console.log('Grid config:', { cols, rows, universesH, universesV });
@@ -1214,7 +1214,7 @@
                     
                     // Update slider displays
                     document.getElementById('pointScaleValue').textContent = parseFloat(settings.pointScale || 1).toFixed(2) + 'x';
-                    document.getElementById('pointSizeValue').textContent = (settings.pointSize || 5) + 'px';
+                    document.getElementById('pointSizeValue').textContent = (settings.pointSize || 20) + 'px';
                     document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX || 0;
                     document.getElementById('pointOffsetYValue').textContent = settings.pointOffsetY || 0;
                 }
@@ -1264,12 +1264,12 @@
         
         // Zoom controls
         document.getElementById('zoomIn').addEventListener('click', function() {
-            zoom = Math.min(zoom * 1.2, 20);
+            zoom = Math.max(0.8, Math.min(zoom * 1.2, 20));
             updatePreview();
         });
         
         document.getElementById('zoomOut').addEventListener('click', function() {
-            zoom = Math.max(zoom / 1.2, 0.1);
+            zoom = Math.max(zoom / 1.2, 0.8);
             updatePreview();
         });
         
@@ -1286,7 +1286,7 @@
             const oldZoom = zoom;
             const zoomSpeed = 0.1;
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
-            const newZoom = Math.max(0.1, Math.min(20, zoom * (1 + delta)));
+            const newZoom = Math.max(0.8, Math.min(20, zoom * (1 + delta)));
             
             // Calculate the mouse position in world space before zoom
             // This requires knowing the current grid transform
