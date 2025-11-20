@@ -1,149 +1,186 @@
-# Universe Map Generator
+# Spread-Map Generator
 
-Generates a spreadsheet map with multiple "universes" arranged in a grid pattern.
+A client-side web application that generates Excel spreadsheets with multiple "universes" arranged in a grid pattern. Includes point cloud visualization and export capabilities.
 
-## Output Files
+## Screenshots
 
-### Web GUI Output
-- **universe_map.xlsx** - Excel file generated in your browser with color-coded universes
+### Web Application
+![Web Interface](screenshot-web.jpg)
+*Interactive canvas with zoom/pan controls, point cloud overlay, and live preview*
 
-### Command Line Output
-- **map.csv** - CSV file for any spreadsheet application
-- **map.xlsx** - Excel file with color-coded universes, includes transparent PNG overlay if `floorplan.png` exists
+### Excel Export
+![Excel Output](screenshot-excel.jpg)
+*Generated spreadsheet with color-coded universes, point markers (●), and cell formatting*
 
-**Overlay Image Support:**
-- Place a `floorplan.png` file (PNG with transparent background) in the directory
-- The script will automatically add it as an overlay on top of the colored universe grid
-- Transparent areas of the PNG allow the colored cells to show through
-- Perfect for floorplans, layouts, or any reference image with transparency
-- **Tip:** In Apple Numbers, lock the image (Format → Arrange → Lock) to click through it and select cells underneath
-- See [NUMBERS_GUIDE.md](NUMBERS_GUIDE.md) for image locking instructions in different apps
 
-## Structure
+## Features
 
-- **Grid**: 6 × 6 universes (36 total)
-- **Each Universe**: 20 columns × 13 rows
-- **Total Size**: 120 columns × 78 rows (plus headers)
-- **Cell Format**: Three lines per cell
-  ```
-  N
-  U#-B#
-  [empty line]
-  ```
-  - N = Column position (1-20, counting left to right across each row)
-  - U# = Universe number (U1-U36)
-  - B# = Row designation within universe (B1-B13, one per row)
+### Visual Preview
+- 🖼️ **Full-screen canvas preview** - automatically fits all universes with zoom controls (80%-2000%)
+- 🔍 **Cell-by-cell rendering** - each cell displays column number, universe label (U#), and row designation (B#)
+- 🎨 **Color-coded universes** - distinct colors with high contrast between neighbors
+- 📍 **Point cloud overlay** - visualize CSV data points on top of the grid
+- 🔎 **Zoom & Pan** - mouse wheel to zoom, click & drag to pan, double-click to reset
+- 🎛️ **Compact floating control panel** - dark overlay panel in top-right corner
 
-## Universe Layout
+### Point Cloud Support
+- 📊 **CSV import** - load point data from `layout.csv` (auto-loaded on startup)
+- 🎯 **Auto-scaling** - detects pitch/spacing and scales to match grid cells
+- 🔧 **Manual adjustments** - fine-tune scale and X/Y offset with sliders
+- 📍 **Export markers** - cells containing points get a ● symbol in the Excel file
+- ⚡ **Staggered rows** - alternates dot position (left/right) to show hexagonal patterns
+- 🎨 **Visual differentiation** - cells with points have 80% opacity, empty cells 15%
+
+### Excel Export
+- ⬇️ **Direct download** - generates `spread-map.xlsx` in your browser
+- 🎨 **Full styling** - colors, borders, alignment, and text formatting
+- 📐 **Square cells** - fixed dimensions (50pt height × 7.5 char width)
+- 💾 **Settings persistence** - remembers your configuration across sessions
+
+## Cell Format
+
+Each cell contains three lines:
+```
+8
+U6-B10
 
 ```
-U1   U2   U3   U4   U5   U6
-U7   U8   U9   U10  U11  U12
-U13  U14  U15  U16  U17  U18
-U19  U20  U21  U22  U23  U24
-U25  U26  U27  U28  U29  U30
-U31  U32  U33  U34  U35  U36
+- **Line 1**: Column number (1-20, left to right)
+- **Line 2**: Universe number (U1-U36) and row designation (B1-B13)
+- **Line 3**: Empty line for spacing
+
+Cells with CSV points add a ● marker on the first line:
+```
+● 8    or    8 ●
+U6-B10        U6-B10
+
 ```
 
-**Color Coding** (in `map.xlsx`):
-- Each universe has a distinct color strategically chosen to maximize contrast with neighboring universes
-- Adjacent universes (horizontally and vertically) have visually different colors for easy identification
-- Colors have **20% transparency** (80% opacity) 
-- Note: `map_with_background.xlsx` has no cell colors (fully transparent) to show the background image
+## Configuration
 
-**Formatting**: 
-- All cells are **square-shaped** (50pt height × 7.5 char width) with fixed dimensions for uniform grid appearance
-- Light grey borders on all cells for clear visual separation
-- Each data cell displays its information on three lines (row number, universe-band designation, and an empty line for spacing)
-- Text is sized at 9pt to fit comfortably within the square cells
-- Text alignment: **horizontally centered** and **vertically top-aligned** for consistent readability
+Default settings (adjustable in GUI):
+- **Grid**: 6 horizontal × 5 vertical universes (30 total)
+- **Each Universe**: 20 columns × 10 rows
+- **Total Size**: 120 columns × 50 rows (plus headers)
+- **Initial Zoom**: 80%
+- **Point Size**: 20px
 
-**PNG Overlay Support**:
-- If `floorplan.png` (transparent PNG) exists in the directory, it will be added as an overlay
-- The PNG sits on top of the colored cells
-- Transparent areas of the PNG allow the colored universe cells to show through
-- Works perfectly in Excel, Google Sheets, and Numbers
-- You can move/resize the overlay image in any spreadsheet application
+All settings are automatically saved to browser localStorage.
 
-## Usage
+## Controls
 
-### Web GUI (Recommended) - Client-Side Only
+### Grid Configuration
+- **Columns/Rows**: Number of cells per universe (1-50)
+- **Horizontal/Vertical Universes**: Grid layout (1-20)
 
-Simply open `index.html` in your browser - no server required!
+### Point Cloud
+- **Show Spread-Map**: Toggle grid visibility
+- **Show Points**: Toggle point cloud visibility
+- **Load Point CSV**: Upload custom CSV file (format: `ID,px,py,pz,Universe`)
+- **Point Scale**: Adjust relative scale (0.01-10x, with reset button)
+- **Point Size**: Visual dot size (1-20px)
+- **Point Offset X/Y**: Fine-tune position (±500px)
 
-```bash
-open index.html
-```
+### View Controls
+- **Zoom buttons**: +/- for stepping, or use mouse wheel
+- **Double-click**: Reset view to 100%
+- **Drag**: Pan the view
 
-Or just double-click `index.html` to open it.
+## Using Generated Files
 
-Features:
-- 🖼️ **Full-screen visual preview** - automatically fits all universes in viewport
-- 🔍 **Complete cell information** - each cell displays:
-  - Column number (1, 2, 3... counting left to right)
-  - Universe label (U1, U2, U3...)
-  - Row designation (B1, B2, B3...)
-- 🔎 **Zoom & Pan** - mouse wheel zoom (10%-1000%), click & drag to pan, double-click to reset
-- 🎛️ **Floating control panel** (dat.GUI style) - dark overlay panel in top-right
-- 📊 Live updates - canvas redraws instantly as you type
-- ⬇️ Direct Excel download generated in your browser
-- 🔧 Customize rows, columns, and universe layout
-- 🚀 **No server needed** - runs entirely in your browser
-- 💾 All processing happens locally
-- 📱 Responsive - adapts to window size
+### Google Sheets
+1. File → Import → Upload
+2. Select `spread-map.xlsx`
+3. Import location: "Replace spreadsheet"
+4. Colors and formatting will be preserved
 
-### Command Line
-
-#### Easy Way
-```bash
-./run.sh
-```
-
-#### Manual Way
-```bash
-# First time setup
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Generate files
-python generate_map.py
-```
-
-## Using the Files
-
-### Google Sheets Import
-
-1. Open Google Sheets
-2. File → Import → Upload
-3. Select `map.xlsx`
-4. Import location: "Replace spreadsheet"
-5. Each universe will have its own distinct color
-6. If you included a `floorplan.png`, it will appear as an overlay
-
-### Apple Numbers (macOS) - Recommended
-
-1. Open `map.xlsx` in Apple Numbers
-2. The colored grid and any overlay image will import
-3. **To lock the image for click-through:**
-   - Select the overlay image
-   - Format panel (right side) → Arrange tab
-   - Check **"Lock"**
-   - Now you can double-click cells underneath without selecting the image!
-4. You can move/resize the overlay image before locking it
+### Apple Numbers
+1. Open `spread-map.xlsx` in Numbers
+2. Colors and point markers import automatically
+3. To lock images: Format → Arrange → Lock (prevents accidental selection)
 
 ### Microsoft Excel
+1. Open `spread-map.xlsx` directly
+2. All styling is preserved
+3. Adjust zoom to view entire grid
 
-1. Open `map.xlsx`
-2. The colored universe grid and any PNG overlay will display
-3. Right-click the overlay image to move, resize, or adjust it
+## Technical Details
 
-## Customization
+### Library Used
+**xlsx-js-style** - SheetJS fork with styling support
+- CDN: `https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js`
+- Supports: cell colors, borders, alignment, wrapping, fonts, row/column sizing
 
-Edit `generate_map.py` to modify:
-- `COLS_PER_UNIVERSE` - Columns per universe (default: 20)
-- `ROWS_PER_UNIVERSE` - Rows per universe (default: 13)
-- `UNIVERSES_HORIZONTAL` - Universes left-to-right (default: 6)
-- `UNIVERSES_VERTICAL` - Universes top-to-bottom (default: 6)
-- `row_height` and `col_width` - Adjust cell dimensions (default: 50pt height, 7.5 char width for square cells)
+### Point Cloud Mapping
+- Detects pitch/spacing from CSV data (X and Y axes)
+- Auto-calculates ideal scale: `1 / pitch`
+- Maps points to cells using same coordinate transform as visual preview
+- Alternates dot position based on CSV row parity (even=left, odd=right)
 
+### Color Transparency
+- Universe cells: 20% transparency (80% opacity)
+- Empty cells: 85% transparency (15% opacity)
+- Cells with points: Full opacity for visibility
+- Blending formula: `rgb * opacity + 255 * (1 - opacity)`
+
+### Browser Compatibility
+✅ Chrome, Safari, Firefox, Edge (modern versions)
+
+### Performance
+- Small grids (≤30 universes): Instant
+- Medium grids (30-60 universes): 1-2 seconds
+- Large grids (60+ universes): 3-5 seconds
+- Pre-rendered canvas: Fast zoom/pan at any size
+
+### Storage
+- Settings saved to browser `localStorage`
+- Survives page reload and browser restart
+- Clear with: `localStorage.removeItem('spreadMapSettings')`
+
+## Troubleshooting
+
+**No preview showing:**
+- Check browser console (F12) for errors
+- Ensure canvas element loads properly
+- Try refreshing the page
+
+**Points not visible:**
+- Verify `layout.csv` is in same directory
+- Check console for CSV loading messages
+- Adjust Point Scale slider
+- Toggle "Show Points" checkbox
+
+**Excel colors missing:**
+- Ensure using modern Excel/Sheets version
+- Check file opens correctly
+- Try re-generating with smaller grid first
+
+**File won't download:**
+- Check popup blocker settings
+- Grant download permission if prompted
+- Try different browser
+
+## Files
+
+### Core Files
+- `index.html` - Main web application
+- `layout.csv` - Point cloud data (auto-loaded)
+
+### Optional Files
+- `floorplan.png` - Background image reference
+- `NUMBERS_GUIDE.md` - Detailed Apple Numbers instructions
+
+### Generated Files
+- `spread-map.xlsx` - Excel output with all styling and point markers
+
+## Tips
+
+- **Start small**: Test with 3×2 universes to understand the system
+- **Reset button**: Use ↻ next to Point Scale to restore auto-detected value
+- **Zoom workflow**: Fit all → zoom to area → adjust points → export
+- **Save often**: Settings persist automatically, but bookmark your configs
+- **Point alignment**: Use offset sliders if CSV data doesn't perfectly align with cells
+
+---
+
+**No installation required** • **Runs entirely in browser** • **Privacy-friendly** (all processing local)
