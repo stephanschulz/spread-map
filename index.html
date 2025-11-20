@@ -1075,11 +1075,15 @@
                         const pointKey = `${R},${C}`;
                         if (cellsWithPoints.has(pointKey) && R > 0 && C > 0) {
                             const pointInfo = cellsWithPoints.get(pointKey);
-                            // Add dot with spacing based on stagger pattern
-                            if (pointInfo.left) {
-                                cellValue = '● ' + cellValue; // Dot on left
-                            } else {
-                                cellValue = cellValue + ' ●'; // Dot on right
+                            // Add dot on first line with the number, left or right based on stagger pattern
+                            const lines = cellValue.split('\n');
+                            if (lines.length > 0) {
+                                if (pointInfo.left) {
+                                    lines[0] = '● ' + lines[0]; // Dot before number
+                                } else {
+                                    lines[0] = lines[0] + ' ●'; // Dot after number
+                                }
+                                cellValue = lines.join('\n');
                             }
                         }
                         
