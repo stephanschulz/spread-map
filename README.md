@@ -78,8 +78,11 @@ open index.html
 Or just double-click `index.html` to open it.
 
 Features:
-- 🖼️ **Full-screen visual preview** - colored universe grid fills entire browser window
-- 🔍 **Individual cell view** - see every cell with column numbers (1-20) and row labels (B1, B2...)
+- 🖼️ **Full-screen visual preview** - automatically fits all universes in viewport
+- 🔍 **Complete cell information** - each cell displays:
+  - Column number (1, 2, 3... counting left to right)
+  - Universe label (U1, U2, U3...)
+  - Row designation (B1, B2, B3...)
 - 🔎 **Zoom & Pan** - mouse wheel zoom (10%-1000%), click & drag to pan, double-click to reset
 - 🎛️ **Floating control panel** (dat.GUI style) - dark overlay panel in top-right
 - 📊 Live updates - canvas redraws instantly as you type

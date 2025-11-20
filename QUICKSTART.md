@@ -21,8 +21,8 @@ The web interface will open with:
 - Changes update **instantly** as you type!
 
 Features:
-- ✅ **Full-screen visual preview** - grid fills entire browser window
-- ✅ **Individual cells visible** - see every cell with its label
+- ✅ **Full-screen visual preview** - automatically fits all universes on screen
+- ✅ **Individual cells visible** - each cell shows column number (1-20), universe (U1, U2...), and row label (B1, B2...)
 - ✅ **Zoom in/out** - mouse wheel or +/- buttons (10% to 1000%)
 - ✅ **Pan/drag** - click and drag to move around the grid
 - ✅ Color-coded universes (easy to see the layout)

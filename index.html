@@ -335,7 +335,8 @@
                 <button type="button" class="zoom-btn" id="zoomIn">+</button>
             </div>
             <div style="font-size: 10px; color: #888; text-align: center; margin-top: 4px;">
-                Scroll to zoom • Drag to pan
+                Scroll to zoom • Drag to pan<br>
+                Double-click to reset view
             </div>
             
             <div class="divider"></div>
@@ -383,24 +384,40 @@
         // Draw grid preview with individual cells
         function drawGridPreview(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse) {
             const canvas = document.getElementById('gridCanvas');
-            if (!canvas) return;
+            if (!canvas) {
+                console.error('Canvas not found!');
+                return;
+            }
             
             const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Could not get canvas context!');
+                return;
+            }
             
             // Set canvas to full window size
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // Clear canvas with background color
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Calculate base cell size (before zoom)
-            const baseCellSize = 40; // Base size for individual cells
-            const cellSize = baseCellSize * zoom;
-            
-            // Calculate total grid dimensions
+            // Calculate total dimensions
             const totalCols = universesH * colsPerUniverse;
             const totalRows = universesV * rowsPerUniverse;
+            
+            // Calculate cell size to fit all content in viewport
+            const availableWidth = canvas.width * 0.9;
+            const availableHeight = canvas.height * 0.9;
+            const cellWidth = availableWidth / totalCols;
+            const cellHeight = availableHeight / totalRows;
+            const baseCellSize = Math.min(cellWidth, cellHeight);
+            const cellSize = baseCellSize * zoom;
+            
+            console.log('Drawing grid:', { totalCols, totalRows, baseCellSize, cellSize, zoom });
+            
+            // Calculate total grid dimensions
             const gridWidth = totalCols * cellSize;
             const gridHeight = totalRows * cellSize;
             
@@ -459,37 +476,30 @@
                         ctx.stroke();
                     }
                     
-                    // Draw cell labels if zoomed in enough
-                    if (cellSize > 20) {
+                    // Draw cell labels
+                    if (cellSize > 15) {
                         ctx.fillStyle = '#fff';
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
                         ctx.shadowBlur = 2;
                         ctx.textAlign = 'center';
                         
-                        // Draw column number
-                        const fontSize = Math.max(8, cellSize / 6);
+                        const fontSize = Math.max(7, cellSize / 7);
+                        
+                        // Draw column number at top
                         ctx.font = `${fontSize}px Arial`;
                         ctx.textBaseline = 'top';
-                        ctx.fillText(`${colInUniverse}`, x + cellSize / 2, y + 2);
+                        ctx.fillText(`${colInUniverse}`, x + cellSize / 2, y + 3);
                         
-                        // Draw B label
-                        ctx.textBaseline = 'bottom';
-                        ctx.font = `${fontSize * 0.8}px Arial`;
-                        ctx.fillText(`B${rowInUniverse}`, x + cellSize / 2, y + cellSize - 2);
-                        
-                        ctx.shadowBlur = 0;
-                    }
-                    
-                    // Draw universe label at the center of each universe
-                    if (cellSize > 30 && rowInUniverse === Math.ceil(rowsPerUniverse / 2) && 
-                        colInUniverse === Math.ceil(colsPerUniverse / 2)) {
-                        ctx.fillStyle = '#fff';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-                        ctx.shadowBlur = 4;
-                        ctx.font = `bold ${Math.max(12, cellSize / 2)}px Arial`;
-                        ctx.textAlign = 'center';
+                        // Draw universe label in middle
+                        ctx.font = `bold ${fontSize * 0.9}px Arial`;
                         ctx.textBaseline = 'middle';
                         ctx.fillText(`U${universeNum}`, x + cellSize / 2, y + cellSize / 2);
+                        
+                        // Draw B label at bottom
+                        ctx.font = `${fontSize * 0.85}px Arial`;
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(`B${rowInUniverse}`, x + cellSize / 2, y + cellSize - 3);
+                        
                         ctx.shadowBlur = 0;
                     }
                 }
@@ -505,10 +515,14 @@
         // Update preview
         function updatePreview() {
             try {
+                console.log('updatePreview called');
+                
                 const cols = parseInt(document.getElementById('cols').value) || 20;
                 const rows = parseInt(document.getElementById('rows').value) || 10;
                 const universesH = parseInt(document.getElementById('universes_h').value) || 9;
                 const universesV = parseInt(document.getElementById('universes_v').value) || 5;
+                
+                console.log('Grid config:', { cols, rows, universesH, universesV });
                 
                 const totalCols = cols * universesH;
                 const totalRows = rows * universesV;
@@ -518,12 +532,25 @@
                 const elem1 = document.getElementById('totalUniverses');
                 const elem2 = document.getElementById('gridSize');
                 
-                if (elem1) elem1.textContent = totalUniverses;
-                if (elem2) elem2.textContent = `${totalRows + 1} × ${totalCols + 1}`;
+                if (elem1) {
+                    elem1.textContent = totalUniverses;
+                    console.log('Updated totalUniverses:', totalUniverses);
+                } else {
+                    console.error('totalUniverses element not found');
+                }
+                
+                if (elem2) {
+                    elem2.textContent = `${totalRows + 1} × ${totalCols + 1}`;
+                    console.log('Updated gridSize');
+                } else {
+                    console.error('gridSize element not found');
+                }
                 
                 // Draw visual preview with cells
                 const colors = generateUniverseColors(totalUniverses);
+                console.log('Generated colors for', totalUniverses, 'universes');
                 drawGridPreview(universesH, universesV, colors, cols, rows);
+                console.log('Draw complete');
                 
             } catch (error) {
                 console.error('Preview update error:', error);
@@ -741,22 +768,30 @@
             input.addEventListener('change', updatePreview);
         });
         
-        // Initial preview on load - with fallback
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('DOM loaded, updating preview');
-                updatePreview();
+        // Initialize the application
+        function initApp() {
+            console.log('=== Initializing App ===');
+            console.log('Canvas exists:', !!document.getElementById('gridCanvas'));
+            console.log('Stats elements exist:', {
+                totalUniverses: !!document.getElementById('totalUniverses'),
+                gridSize: !!document.getElementById('gridSize')
             });
-        } else {
-            console.log('Immediate preview update');
+            
+            // Initial preview
             updatePreview();
+            
+            console.log('=== App Initialized ===');
         }
         
-        // Also update after a short delay to ensure everything is ready
-        setTimeout(function() {
-            console.log('Delayed preview update');
-            updatePreview();
-        }, 100);
+        // Wait for DOM to be fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+        
+        // Fallback - also try after a delay
+        setTimeout(initApp, 100);
         
         // Redraw on window resize
         let resizeTimeout;
