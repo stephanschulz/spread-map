@@ -447,8 +447,8 @@
                     }
                     
                     // Draw cell labels
-                    ctx.fillStyle = '#fff';
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillStyle = '#000';
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
                     ctx.shadowBlur = 2;
                     ctx.textAlign = 'center';
                     
@@ -474,9 +474,9 @@
             }
             
             // Draw large universe labels in the center of each universe (preview only)
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
-            ctx.lineWidth = 3;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 4;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
@@ -862,7 +862,7 @@
         
         // Zoom controls
         document.getElementById('zoomIn').addEventListener('click', function() {
-            zoom = Math.min(zoom * 1.2, 10);
+            zoom = Math.min(zoom * 1.2, 20);
             updatePreview();
         });
         
@@ -876,7 +876,7 @@
             e.preventDefault();
             const zoomSpeed = 0.1;
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
-            zoom = Math.max(0.1, Math.min(10, zoom * (1 + delta)));
+            zoom = Math.max(0.1, Math.min(20, zoom * (1 + delta)));
             updatePreview();
         }, { passive: false });
         
