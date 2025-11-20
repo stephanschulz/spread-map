@@ -1,5 +1,7 @@
 # Spread-Map Generator
 
+> **Note:** This project was developed with AI assistance.
+
 A client-side web application that generates Excel spreadsheets with multiple "universes" arranged in a grid pattern. Includes point cloud visualization and export capabilities.
 
 ## Screenshots
