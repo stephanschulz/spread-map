@@ -8,27 +8,30 @@ Also generates an Excel file with colored universes for Google Sheets.
 import csv
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from openpyxl.drawing.image import Image
+import os
 
 # Configuration
-COLS_PER_UNIVERSE = 15
-ROWS_PER_UNIVERSE = 20
+COLS_PER_UNIVERSE = 20
+ROWS_PER_UNIVERSE = 13
 UNIVERSES_HORIZONTAL = 6  # U1 through U6 (original + 5 to the right)
 UNIVERSES_VERTICAL = 6    # 6 rows of universes (original + 5 downward)
 
 def generate_cell_label(row_in_universe, col_in_universe, universe_num):
     """
-    Generate a cell label with line break: NN\nU#-B#
-    row_in_universe: 1-20
-    col_in_universe: 0-14 (maps to B1-B15)
+    Generate a cell label with line break: N\nU#-B#
+    row_in_universe: 1-13
+    col_in_universe: 0-19 (maps to B1-B20)
     universe_num: 1-36
     """
-    # Row number with zero padding (01-20)
-    row_label = f"{row_in_universe:02d}"
+    # Row number (1-20 for naming, even though we only have 13 rows)
+    # We'll use 1-13 as the actual row numbers
+    row_label = f"{row_in_universe}"
     
     # Universe label (U1, U2, etc.)
     universe_label = f"U{universe_num}"
     
-    # B label goes from B1 to B15 (one per column in the universe)
+    # B label goes from B1 to B20 (one per column in the universe)
     b_num = col_in_universe + 1
     b_label = f"B{b_num}"
     
@@ -82,21 +85,23 @@ def generate_universe_colors():
     """
     Generate distinct colors arranged so neighbors are maximally different.
     Uses a strategic color pattern for the 6x6 grid.
+    Colors include alpha channel for 20% transparency (80% opacity = CC).
     """
     # 12 highly distinct base colors spread across the color spectrum
+    # Format: AARRGGBB where AA=CC (80% opacity for 20% transparency)
     base_colors = [
-        'FF6B6B',  # Bright Red
-        '4ECDC4',  # Turquoise
-        'FFE66D',  # Bright Yellow
-        '95E1D3',  # Mint
-        'FF8B94',  # Pink
-        'A8E6CF',  # Light Green
-        'FFD93D',  # Golden Yellow
-        '6BCF7F',  # Green
-        'FFA07A',  # Light Salmon
-        '87CEEB',  # Sky Blue
-        'DDA15E',  # Tan/Brown
-        'B4A7D6',  # Lavender
+        'CCFF6B6B',  # Bright Red
+        'CC4ECDC4',  # Turquoise
+        'CCFFE66D',  # Bright Yellow
+        'CC95E1D3',  # Mint
+        'CCFF8B94',  # Pink
+        'CCA8E6CF',  # Light Green
+        'CCFFD93D',  # Golden Yellow
+        'CC6BCF7F',  # Green
+        'CCFFA07A',  # Light Salmon
+        'CC87CEEB',  # Sky Blue
+        'CCDDA15E',  # Tan/Brown
+        'CCB4A7D6',  # Lavender
     ]
     
     # Pattern for 6x6 grid - each number represents which base color to use
@@ -129,8 +134,8 @@ def save_to_csv(grid, filename='map.csv'):
     print(f"Generated {filename}")
     print(f"  Total size: {len(grid)} rows x {len(grid[0])} columns (including headers)")
 
-def save_to_excel(grid, filename='map.xlsx'):
-    """Save the grid to an Excel file with colored universes and square cells."""
+def save_to_excel(grid, filename='map.xlsx', background_image=None, transparent_cells=False):
+    """Save the grid to an Excel file with square cells and optional background image."""
     wb = Workbook()
     ws = wb.active
     ws.title = "Universe Map"
@@ -168,50 +173,80 @@ def save_to_excel(grid, filename='map.xlsx'):
                 cell.alignment = top_center_align_wrap
                 cell.font = data_font
                 
-                # Determine universe number from cell content
-                # Cell format: NN\nU#-B#\n (e.g., 01\nU1-B1\n)
-                if isinstance(cell_value, str) and 'U' in cell_value:
-                    try:
-                        # Split by newline and get second part
-                        lines = cell_value.split('\n')
-                        if len(lines) >= 2:
-                            # Second line contains U#-B#
-                            second_line = lines[1]
-                            # Extract universe number (format: U#-B#)
-                            parts = second_line.split('-')
-                            universe_str = parts[0]  # U1, U2, etc.
-                            universe_num = int(universe_str[1:])  # Extract number
-                            
-                            # Apply color for this universe
-                            if universe_num in colors:
-                                cell.fill = PatternFill(start_color=colors[universe_num], 
-                                                       end_color=colors[universe_num], 
-                                                       fill_type='solid')
-                    except (IndexError, ValueError):
-                        pass
+                # Only apply colors if not using transparent cells
+                if not transparent_cells:
+                    # Determine universe number from cell content
+                    # Cell format: NN\nU#-B#\n (e.g., 01\nU1-B1\n)
+                    if isinstance(cell_value, str) and 'U' in cell_value:
+                        try:
+                            # Split by newline and get second part
+                            lines = cell_value.split('\n')
+                            if len(lines) >= 2:
+                                # Second line contains U#-B#
+                                second_line = lines[1]
+                                # Extract universe number (format: U#-B#)
+                                parts = second_line.split('-')
+                                universe_str = parts[0]  # U1, U2, etc.
+                                universe_num = int(universe_str[1:])  # Extract number
+                                
+                                # Apply color for this universe
+                                if universe_num in colors:
+                                    cell.fill = PatternFill(start_color=colors[universe_num], 
+                                                           end_color=colors[universe_num], 
+                                                           fill_type='solid')
+                        except (IndexError, ValueError):
+                            pass
     
     # Set fixed square cell dimensions
-    # Cell size chosen to accommodate 3 lines of text comfortably
-    cell_size = 50  # Width and height in Excel units
+    # Excel uses different units: row height in points, column width in character units
+    # To create square cells, we need to match them visually
+    row_height = 50  # Height in points
+    col_width = 7.5  # Width in character units (approximately matches 50pt height for square cells)
     
     # Set all column widths to create square cells
     for col_idx in range(1, len(grid[0]) + 1):
         column_letter = ws.cell(row=1, column=col_idx).column_letter
-        ws.column_dimensions[column_letter].width = cell_size / 7  # Adjust for Excel's width units
+        ws.column_dimensions[column_letter].width = col_width
     
     # Set all row heights to create square cells
     for row_idx in range(1, len(grid) + 1):
-        ws.row_dimensions[row_idx].height = cell_size
+        ws.row_dimensions[row_idx].height = row_height
+    
+    # Add background image AFTER all cells are written so it appears below
+    if background_image and os.path.exists(background_image):
+        img = Image(background_image)
+        # Position the image at cell B2 (start of data area, after headers)
+        img.anchor = 'B2'
+        ws.add_image(img)
     
     wb.save(filename)
     print(f"Generated {filename}")
     print(f"  Total size: {len(grid)} rows x {len(grid[0])} columns (including headers)")
-    print(f"  Each universe has its own color")
+    if transparent_cells:
+        print(f"  Cells are transparent to show background image")
+    else:
+        print(f"  Each universe has its own color")
+    if background_image and os.path.exists(background_image):
+        print(f"  Background image added: {background_image}")
 
 if __name__ == '__main__':
     grid = generate_map()
     save_to_csv(grid)
-    save_to_excel(grid)
+    
+    # Check for overlay image (PNG with transparency)
+    overlay_image = 'floorplan.png'
+    has_overlay = os.path.exists(overlay_image)
+    
+    if has_overlay:
+        # Generate colored version with transparent PNG overlay
+        save_to_excel(grid, filename='map.xlsx', 
+                     background_image=overlay_image, transparent_cells=False)
+        print("\n✨ Transparent PNG overlay added to colored universe grid")
+        print("   The colored cells will show through the transparent areas of the PNG")
+    else:
+        # No overlay image, just generate normal version
+        save_to_excel(grid, filename='map.xlsx', transparent_cells=False)
+    
     print(f"\nUniverse layout:")
     print(f"  Universes: {UNIVERSES_HORIZONTAL} x {UNIVERSES_VERTICAL} = {UNIVERSES_HORIZONTAL * UNIVERSES_VERTICAL} total")
 
