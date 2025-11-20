@@ -359,6 +359,10 @@
                 </div>
             </div>
             
+            <button type="button" id="applyGridBtn" style="width: 100%; margin-top: 8px; padding: 6px; background: #667eea; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-weight: 500;">
+                Apply Grid Changes
+            </button>
+            
             <div class="preview-box" id="previewBox">
                 <div class="preview-title">📊 Stats</div>
                 <div class="preview-info" id="previewInfo">
@@ -1190,7 +1194,8 @@
         // Event listeners
         document.getElementById('mapForm').addEventListener('submit', generateExcel);
         
-        document.querySelectorAll('input:not(#csvFileInput)').forEach(input => {
+        // Auto-update for all inputs except grid layout fields and CSV upload
+        document.querySelectorAll('input:not(#csvFileInput):not(#cols):not(#rows):not(#universes_h):not(#universes_v)').forEach(input => {
             input.addEventListener('input', () => {
                 updatePreview();
                 saveSettings();
@@ -1199,6 +1204,17 @@
                 updatePreview();
                 saveSettings();
             });
+        });
+        
+        // Grid layout fields - only save on change, don't auto-update preview
+        ['cols', 'rows', 'universes_h', 'universes_v'].forEach(id => {
+            document.getElementById(id).addEventListener('change', saveSettings);
+        });
+        
+        // Apply button for grid layout changes
+        document.getElementById('applyGridBtn').addEventListener('click', () => {
+            updatePreview();
+            saveSettings();
         });
         
         // CSV file upload handler
