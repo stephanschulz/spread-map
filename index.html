@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Universe Map Generator</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
@@ -15,11 +18,13 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #f5f5f5;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
         }
         
         .container {
-            position: absolute;
+            position: fixed;
             top: 20px;
             left: 20px;
             background: white;
@@ -27,6 +32,22 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             width: 380px;
             padding: 20px;
+            z-index: 100;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .preview-main {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            padding-left: 420px;
         }
         
         h1 {
@@ -202,9 +223,44 @@
             color: #333;
             margin-bottom: 10px;
         }
+        
+        .grid-preview-main {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            max-width: calc(100vw - 480px);
+            max-height: calc(100vh - 80px);
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .grid-preview-title {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+        
+        #gridCanvas {
+            display: block;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body>
+    <div class="preview-main">
+        <div class="grid-preview-main">
+            <div class="grid-preview-title">🎨 Universe Grid Preview</div>
+            <canvas id="gridCanvas"></canvas>
+        </div>
+    </div>
+    
     <div class="container">
         <h1>🌌 Universe Map</h1>
         <p class="subtitle">Generate custom spreadsheet maps</p>
@@ -244,13 +300,11 @@
                 </div>
             </div>
             
-            <div class="preview-box">
-                <div class="preview-title">📊 Preview</div>
+            <div class="preview-box" id="previewBox">
+                <div class="preview-title">📊 Stats</div>
                 <div class="preview-info" id="previewInfo">
-                    <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">45</span></div>
-                    <div><strong>Grid Size:</strong> <span class="preview-value" id="gridSize">51 × 181</span></div>
-                    <div><strong>Data Cols:</strong> <span class="preview-value" id="dataCols">180</span></div>
-                    <div><strong>Data Rows:</strong> <span class="preview-value" id="dataRows">50</span></div>
+                    <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">-</span></div>
+                    <div><strong>Grid:</strong> <span class="preview-value" id="gridSize">-</span></div>
                 </div>
             </div>
             
@@ -286,21 +340,80 @@
             return colors;
         }
         
+        // Draw grid preview on canvas
+        function drawGridPreview(universesH, universesV, colors) {
+            const canvas = document.getElementById('gridCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            // Calculate cell size to fit in available space
+            const maxWidth = window.innerWidth - 500;  // Account for sidebar
+            const maxHeight = window.innerHeight - 180; // Account for padding and title
+            
+            const cellWidth = Math.floor(maxWidth / universesH);
+            const cellHeight = Math.floor(maxHeight / universesV);
+            const cellSize = Math.min(cellWidth, cellHeight, 80); // Max 80px per cell
+            const minCellSize = 30; // Min 30px per cell
+            const finalCellSize = Math.max(cellSize, minCellSize);
+            
+            // Set canvas size
+            canvas.width = finalCellSize * universesH;
+            canvas.height = finalCellSize * universesV;
+            
+            // Draw each universe
+            for (let row = 0; row < universesV; row++) {
+                for (let col = 0; col < universesH; col++) {
+                    const universeNum = (row * universesH) + col + 1;
+                    const x = col * finalCellSize;
+                    const y = row * finalCellSize;
+                    
+                    // Get color
+                    const hexColor = colors[universeNum] || 'CCCCCC';
+                    ctx.fillStyle = '#' + hexColor;
+                    ctx.fillRect(x, y, finalCellSize, finalCellSize);
+                    
+                    // Draw border
+                    ctx.strokeStyle = '#999';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, finalCellSize, finalCellSize);
+                    
+                    // Draw universe label
+                    ctx.fillStyle = '#333';
+                    ctx.font = `bold ${Math.max(10, finalCellSize / 3)}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`U${universeNum}`, x + finalCellSize / 2, y + finalCellSize / 2);
+                }
+            }
+        }
+        
         // Update preview
         function updatePreview() {
-            const cols = parseInt(document.getElementById('cols').value) || 20;
-            const rows = parseInt(document.getElementById('rows').value) || 10;
-            const universesH = parseInt(document.getElementById('universes_h').value) || 9;
-            const universesV = parseInt(document.getElementById('universes_v').value) || 5;
-            
-            const totalCols = cols * universesH;
-            const totalRows = rows * universesV;
-            const totalUniverses = universesH * universesV;
-            
-            document.getElementById('totalUniverses').textContent = totalUniverses;
-            document.getElementById('gridSize').textContent = `${totalRows + 1} × ${totalCols + 1}`;
-            document.getElementById('dataCols').textContent = totalCols;
-            document.getElementById('dataRows').textContent = totalRows;
+            try {
+                const cols = parseInt(document.getElementById('cols').value) || 20;
+                const rows = parseInt(document.getElementById('rows').value) || 10;
+                const universesH = parseInt(document.getElementById('universes_h').value) || 9;
+                const universesV = parseInt(document.getElementById('universes_v').value) || 5;
+                
+                const totalCols = cols * universesH;
+                const totalRows = rows * universesV;
+                const totalUniverses = universesH * universesV;
+                
+                // Update stats
+                const elem1 = document.getElementById('totalUniverses');
+                const elem2 = document.getElementById('gridSize');
+                
+                if (elem1) elem1.textContent = totalUniverses;
+                if (elem2) elem2.textContent = `${totalRows + 1} × ${totalCols + 1}`;
+                
+                // Draw visual preview
+                const colors = generateUniverseColors(totalUniverses);
+                drawGridPreview(universesH, universesV, colors);
+                
+            } catch (error) {
+                console.error('Preview update error:', error);
+            }
         }
         
         // Generate cell label
@@ -514,8 +627,29 @@
             input.addEventListener('change', updatePreview);
         });
         
-        // Initial preview on load
-        updatePreview();
+        // Initial preview on load - with fallback
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('DOM loaded, updating preview');
+                updatePreview();
+            });
+        } else {
+            console.log('Immediate preview update');
+            updatePreview();
+        }
+        
+        // Also update after a short delay to ensure everything is ready
+        setTimeout(function() {
+            console.log('Delayed preview update');
+            updatePreview();
+        }, 100);
+        
+        // Redraw on window resize
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(updatePreview, 200);
+        });
     </script>
 </body>
 </html>

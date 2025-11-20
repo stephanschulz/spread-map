@@ -15,9 +15,16 @@ open index.html
 
 ### That's It!
 
-The web interface will open showing:
-- ✅ Live preview (updates as you type)
-- ✅ Customizable dimensions
+The web interface will open with:
+- **Left Panel**: Compact controls for customizing your map
+- **Main Area**: Large visual preview showing the colored universe grid
+- Changes update **instantly** as you type!
+
+Features:
+- ✅ **Large visual grid preview** - fills the main screen
+- ✅ Color-coded universes (easy to see the layout)
+- ✅ Live stats (updates as you type)
+- ✅ Compact controls on the left
 - ✅ Instant Excel generation
 
 No server, no Python, no installation needed!

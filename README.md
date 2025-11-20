@@ -78,12 +78,14 @@ open index.html
 Or just double-click `index.html` to open it.
 
 Features:
-- 🎨 Visual interface for setting dimensions
-- 📊 **Live preview** updates instantly as you type
+- 🎨 Compact control panel on the left
+- 🖼️ **Large visual grid preview** - fills the main screen with colored universe layout
+- 📊 Live updates - preview redraws instantly as you type
 - ⬇️ Direct Excel download generated in your browser
 - 🔧 Customize rows, columns, and universe layout
 - 🚀 **No server needed** - runs entirely in your browser
 - 💾 All processing happens locally
+- 📱 Responsive - adapts to window size
 
 ### Command Line
 
