@@ -330,6 +330,32 @@
             
             <div class="divider"></div>
             
+            <div class="section-title">Display Options</div>
+            <div class="form-group">
+                <div class="input-wrapper" style="width: 100%;">
+                    <label>
+                        <input type="checkbox" id="showSpreadMap" checked>
+                        Show Spread-Map
+                    </label>
+                </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label>
+                        <input type="checkbox" id="showPointCloud" checked>
+                        Show Points
+                    </label>
+                </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label style="display: block;">Point Scale: <span id="pointScaleValue">1.0x</span></label>
+                    <input type="range" id="pointScale" min="0.01" max="10" step="0.01" value="1" style="width: 100%;">
+                </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label style="display: block;">Point Size: <span id="pointSizeValue">5px</span></label>
+                    <input type="range" id="pointSize" min="1" max="20" step="1" value="5" style="width: 100%;">
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
             <div class="section-title">View Controls</div>
             <div class="zoom-controls">
                 <button type="button" class="zoom-btn" id="zoomOut">−</button>
@@ -369,6 +395,38 @@
         let cachedGridImage = null;
         let cachedGridConfig = null;
         
+        // Point cloud data
+        let pointCloudData = [];
+        let pointCloudLoaded = false;
+        
+        // Load point cloud data from CSV
+        async function loadPointCloud() {
+            try {
+                const response = await fetch('layout.csv');
+                const csvText = await response.text();
+                const lines = csvText.trim().split('\n');
+                
+                // Skip header line
+                pointCloudData = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',');
+                    if (parts.length >= 3) {
+                        const x = parseFloat(parts[1]); // px column
+                        const y = parseFloat(parts[2]); // py column
+                        if (!isNaN(x) && !isNaN(y)) {
+                            pointCloudData.push({ x, y });
+                        }
+                    }
+                }
+                pointCloudLoaded = true;
+                console.log('Point cloud loaded:', pointCloudData.length, 'points');
+                updatePreview(); // Redraw with points
+            } catch (error) {
+                console.error('Failed to load point cloud:', error);
+                pointCloudLoaded = false;
+            }
+        }
+        
         // Generate universe colors
         function generateUniverseColors(totalUniverses) {
             const baseColors = [
@@ -385,6 +443,55 @@
                 colors[i + 1] = baseColors[i % baseColors.length];
             }
             return colors;
+        }
+        
+        // Draw point cloud overlay
+        function drawPointCloud(ctx, offsetX, offsetY, gridScale, pointScale, pointSize) {
+            // Cell size in the high-res rendered image
+            const baseCellSize = 60;
+            
+            // Calculate the scale factor to map CSV coordinates to grid cells
+            const scaledCellSize = baseCellSize * gridScale;
+            
+            console.log('Point cloud rendering:', {
+                offsetX, offsetY, gridScale, pointScale, pointSize,
+                baseCellSize, scaledCellSize,
+                samplePoint: pointCloudData[0]
+            });
+            
+            ctx.save();
+            
+            let drawnCount = 0;
+            // Draw each point
+            pointCloudData.forEach((point, idx) => {
+                // Scale the point coordinates
+                const scaledX = point.x * pointScale;
+                const scaledY = point.y * pointScale;
+                
+                // Map to grid pixel position
+                const px = offsetX + (scaledX * scaledCellSize);
+                const py = offsetY + (scaledY * scaledCellSize);
+                
+                // Draw point as a circle
+                ctx.beginPath();
+                ctx.arc(px, py, pointSize, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                drawnCount++;
+                
+                // Debug: log first few points
+                if (idx < 3) {
+                    console.log(`Point ${idx}: (${point.x}, ${point.y}) -> scaled (${scaledX}, ${scaledY}) -> screen (${px}, ${py})`);
+                }
+            });
+            
+            console.log('Drew', drawnCount, 'points');
+            
+            ctx.restore();
         }
         
         // Pre-render the grid to an off-screen canvas
@@ -557,15 +664,27 @@
             const offsetY = baseOffsetY + panY;
             
             // Draw the pre-rendered image with current scale and position
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(
-                cachedGridImage,
-                offsetX,
-                offsetY,
-                gridWidth,
-                gridHeight
-            );
+            const showSpreadMap = document.getElementById('showSpreadMap')?.checked !== false;
+            if (showSpreadMap) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(
+                    cachedGridImage,
+                    offsetX,
+                    offsetY,
+                    gridWidth,
+                    gridHeight
+                );
+            }
+            
+            // Draw point cloud overlay if enabled
+            const showPoints = document.getElementById('showPointCloud')?.checked;
+            if (showPoints && pointCloudLoaded && pointCloudData.length > 0) {
+                const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+                const pointSize = parseFloat(document.getElementById('pointSize')?.value || 5);
+                console.log('Drawing points:', pointCloudData.length, 'scale:', pointScale, 'size:', pointSize);
+                drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize);
+            }
             
             // Update zoom label
             const zoomLabel = document.getElementById('zoomLevel');
@@ -849,6 +968,16 @@
             input.addEventListener('change', updatePreview);
         });
         
+        // Point cloud scale slider value display
+        document.getElementById('pointScale').addEventListener('input', function() {
+            document.getElementById('pointScaleValue').textContent = parseFloat(this.value).toFixed(2) + 'x';
+        });
+        
+        // Point size slider value display
+        document.getElementById('pointSize').addEventListener('input', function() {
+            document.getElementById('pointSizeValue').textContent = this.value + 'px';
+        });
+        
         // Initialize the application
         function initApp() {
             console.log('=== Initializing App ===');
@@ -859,6 +988,9 @@
                 cellsPerUniverse: !!document.getElementById('cellsPerUniverse'),
                 totalCells: !!document.getElementById('totalCells')
             });
+            
+            // Load point cloud data
+            loadPointCloud();
             
             // Initial preview
             updatePreview();
