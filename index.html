@@ -398,6 +398,7 @@
         // Point cloud data
         let pointCloudData = [];
         let pointCloudLoaded = false;
+        let pointCloudBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         
         // Load point cloud data from CSV
         async function loadPointCloud() {
@@ -408,6 +409,9 @@
                 
                 // Skip header line
                 pointCloudData = [];
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                
                 for (let i = 1; i < lines.length; i++) {
                     const parts = lines[i].split(',');
                     if (parts.length >= 3) {
@@ -415,11 +419,21 @@
                         const y = parseFloat(parts[2]); // py column
                         if (!isNaN(x) && !isNaN(y)) {
                             pointCloudData.push({ x, y });
+                            minX = Math.min(minX, x);
+                            maxX = Math.max(maxX, x);
+                            minY = Math.min(minY, y);
+                            maxY = Math.max(maxY, y);
                         }
                     }
                 }
+                // Store bounds for normalization
+                pointCloudBounds = { minX, maxX, minY, maxY };
                 pointCloudLoaded = true;
+                
                 console.log('Point cloud loaded:', pointCloudData.length, 'points');
+                console.log('X range:', minX, 'to', maxX, '(width:', maxX - minX, ')');
+                console.log('Y range:', minY, 'to', maxY, '(height:', maxY - minY, ')');
+                console.log('First 3 points:', pointCloudData.slice(0, 3));
                 updatePreview(); // Redraw with points
             } catch (error) {
                 console.error('Failed to load point cloud:', error);
@@ -446,31 +460,56 @@
         }
         
         // Draw point cloud overlay
-        function drawPointCloud(ctx, offsetX, offsetY, gridScale, pointScale, pointSize) {
-            // Cell size in the high-res rendered image
-            const baseCellSize = 60;
+        function drawPointCloud(ctx, offsetX, offsetY, gridScale, pointScale, pointSize, totalCols, totalRows) {
+            // Calculate CSV data range
+            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
+            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
             
-            // Calculate the scale factor to map CSV coordinates to grid cells
-            const scaledCellSize = baseCellSize * gridScale;
+            // Calculate available canvas space (90% of canvas)
+            const availableWidth = ctx.canvas.width * 0.9;
+            const availableHeight = ctx.canvas.height * 0.9;
+            
+            // Calculate uniform scale to fit CSV points in window (maintain aspect ratio)
+            const scaleX = availableWidth / csvWidth;
+            const scaleY = availableHeight / csvHeight;
+            const autoScale = Math.min(scaleX, scaleY); // Use smaller scale to fit everything
+            
+            // Calculate center position for the point cloud
+            const pointCloudWidth = csvWidth * autoScale * pointScale;
+            const pointCloudHeight = csvHeight * autoScale * pointScale;
+            const centerOffsetX = (ctx.canvas.width - pointCloudWidth) / 2;
+            const centerOffsetY = (ctx.canvas.height - pointCloudHeight) / 2;
             
             console.log('Point cloud rendering:', {
-                offsetX, offsetY, gridScale, pointScale, pointSize,
-                baseCellSize, scaledCellSize,
-                samplePoint: pointCloudData[0]
+                csvBounds: pointCloudBounds,
+                csvSize: { width: csvWidth, height: csvHeight },
+                availableSpace: { width: availableWidth, height: availableHeight },
+                autoScale,
+                pointScale,
+                finalScale: autoScale * pointScale,
+                pointCloudSize: { width: pointCloudWidth, height: pointCloudHeight },
+                centerOffset: { x: centerOffsetX, y: centerOffsetY }
             });
             
             ctx.save();
             
             let drawnCount = 0;
+            let visibleCount = 0;
+            
             // Draw each point
             pointCloudData.forEach((point, idx) => {
-                // Scale the point coordinates
-                const scaledX = point.x * pointScale;
-                const scaledY = point.y * pointScale;
+                // Translate point relative to CSV min bounds
+                const relativeX = point.x - pointCloudBounds.minX;
+                const relativeY = point.y - pointCloudBounds.minY;
                 
-                // Map to grid pixel position
-                const px = offsetX + (scaledX * scaledCellSize);
-                const py = offsetY + (scaledY * scaledCellSize);
+                // Scale and position (flip Y by subtracting from height)
+                const px = centerOffsetX + (relativeX * autoScale * pointScale);
+                const py = centerOffsetY + (pointCloudHeight - (relativeY * autoScale * pointScale));
+                
+                // Check if point is visible on canvas
+                const isVisible = px >= -50 && px <= ctx.canvas.width + 50 && 
+                                  py >= -50 && py <= ctx.canvas.height + 50;
+                if (isVisible) visibleCount++;
                 
                 // Draw point as a circle
                 ctx.beginPath();
@@ -484,12 +523,22 @@
                 drawnCount++;
                 
                 // Debug: log first few points
-                if (idx < 3) {
-                    console.log(`Point ${idx}: (${point.x}, ${point.y}) -> scaled (${scaledX}, ${scaledY}) -> screen (${px}, ${py})`);
+                if (idx < 5) {
+                    console.log(`Point ${idx}: CSV(${point.x.toFixed(2)}, ${point.y.toFixed(2)}) -> Relative(${relativeX.toFixed(2)}, ${relativeY.toFixed(2)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)}) visible:${isVisible}`);
                 }
             });
             
-            console.log('Drew', drawnCount, 'points');
+            console.log('Drew', drawnCount, 'points,', visibleCount, 'visible on screen');
+            
+            // Draw a reference cross at the point cloud origin (min bounds)
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(centerOffsetX - 30, centerOffsetY);
+            ctx.lineTo(centerOffsetX + 30, centerOffsetY);
+            ctx.moveTo(centerOffsetX, centerOffsetY - 30);
+            ctx.lineTo(centerOffsetX, centerOffsetY + 30);
+            ctx.stroke();
             
             ctx.restore();
         }
@@ -683,7 +732,7 @@
                 const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
                 const pointSize = parseFloat(document.getElementById('pointSize')?.value || 5);
                 console.log('Drawing points:', pointCloudData.length, 'scale:', pointScale, 'size:', pointSize);
-                drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize);
+                drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, totalCols, totalRows);
             }
             
             // Update zoom label
