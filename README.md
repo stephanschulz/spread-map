@@ -79,6 +79,8 @@ Or just double-click `index.html` to open it.
 
 Features:
 - 🖼️ **Full-screen visual preview** - colored universe grid fills entire browser window
+- 🔍 **Individual cell view** - see every cell with column numbers (1-20) and row labels (B1, B2...)
+- 🔎 **Zoom & Pan** - mouse wheel zoom (10%-1000%), click & drag to pan, double-click to reset
 - 🎛️ **Floating control panel** (dat.GUI style) - dark overlay panel in top-right
 - 📊 Live updates - canvas redraws instantly as you type
 - ⬇️ Direct Excel download generated in your browser

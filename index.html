@@ -29,6 +29,35 @@
             left: 0;
             width: 100%;
             height: 100%;
+            cursor: grab;
+        }
+        
+        #gridCanvas:active {
+            cursor: grabbing;
+        }
+        
+        .zoom-controls {
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .zoom-label {
+            flex: 1;
+            text-align: center;
+            font-size: 11px;
+            color: #aaa;
         }
         
         .container {
@@ -297,6 +326,20 @@
                 </div>
             </div>
             
+            <div class="divider"></div>
+            
+            <div class="section-title">View Controls</div>
+            <div class="zoom-controls">
+                <button type="button" class="zoom-btn" id="zoomOut">−</button>
+                <div class="zoom-label" id="zoomLevel">100%</div>
+                <button type="button" class="zoom-btn" id="zoomIn">+</button>
+            </div>
+            <div style="font-size: 10px; color: #888; text-align: center; margin-top: 4px;">
+                Scroll to zoom • Drag to pan
+            </div>
+            
+            <div class="divider"></div>
+            
             <button type="submit">
                 ⬇️ Generate & Download Excel
             </button>
@@ -311,6 +354,14 @@
     </div>
     
     <script>
+        // Global state for zoom and pan
+        let zoom = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
         // Generate universe colors
         function generateUniverseColors(totalUniverses) {
             const baseColors = [
@@ -329,8 +380,8 @@
             return colors;
         }
         
-        // Draw grid preview on full canvas
-        function drawGridPreview(universesH, universesV, colors) {
+        // Draw grid preview with individual cells
+        function drawGridPreview(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse) {
             const canvas = document.getElementById('gridCanvas');
             if (!canvas) return;
             
@@ -340,46 +391,114 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             
-            // Calculate cell size to fit in viewport
-            const cellWidth = Math.floor(canvas.width / universesH);
-            const cellHeight = Math.floor(canvas.height / universesV);
-            const cellSize = Math.min(cellWidth, cellHeight);
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Calculate total grid size
-            const gridWidth = cellSize * universesH;
-            const gridHeight = cellSize * universesV;
+            // Calculate base cell size (before zoom)
+            const baseCellSize = 40; // Base size for individual cells
+            const cellSize = baseCellSize * zoom;
             
-            // Center the grid
-            const offsetX = (canvas.width - gridWidth) / 2;
-            const offsetY = (canvas.height - gridHeight) / 2;
+            // Calculate total grid dimensions
+            const totalCols = universesH * colsPerUniverse;
+            const totalRows = universesV * rowsPerUniverse;
+            const gridWidth = totalCols * cellSize;
+            const gridHeight = totalRows * cellSize;
             
-            // Draw each universe
-            for (let row = 0; row < universesV; row++) {
-                for (let col = 0; col < universesH; col++) {
-                    const universeNum = (row * universesH) + col + 1;
+            // Center offset plus pan
+            const baseOffsetX = (canvas.width - gridWidth) / 2;
+            const baseOffsetY = (canvas.height - gridHeight) / 2;
+            const offsetX = baseOffsetX + panX;
+            const offsetY = baseOffsetY + panY;
+            
+            // Draw each individual cell
+            for (let row = 0; row < totalRows; row++) {
+                for (let col = 0; col < totalCols; col++) {
+                    // Determine which universe this cell belongs to
+                    const universeRow = Math.floor(row / rowsPerUniverse);
+                    const universeCol = Math.floor(col / colsPerUniverse);
+                    const universeNum = (universeRow * universesH) + universeCol + 1;
+                    
+                    // Position within universe
+                    const rowInUniverse = (row % rowsPerUniverse) + 1;
+                    const colInUniverse = (col % colsPerUniverse) + 1;
+                    
+                    // Calculate cell position
                     const x = offsetX + (col * cellSize);
                     const y = offsetY + (row * cellSize);
                     
-                    // Get color
+                    // Skip if outside viewport (optimization)
+                    if (x + cellSize < 0 || x > canvas.width || y + cellSize < 0 || y > canvas.height) {
+                        continue;
+                    }
+                    
+                    // Get universe color
                     const hexColor = colors[universeNum] || 'CCCCCC';
                     ctx.fillStyle = '#' + hexColor;
                     ctx.fillRect(x, y, cellSize, cellSize);
                     
-                    // Draw border
-                    ctx.strokeStyle = '#1a1a1a';
-                    ctx.lineWidth = 2;
+                    // Draw cell border
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 1;
                     ctx.strokeRect(x, y, cellSize, cellSize);
                     
-                    // Draw universe label
-                    ctx.fillStyle = '#fff';
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-                    ctx.shadowBlur = 4;
-                    ctx.font = `bold ${Math.max(12, cellSize / 4)}px Arial`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(`U${universeNum}`, x + cellSize / 2, y + cellSize / 2);
-                    ctx.shadowBlur = 0;
+                    // Draw universe border (thicker) at universe boundaries
+                    if (col % colsPerUniverse === 0) {
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x, y + cellSize);
+                        ctx.stroke();
+                    }
+                    if (row % rowsPerUniverse === 0) {
+                        ctx.strokeStyle = '#000';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x + cellSize, y);
+                        ctx.stroke();
+                    }
+                    
+                    // Draw cell labels if zoomed in enough
+                    if (cellSize > 20) {
+                        ctx.fillStyle = '#fff';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                        ctx.shadowBlur = 2;
+                        ctx.textAlign = 'center';
+                        
+                        // Draw column number
+                        const fontSize = Math.max(8, cellSize / 6);
+                        ctx.font = `${fontSize}px Arial`;
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(`${colInUniverse}`, x + cellSize / 2, y + 2);
+                        
+                        // Draw B label
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = `${fontSize * 0.8}px Arial`;
+                        ctx.fillText(`B${rowInUniverse}`, x + cellSize / 2, y + cellSize - 2);
+                        
+                        ctx.shadowBlur = 0;
+                    }
+                    
+                    // Draw universe label at the center of each universe
+                    if (cellSize > 30 && rowInUniverse === Math.ceil(rowsPerUniverse / 2) && 
+                        colInUniverse === Math.ceil(colsPerUniverse / 2)) {
+                        ctx.fillStyle = '#fff';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+                        ctx.shadowBlur = 4;
+                        ctx.font = `bold ${Math.max(12, cellSize / 2)}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`U${universeNum}`, x + cellSize / 2, y + cellSize / 2);
+                        ctx.shadowBlur = 0;
+                    }
                 }
+            }
+            
+            // Update zoom label
+            const zoomLabel = document.getElementById('zoomLevel');
+            if (zoomLabel) {
+                zoomLabel.textContent = Math.round(zoom * 100) + '%';
             }
         }
         
@@ -402,9 +521,9 @@
                 if (elem1) elem1.textContent = totalUniverses;
                 if (elem2) elem2.textContent = `${totalRows + 1} × ${totalCols + 1}`;
                 
-                // Draw visual preview
+                // Draw visual preview with cells
                 const colors = generateUniverseColors(totalUniverses);
-                drawGridPreview(universesH, universesV, colors);
+                drawGridPreview(universesH, universesV, colors, cols, rows);
                 
             } catch (error) {
                 console.error('Preview update error:', error);
@@ -644,6 +763,62 @@
         window.addEventListener('resize', function() {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(updatePreview, 200);
+        });
+        
+        // Zoom controls
+        document.getElementById('zoomIn').addEventListener('click', function() {
+            zoom = Math.min(zoom * 1.2, 10);
+            updatePreview();
+        });
+        
+        document.getElementById('zoomOut').addEventListener('click', function() {
+            zoom = Math.max(zoom / 1.2, 0.1);
+            updatePreview();
+        });
+        
+        // Mouse wheel zoom
+        document.getElementById('gridCanvas').addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const zoomSpeed = 0.1;
+            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+            zoom = Math.max(0.1, Math.min(10, zoom * (1 + delta)));
+            updatePreview();
+        }, { passive: false });
+        
+        // Mouse drag to pan
+        const canvas = document.getElementById('gridCanvas');
+        canvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                const deltaX = e.clientX - lastMouseX;
+                const deltaY = e.clientY - lastMouseY;
+                panX += deltaX;
+                panY += deltaY;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                updatePreview();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', function() {
+            isDragging = false;
+        });
+        
+        // Reset pan on double-click
+        canvas.addEventListener('dblclick', function() {
+            zoom = 1.0;
+            panX = 0;
+            panY = 0;
+            updatePreview();
         });
     </script>
 </body>

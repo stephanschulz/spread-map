@@ -22,10 +22,18 @@ The web interface will open with:
 
 Features:
 - ✅ **Full-screen visual preview** - grid fills entire browser window
+- ✅ **Individual cells visible** - see every cell with its label
+- ✅ **Zoom in/out** - mouse wheel or +/- buttons (10% to 1000%)
+- ✅ **Pan/drag** - click and drag to move around the grid
 - ✅ Color-coded universes (easy to see the layout)
 - ✅ Floating dark control panel (dat.GUI style)
 - ✅ Live updates as you type
 - ✅ Instant Excel generation
+
+**Navigation:**
+- 🖱️ **Scroll wheel** - Zoom in/out
+- 🖱️ **Click & drag** - Pan around
+- 🖱️ **Double-click** - Reset zoom and pan
 
 No server, no Python, no installation needed!
 
