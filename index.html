@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Universe Map Generator</title>
+    <title>Spread-Map Generator</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
         * {
@@ -280,7 +280,7 @@
     <canvas id="gridCanvas"></canvas>
     
     <div class="container">
-        <h1>🌌 Universe Map</h1>
+        <h1>🌌 Spread-Map</h1>
         <p class="subtitle">Generate custom spreadsheet maps</p>
         
         <form id="mapForm">
@@ -718,8 +718,8 @@
                 // Create workbook with cell styles option
                 const wb = XLSX.utils.book_new();
                 wb.Props = {
-                    Title: "Universe Map",
-                    Author: "Universe Map Generator"
+                    Title: "Spread-Map",
+                    Author: "Spread-Map Generator"
                 };
                 
                 // Create worksheet manually to have better control
@@ -788,14 +788,15 @@
                 
                 ws['!ref'] = XLSX.utils.encode_range(range);
                 
-                // Set column widths (approximate square cells)
+                // Set column widths and row heights for square cells
+                // Excel uses different units: row height in points, column width in character units
+                // To create square cells: 50pt height ≈ 7.5 character width
                 const colWidths = [];
                 for (let i = 0; i < grid[0].length; i++) {
-                    colWidths.push({ wch: 10 });
+                    colWidths.push({ wch: 7.5 });
                 }
                 ws['!cols'] = colWidths;
                 
-                // Set row heights
                 const rowHeights = [];
                 for (let i = 0; i < grid.length; i++) {
                     rowHeights.push({ hpt: 50 });
@@ -803,10 +804,10 @@
                 ws['!rows'] = rowHeights;
                 
                 // Add worksheet to workbook
-                XLSX.utils.book_append_sheet(wb, ws, 'Universe Map');
+                XLSX.utils.book_append_sheet(wb, ws, 'Spread-Map');
                 
                 // Generate file and download with cellStyles option
-                XLSX.writeFile(wb, 'universe_map.xlsx', { cellStyles: true, bookType: 'xlsx' });
+                XLSX.writeFile(wb, 'spread-map.xlsx', { cellStyles: true, bookType: 'xlsx' });
                 
                 loading.classList.remove('show');
                 submitBtn.disabled = false;
