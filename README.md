@@ -4,6 +4,8 @@
 
 A client-side web application that generates Excel spreadsheets with multiple "universes" arranged in a grid pattern. Includes point cloud visualization and export capabilities.
 
+**🔗 [Live Demo](https://stephanschulz.ca/spread-map/)**
+
 ## Screenshots
 
 ### Web Application
@@ -51,7 +53,7 @@ U6-B10
 - **Line 2**: Universe number (U1-U36) and row designation (B1-B13)
 - **Line 3**: Empty line for your own notes
 
-Cells with CSV points add a ● marker on the first line:
+Cells with CSV points add a ● marker on the first line to indicate a staggered layout:
 ```
 ● 8    or    8 ●
 U6-B10        U6-B10
