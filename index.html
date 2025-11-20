@@ -594,10 +594,14 @@
                 // Flip Y coordinate
                 const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
                 
+                // Apply offsets in grid space (before scale so they zoom with the map)
+                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                
                 // Apply grid's transformation (same as the spread-map image)
                 // This makes points zoom/pan with the map
-                const px = gridOffsetX + (gridPixelX * gridScale) + pointOffsetX;
-                const py = gridOffsetY + (gridPixelYFlipped * gridScale) + pointOffsetY;
+                const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
+                const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
                 
                 // Check if point is visible on canvas
                 const isVisible = px >= -50 && px <= ctx.canvas.width + 50 && 
@@ -625,8 +629,8 @@
             console.log('Drew', drawnCount, 'points,', visibleCount, 'visible on screen');
             
             // Draw a reference cross at the point cloud origin
-            const originX = gridOffsetX + pointOffsetX;
-            const originY = gridOffsetY + (csvHeight * baseCellSize * pointScale * gridScale) + pointOffsetY;
+            const originX = gridOffsetX + (pointOffsetX * gridScale);
+            const originY = gridOffsetY + ((csvHeight * baseCellSize * pointScale + pointOffsetY) * gridScale);
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -1001,6 +1005,52 @@
                 const grid = generateMapData(cols, rows, universesH, universesV);
                 const colors = generateUniverseColors(universesH * universesV);
                 
+                // Map points to cells using EXACT same logic as visual rendering
+                const cellsWithPoints = new Map(); // key: "row,col", value: { left: bool }
+                if (pointCloudLoaded && pointCloudData.length > 0) {
+                    const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                    const baseCellSize = 60; // Same as rendering
+                    const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
+                    const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+                    
+                    pointCloudData.forEach(point => {
+                        // Same logic as drawPointCloud
+                        const relativeX = point.x - pointCloudBounds.minX;
+                        const relativeY = point.y - pointCloudBounds.minY;
+                        
+                        // Convert to grid pixel space
+                        const gridPixelX = relativeX * baseCellSize * pointScale;
+                        const gridPixelY = relativeY * baseCellSize * pointScale;
+                        
+                        // Flip Y coordinate
+                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                        
+                        // Apply offsets (in grid space)
+                        const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                        const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                        
+                        // Convert to cell indices (each cell is baseCellSize pixels)
+                        const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                        const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                        
+                        // Add 1 to account for header row/col
+                        const excelRow = cellRow + 1;
+                        const excelCol = cellCol + 1;
+                        
+                        if (excelRow > 0 && excelRow < grid.length && excelCol > 0 && excelCol < grid[0].length) {
+                            // Determine if this is an even or odd CSV row (for staggered positioning)
+                            const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
+                            const isOffsetLeft = csvRowIndex % 2 === 0;
+                            
+                            const key = `${excelRow},${excelCol}`;
+                            cellsWithPoints.set(key, { left: isOffsetLeft });
+                        }
+                    });
+                    console.log('Mapped', cellsWithPoints.size, 'points to cells');
+                }
+                
                 // Create workbook with cell styles option
                 const wb = XLSX.utils.book_new();
                 wb.Props = {
@@ -1019,7 +1069,19 @@
                 for (let R = 0; R < grid.length; R++) {
                     for (let C = 0; C < grid[R].length; C++) {
                         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-                        const cellValue = grid[R][C];
+                        let cellValue = grid[R][C];
+                        
+                        // Check if this cell has a point
+                        const pointKey = `${R},${C}`;
+                        if (cellsWithPoints.has(pointKey) && R > 0 && C > 0) {
+                            const pointInfo = cellsWithPoints.get(pointKey);
+                            // Add dot with spacing based on stagger pattern
+                            if (pointInfo.left) {
+                                cellValue = '● ' + cellValue; // Dot on left
+                            } else {
+                                cellValue = cellValue + ' ●'; // Dot on right
+                            }
+                        }
                         
                         const cell = {
                             v: cellValue,
