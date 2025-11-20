@@ -323,6 +323,8 @@
                 <div class="preview-info" id="previewInfo">
                     <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">-</span></div>
                     <div><strong>Grid:</strong> <span class="preview-value" id="gridSize">-</span></div>
+                    <div><strong>Cells per Universe:</strong> <span class="preview-value" id="cellsPerUniverse">-</span></div>
+                    <div><strong>Total Cells:</strong> <span class="preview-value" id="totalCells">-</span></div>
                 </div>
             </div>
             
@@ -587,10 +589,14 @@
                 const totalCols = cols * universesH;
                 const totalRows = rows * universesV;
                 const totalUniverses = universesH * universesV;
+                const cellsPerUniverse = cols * rows;
+                const totalCells = totalCols * totalRows;
                 
                 // Update stats
                 const elem1 = document.getElementById('totalUniverses');
                 const elem2 = document.getElementById('gridSize');
+                const elem3 = document.getElementById('cellsPerUniverse');
+                const elem4 = document.getElementById('totalCells');
                 
                 if (elem1) {
                     elem1.textContent = totalUniverses;
@@ -604,6 +610,20 @@
                     console.log('Updated gridSize');
                 } else {
                     console.error('gridSize element not found');
+                }
+                
+                if (elem3) {
+                    elem3.textContent = cellsPerUniverse.toLocaleString();
+                    console.log('Updated cellsPerUniverse:', cellsPerUniverse);
+                } else {
+                    console.error('cellsPerUniverse element not found');
+                }
+                
+                if (elem4) {
+                    elem4.textContent = totalCells.toLocaleString();
+                    console.log('Updated totalCells:', totalCells);
+                } else {
+                    console.error('totalCells element not found');
                 }
                 
                 // Draw visual preview with cells
@@ -835,7 +855,9 @@
             console.log('Canvas exists:', !!document.getElementById('gridCanvas'));
             console.log('Stats elements exist:', {
                 totalUniverses: !!document.getElementById('totalUniverses'),
-                gridSize: !!document.getElementById('gridSize')
+                gridSize: !!document.getElementById('gridSize'),
+                cellsPerUniverse: !!document.getElementById('cellsPerUniverse'),
+                totalCells: !!document.getElementById('totalCells')
             });
             
             // Initial preview
