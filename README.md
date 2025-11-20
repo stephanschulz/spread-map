@@ -47,7 +47,7 @@ U6-B10
 ```
 - **Line 1**: Column number (1-20, left to right)
 - **Line 2**: Universe number (U1-U36) and row designation (B1-B13)
-- **Line 3**: Empty line for spacing
+- **Line 3**: Empty line for your own notes
 
 Cells with CSV points add a ● marker on the first line:
 ```
@@ -136,39 +136,6 @@ All settings are automatically saved to browser localStorage.
 - Settings saved to browser `localStorage`
 - Survives page reload and browser restart
 - Clear with: `localStorage.removeItem('spreadMapSettings')`
-
-## Troubleshooting
-
-**No preview showing:**
-- Check browser console (F12) for errors
-- Ensure canvas element loads properly
-- Try refreshing the page
-
-**Points not visible:**
-- Verify `layout.csv` is in same directory
-- Check console for CSV loading messages
-- Adjust Point Scale slider
-- Toggle "Show Points" checkbox
-
-**Excel colors missing:**
-- Ensure using modern Excel/Sheets version
-- Check file opens correctly
-- Try re-generating with smaller grid first
-
-**File won't download:**
-- Check popup blocker settings
-- Grant download permission if prompted
-- Try different browser
-
-## Files
-
-### Core Files
-- `index.html` - Main web application
-- `layout.csv` - Point cloud data (auto-loaded)
-
-### Optional Files
-- `floorplan.png` - Background image reference
-- `NUMBERS_GUIDE.md` - Detailed Apple Numbers instructions
 
 ### Generated Files
 - `spread-map.xlsx` - Excel output with all styling and point markers
