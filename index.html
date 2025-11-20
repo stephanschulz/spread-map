@@ -1124,7 +1124,12 @@
                                 if (match) {
                                     const universeNum = parseInt(match[1]);
                                     if (colors[universeNum]) {
-                                        const transparentColor = applyTransparency(colors[universeNum], 0.8);
+                                        // Check if this cell has a point - if not, make it very transparent
+                                        const pointKey = `${R},${C}`;
+                                        const hasPoint = cellsWithPoints.has(pointKey);
+                                        const opacity = hasPoint ? 0.8 : 0.15; // Full opacity for points, very transparent for empty cells
+                                        
+                                        const transparentColor = applyTransparency(colors[universeNum], opacity);
                                         cell.s.fill = {
                                             patternType: 'solid',
                                             fgColor: { rgb: transparentColor }
