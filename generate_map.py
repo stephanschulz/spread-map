@@ -20,23 +20,22 @@ UNIVERSES_VERTICAL = 6    # 6 rows of universes (original + 5 downward)
 def generate_cell_label(row_in_universe, col_in_universe, universe_num):
     """
     Generate a cell label with line break: N\nU#-B#
-    row_in_universe: 1-13
-    col_in_universe: 0-19 (maps to B1-B20)
+    row_in_universe: 1-13 (becomes B1-B13 for row designation)
+    col_in_universe: 0-19 (becomes 1-20 across the row)
     universe_num: 1-36
     """
-    # Row number (1-20 for naming, even though we only have 13 rows)
-    # We'll use 1-13 as the actual row numbers
-    row_label = f"{row_in_universe}"
+    # Column number (1-20 going left to right across the row)
+    col_label = f"{col_in_universe + 1}"
     
     # Universe label (U1, U2, etc.)
     universe_label = f"U{universe_num}"
     
-    # B label goes from B1 to B20 (one per column in the universe)
-    b_num = col_in_universe + 1
+    # B label based on row (B1, B2, B3... for each row in the universe)
+    b_num = row_in_universe
     b_label = f"B{b_num}"
     
-    # Format with line breaks: row number on first line, U#-B# on second line, empty line at bottom
-    return f"{row_label}\n{universe_label}-{b_label}\n"
+    # Format with line breaks: column number on first line, U#-B# on second line, empty line at bottom
+    return f"{col_label}\n{universe_label}-{b_label}\n"
 
 def generate_map():
     """Generate the complete map with all universes."""

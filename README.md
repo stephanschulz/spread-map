@@ -30,9 +30,9 @@ Generates a spreadsheet map with multiple "universes" arranged in a grid pattern
   U#-B#
   [empty line]
   ```
-  - N = Row number within universe (1-13)
+  - N = Column position (1-20, counting left to right across each row)
   - U# = Universe number (U1-U36)
-  - B# = Column number within universe (B1-B20)
+  - B# = Row designation within universe (B1-B13, one per row)
 
 ## Universe Layout
 

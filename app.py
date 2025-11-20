@@ -34,11 +34,11 @@ def generate_universe_colors(total_universes):
 
 def generate_cell_label(row_in_universe, col_in_universe, universe_num):
     """Generate a cell label with line break: N\nU#-B#\n"""
-    row_label = f"{row_in_universe}"
+    col_label = f"{col_in_universe + 1}"  # 1-20 across the row
     universe_label = f"U{universe_num}"
-    b_num = col_in_universe + 1
+    b_num = row_in_universe  # B1, B2, etc. for each row
     b_label = f"B{b_num}"
-    return f"{row_label}\n{universe_label}-{b_label}\n"
+    return f"{col_label}\n{universe_label}-{b_label}\n"
 
 def generate_map_data(cols_per_universe, rows_per_universe, universes_horizontal=6, universes_vertical=6):
     """Generate the map grid data."""
