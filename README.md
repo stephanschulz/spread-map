@@ -78,9 +78,9 @@ open index.html
 Or just double-click `index.html` to open it.
 
 Features:
-- 🎨 Compact control panel on the left
-- 🖼️ **Large visual grid preview** - fills the main screen with colored universe layout
-- 📊 Live updates - preview redraws instantly as you type
+- 🖼️ **Full-screen visual preview** - colored universe grid fills entire browser window
+- 🎛️ **Floating control panel** (dat.GUI style) - dark overlay panel in top-right
+- 📊 Live updates - canvas redraws instantly as you type
 - ⬇️ Direct Excel download generated in your browser
 - 🔧 Customize rows, columns, and universe layout
 - 🚀 **No server needed** - runs entirely in your browser

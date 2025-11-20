@@ -16,15 +16,15 @@ open index.html
 ### That's It!
 
 The web interface will open with:
-- **Left Panel**: Compact controls for customizing your map
-- **Main Area**: Large visual preview showing the colored universe grid
+- **Full-window canvas** - showing the colored universe grid layout
+- **Floating control panel** (top-right) - dat.GUI style overlay with controls
 - Changes update **instantly** as you type!
 
 Features:
-- ✅ **Large visual grid preview** - fills the main screen
+- ✅ **Full-screen visual preview** - grid fills entire browser window
 - ✅ Color-coded universes (easy to see the layout)
-- ✅ Live stats (updates as you type)
-- ✅ Compact controls on the left
+- ✅ Floating dark control panel (dat.GUI style)
+- ✅ Live updates as you type
 - ✅ Instant Excel generation
 
 No server, no Python, no installation needed!
