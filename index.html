@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universe Map Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 380px;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .subtitle {
+            color: #999;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .help-text {
+            font-size: 10px;
+            color: #999;
+            margin-top: 3px;
+        }
+        
+        .preview-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        
+        .preview-title {
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .preview-info {
+            color: #555;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        
+        .preview-info div {
+            margin: 2px 0;
+        }
+        
+        .preview-info strong {
+            color: #333;
+            font-weight: 600;
+            display: inline-block;
+            min-width: 80px;
+        }
+        
+        .preview-value {
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 15px 0;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 15px;
+            color: #667eea;
+            font-size: 12px;
+        }
+        
+        .loading.show {
+            display: block;
+        }
+        
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+            font-size: 12px;
+        }
+        
+        .error.show {
+            display: block;
+        }
+        
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌌 Universe Map</h1>
+        <p class="subtitle">Generate custom spreadsheet maps</p>
+        
+        <form id="mapForm">
+            <div class="section-title">Universe Dimensions</div>
+            <div class="form-group">
+                <div class="input-row">
+                    <div class="input-wrapper">
+                        <label>Columns</label>
+                        <input type="number" id="cols" name="cols" value="20" min="1" max="50" required>
+                        <div class="help-text">per universe</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Rows</label>
+                        <input type="number" id="rows" name="rows" value="10" min="1" max="50" required>
+                        <div class="help-text">per universe</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="section-title">Grid Layout</div>
+            <div class="form-group">
+                <div class="input-row">
+                    <div class="input-wrapper">
+                        <label>Horizontal</label>
+                        <input type="number" id="universes_h" name="universes_h" value="9" min="1" max="20" required>
+                        <div class="help-text">universes</div>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Vertical</label>
+                        <input type="number" id="universes_v" name="universes_v" value="5" min="1" max="20" required>
+                        <div class="help-text">universes</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="preview-box">
+                <div class="preview-title">📊 Preview</div>
+                <div class="preview-info" id="previewInfo">
+                    <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">45</span></div>
+                    <div><strong>Grid Size:</strong> <span class="preview-value" id="gridSize">51 × 181</span></div>
+                    <div><strong>Data Cols:</strong> <span class="preview-value" id="dataCols">180</span></div>
+                    <div><strong>Data Rows:</strong> <span class="preview-value" id="dataRows">50</span></div>
+                </div>
+            </div>
+            
+            <button type="submit">
+                ⬇️ Generate & Download Excel
+            </button>
+            
+            <div class="error" id="errorBox"></div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Generating Excel file...</div>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        // Generate universe colors
+        function generateUniverseColors(totalUniverses) {
+            const baseColors = [
+                'FF6B6B', '4ECDC4', 'FFE66D', '95E1D3', 'FF8B94', 'A8E6CF',
+                'FFD93D', '6BCF7F', 'FFA07A', '87CEEB', 'DDA15E', 'B4A7D6',
+                'FFC0CB', '98D8C8', 'FFD700', '9370DB', 'FFA500', '20B2AA',
+                'FF69B4', '7FFFD4', 'FFDAB9', '8FBC8F', 'FFC1CC', 'AFEEEE',
+                'FFB6C1', '00CED1', 'FFA07A', '9ACD32', 'FF7F50', '48D1CC',
+                'FFD700', '9932CC', 'FF8C00', '00FA9A', 'DA70D6', '32CD32',
+            ];
+            
+            const colors = {};
+            for (let i = 0; i < totalUniverses; i++) {
+                colors[i + 1] = baseColors[i % baseColors.length];
+            }
+            return colors;
+        }
+        
+        // Update preview
+        function updatePreview() {
+            const cols = parseInt(document.getElementById('cols').value) || 20;
+            const rows = parseInt(document.getElementById('rows').value) || 10;
+            const universesH = parseInt(document.getElementById('universes_h').value) || 9;
+            const universesV = parseInt(document.getElementById('universes_v').value) || 5;
+            
+            const totalCols = cols * universesH;
+            const totalRows = rows * universesV;
+            const totalUniverses = universesH * universesV;
+            
+            document.getElementById('totalUniverses').textContent = totalUniverses;
+            document.getElementById('gridSize').textContent = `${totalRows + 1} × ${totalCols + 1}`;
+            document.getElementById('dataCols').textContent = totalCols;
+            document.getElementById('dataRows').textContent = totalRows;
+        }
+        
+        // Generate cell label
+        function generateCellLabel(rowInUniverse, colInUniverse, universeNum) {
+            const rowLabel = `${rowInUniverse}`;
+            const universeLabel = `U${universeNum}`;
+            const bNum = colInUniverse + 1;
+            const bLabel = `B${bNum}`;
+            return `${rowLabel}\n${universeLabel}-${bLabel}\n`;
+        }
+        
+        // Generate map data
+        function generateMapData(colsPerUniverse, rowsPerUniverse, universesH, universesV) {
+            const totalRows = rowsPerUniverse * universesV;
+            const totalCols = colsPerUniverse * universesH;
+            
+            const grid = [];
+            
+            // Header row
+            const headerRow = [''];
+            for (let col = 0; col < totalCols; col++) {
+                headerRow.push(`C${col + 1}`);
+            }
+            grid.push(headerRow);
+            
+            // Data rows
+            for (let row = 0; row < totalRows; row++) {
+                const rowData = [`R${row + 1}`];
+                
+                const universeRow = Math.floor(row / rowsPerUniverse);
+                const rowInUniverse = (row % rowsPerUniverse) + 1;
+                
+                for (let col = 0; col < totalCols; col++) {
+                    const universeCol = Math.floor(col / colsPerUniverse);
+                    const colInUniverse = col % colsPerUniverse;
+                    const universeNum = (universeRow * universesH) + universeCol + 1;
+                    
+                    const cellLabel = generateCellLabel(rowInUniverse, colInUniverse, universeNum);
+                    rowData.push(cellLabel);
+                }
+                
+                grid.push(rowData);
+            }
+            
+            return grid;
+        }
+        
+        // RGB to hex
+        function rgbToHex(r, g, b) {
+            return [r, g, b].map(x => {
+                const hex = Math.round(x).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('').toUpperCase();
+        }
+        
+        // Hex to RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+        
+        // Apply transparency to color
+        function applyTransparency(hexColor, opacity = 0.8) {
+            const rgb = hexToRgb(hexColor);
+            if (!rgb) return hexColor;
+            
+            // Blend with white background
+            const r = Math.round(rgb.r * opacity + 255 * (1 - opacity));
+            const g = Math.round(rgb.g * opacity + 255 * (1 - opacity));
+            const b = Math.round(rgb.b * opacity + 255 * (1 - opacity));
+            
+            return rgbToHex(r, g, b);
+        }
+        
+        // Generate Excel file
+        function generateExcel(event) {
+            event.preventDefault();
+            
+            const loading = document.getElementById('loading');
+            const submitBtn = document.querySelector('button[type="submit"]');
+            const errorBox = document.getElementById('errorBox');
+            
+            loading.classList.add('show');
+            submitBtn.disabled = true;
+            errorBox.classList.remove('show');
+            
+            try {
+                const cols = parseInt(document.getElementById('cols').value);
+                const rows = parseInt(document.getElementById('rows').value);
+                const universesH = parseInt(document.getElementById('universes_h').value);
+                const universesV = parseInt(document.getElementById('universes_v').value);
+                
+                // Generate data
+                const grid = generateMapData(cols, rows, universesH, universesV);
+                const colors = generateUniverseColors(universesH * universesV);
+                
+                // Create workbook with cell styles option
+                const wb = XLSX.utils.book_new();
+                wb.Props = {
+                    Title: "Universe Map",
+                    Author: "Universe Map Generator"
+                };
+                
+                // Create worksheet manually to have better control
+                const ws = {};
+                const range = {
+                    s: { c: 0, r: 0 },
+                    e: { c: grid[0].length - 1, r: grid.length - 1 }
+                };
+                
+                // Fill worksheet with data and styling
+                for (let R = 0; R < grid.length; R++) {
+                    for (let C = 0; C < grid[R].length; C++) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                        const cellValue = grid[R][C];
+                        
+                        const cell = {
+                            v: cellValue,
+                            t: 's', // string type
+                            s: {}
+                        };
+                        
+                        // Common styles
+                        cell.s = {
+                            alignment: {
+                                horizontal: 'center',
+                                vertical: 'top',
+                                wrapText: true
+                            },
+                            border: {
+                                top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                                bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                                left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+                                right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+                            },
+                            font: { sz: 9, name: 'Arial' }
+                        };
+                        
+                        // Header styling
+                        if (R === 0 || C === 0) {
+                            cell.s.fill = {
+                                patternType: 'solid',
+                                fgColor: { rgb: 'D3D3D3' }
+                            };
+                            cell.s.font.bold = true;
+                            cell.s.alignment.vertical = 'center';
+                        } else {
+                            // Data cell - extract universe number and apply color
+                            if (typeof cellValue === 'string' && cellValue.includes('U')) {
+                                const match = cellValue.match(/U(\d+)/);
+                                if (match) {
+                                    const universeNum = parseInt(match[1]);
+                                    if (colors[universeNum]) {
+                                        const transparentColor = applyTransparency(colors[universeNum], 0.8);
+                                        cell.s.fill = {
+                                            patternType: 'solid',
+                                            fgColor: { rgb: transparentColor }
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                        
+                        ws[cellAddress] = cell;
+                    }
+                }
+                
+                ws['!ref'] = XLSX.utils.encode_range(range);
+                
+                // Set column widths (approximate square cells)
+                const colWidths = [];
+                for (let i = 0; i < grid[0].length; i++) {
+                    colWidths.push({ wch: 10 });
+                }
+                ws['!cols'] = colWidths;
+                
+                // Set row heights
+                const rowHeights = [];
+                for (let i = 0; i < grid.length; i++) {
+                    rowHeights.push({ hpt: 50 });
+                }
+                ws['!rows'] = rowHeights;
+                
+                // Add worksheet to workbook
+                XLSX.utils.book_append_sheet(wb, ws, 'Universe Map');
+                
+                // Generate file and download with cellStyles option
+                XLSX.writeFile(wb, 'universe_map.xlsx', { cellStyles: true, bookType: 'xlsx' });
+                
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Generation error:', error);
+                errorBox.textContent = '⚠️ Error: ' + error.message;
+                errorBox.classList.add('show');
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('mapForm').addEventListener('submit', generateExcel);
+        
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', updatePreview);
+            input.addEventListener('change', updatePreview);
+        });
+        
+        // Initial preview on load
+        updatePreview();
+    </script>
+</body>
+</html>
+

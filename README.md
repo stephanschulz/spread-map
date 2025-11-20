@@ -4,6 +4,10 @@ Generates a spreadsheet map with multiple "universes" arranged in a grid pattern
 
 ## Output Files
 
+### Web GUI Output
+- **universe_map.xlsx** - Excel file generated in your browser with color-coded universes
+
+### Command Line Output
 - **map.csv** - CSV file for any spreadsheet application
 - **map.xlsx** - Excel file with color-coded universes, includes transparent PNG overlay if `floorplan.png` exists
 
@@ -63,21 +67,23 @@ U31  U32  U33  U34  U35  U36
 
 ## Usage
 
-### Web GUI (Recommended)
+### Web GUI (Recommended) - Client-Side Only
 
-Launch the web interface to customize your map visually:
+Simply open `index.html` in your browser - no server required!
 
 ```bash
-./run_webapp.sh
+open index.html
 ```
 
-Then open your browser to: **http://localhost:5000**
+Or just double-click `index.html` to open it.
 
 Features:
 - 🎨 Visual interface for setting dimensions
-- 📊 Live preview of grid size
-- ⬇️ Direct Excel download
+- 📊 **Live preview** updates instantly as you type
+- ⬇️ Direct Excel download generated in your browser
 - 🔧 Customize rows, columns, and universe layout
+- 🚀 **No server needed** - runs entirely in your browser
+- 💾 All processing happens locally
 
 ### Command Line
 
