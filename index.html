@@ -352,6 +352,14 @@
                     <label style="display: block;">Point Size: <span id="pointSizeValue">5px</span></label>
                     <input type="range" id="pointSize" min="1" max="20" step="1" value="5" style="width: 100%;">
                 </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label style="display: block;">Point Offset X: <span id="pointOffsetXValue">0</span></label>
+                    <input type="range" id="pointOffsetX" min="-500" max="500" step="1" value="0" style="width: 100%;">
+                </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">0</span></label>
+                    <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="0" style="width: 100%;">
+                </div>
             </div>
             
             <div class="divider"></div>
@@ -460,35 +468,19 @@
         }
         
         // Draw point cloud overlay
-        function drawPointCloud(ctx, offsetX, offsetY, gridScale, pointScale, pointSize, totalCols, totalRows) {
+        function drawPointCloud(ctx, gridOffsetX, gridOffsetY, gridScale, pointScale, pointSize, pointOffsetX, pointOffsetY) {
+            // Base cell size from the pre-rendered grid
+            const baseCellSize = 60;
+            
             // Calculate CSV data range
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
             
-            // Calculate available canvas space (90% of canvas)
-            const availableWidth = ctx.canvas.width * 0.9;
-            const availableHeight = ctx.canvas.height * 0.9;
-            
-            // Calculate uniform scale to fit CSV points in window (maintain aspect ratio)
-            const scaleX = availableWidth / csvWidth;
-            const scaleY = availableHeight / csvHeight;
-            const autoScale = Math.min(scaleX, scaleY); // Use smaller scale to fit everything
-            
-            // Calculate center position for the point cloud
-            const pointCloudWidth = csvWidth * autoScale * pointScale;
-            const pointCloudHeight = csvHeight * autoScale * pointScale;
-            const centerOffsetX = (ctx.canvas.width - pointCloudWidth) / 2;
-            const centerOffsetY = (ctx.canvas.height - pointCloudHeight) / 2;
-            
             console.log('Point cloud rendering:', {
                 csvBounds: pointCloudBounds,
                 csvSize: { width: csvWidth, height: csvHeight },
-                availableSpace: { width: availableWidth, height: availableHeight },
-                autoScale,
-                pointScale,
-                finalScale: autoScale * pointScale,
-                pointCloudSize: { width: pointCloudWidth, height: pointCloudHeight },
-                centerOffset: { x: centerOffsetX, y: centerOffsetY }
+                gridTransform: { offsetX: gridOffsetX, offsetY: gridOffsetY, scale: gridScale },
+                pointAdjustments: { scale: pointScale, offsetX: pointOffsetX, offsetY: pointOffsetY }
             });
             
             ctx.save();
@@ -502,9 +494,18 @@
                 const relativeX = point.x - pointCloudBounds.minX;
                 const relativeY = point.y - pointCloudBounds.minY;
                 
-                // Scale and position (flip Y by subtracting from height)
-                const px = centerOffsetX + (relativeX * autoScale * pointScale);
-                const py = centerOffsetY + (pointCloudHeight - (relativeY * autoScale * pointScale));
+                // Convert to "grid pixel space" (as if in the high-res rendered image)
+                // Scale to match cell size, apply point scale adjustment
+                const gridPixelX = relativeX * baseCellSize * pointScale;
+                const gridPixelY = relativeY * baseCellSize * pointScale;
+                
+                // Flip Y coordinate
+                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                
+                // Apply grid's transformation (same as the spread-map image)
+                // This makes points zoom/pan with the map
+                const px = gridOffsetX + (gridPixelX * gridScale) + pointOffsetX;
+                const py = gridOffsetY + (gridPixelYFlipped * gridScale) + pointOffsetY;
                 
                 // Check if point is visible on canvas
                 const isVisible = px >= -50 && px <= ctx.canvas.width + 50 && 
@@ -523,21 +524,23 @@
                 drawnCount++;
                 
                 // Debug: log first few points
-                if (idx < 5) {
-                    console.log(`Point ${idx}: CSV(${point.x.toFixed(2)}, ${point.y.toFixed(2)}) -> Relative(${relativeX.toFixed(2)}, ${relativeY.toFixed(2)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)}) visible:${isVisible}`);
+                if (idx < 3) {
+                    console.log(`Point ${idx}: CSV(${point.x.toFixed(2)}, ${point.y.toFixed(2)}) -> GridPx(${gridPixelX.toFixed(0)}, ${gridPixelYFlipped.toFixed(0)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)})`);
                 }
             });
             
             console.log('Drew', drawnCount, 'points,', visibleCount, 'visible on screen');
             
-            // Draw a reference cross at the point cloud origin (min bounds)
+            // Draw a reference cross at the point cloud origin
+            const originX = gridOffsetX + pointOffsetX;
+            const originY = gridOffsetY + (csvHeight * baseCellSize * pointScale * gridScale) + pointOffsetY;
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
             ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(centerOffsetX - 30, centerOffsetY);
-            ctx.lineTo(centerOffsetX + 30, centerOffsetY);
-            ctx.moveTo(centerOffsetX, centerOffsetY - 30);
-            ctx.lineTo(centerOffsetX, centerOffsetY + 30);
+            ctx.moveTo(originX - 30, originY);
+            ctx.lineTo(originX + 30, originY);
+            ctx.moveTo(originX, originY - 30);
+            ctx.lineTo(originX, originY + 30);
             ctx.stroke();
             
             ctx.restore();
@@ -731,8 +734,10 @@
             if (showPoints && pointCloudLoaded && pointCloudData.length > 0) {
                 const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
                 const pointSize = parseFloat(document.getElementById('pointSize')?.value || 5);
+                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
                 console.log('Drawing points:', pointCloudData.length, 'scale:', pointScale, 'size:', pointSize);
-                drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, totalCols, totalRows);
+                drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, pointOffsetX, pointOffsetY);
             }
             
             // Update zoom label
@@ -1025,6 +1030,15 @@
         // Point size slider value display
         document.getElementById('pointSize').addEventListener('input', function() {
             document.getElementById('pointSizeValue').textContent = this.value + 'px';
+        });
+        
+        // Point offset sliders value display
+        document.getElementById('pointOffsetX').addEventListener('input', function() {
+            document.getElementById('pointOffsetXValue').textContent = this.value;
+        });
+        
+        document.getElementById('pointOffsetY').addEventListener('input', function() {
+            document.getElementById('pointOffsetYValue').textContent = this.value;
         });
         
         // Initialize the application
