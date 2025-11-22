@@ -666,14 +666,25 @@
                 const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
 
                 // Calculate universe from cell position using variable grid
+                // Use same logic as drawDynamicGrid - calculate position independently per universe
                 let universeCol = -1;
                 let universeRow = -1;
 
                 // Find which universe this cell belongs to
-                let currentY = 0;
                 for (let uRow = 0; uRow < universeGrid.universesV && universeRow < 0; uRow++) {
-                    let currentX = 0;
                     for (let uCol = 0; uCol < universeGrid.universesH && universeCol < 0; uCol++) {
+                        // Calculate X position by summing widths in the SAME ROW
+                        let currentX = 0;
+                        for (let c = 0; c < uCol; c++) {
+                            currentX += getUniverseCols(uRow, c);
+                        }
+
+                        // Calculate Y position by summing heights in the SAME COLUMN
+                        let currentY = 0;
+                        for (let r = 0; r < uRow; r++) {
+                            currentY += getUniverseRows(r, uCol);
+                        }
+
                         const colsInUniverse = getUniverseCols(uRow, uCol);
                         const rowsInUniverse = getUniverseRows(uRow, uCol);
 
@@ -683,10 +694,6 @@
                             universeRow = uRow;
                             break;
                         }
-                        currentX += colsInUniverse;
-                    }
-                    if (universeRow < 0) {
-                        currentY += getUniverseRows(uRow, 0);
                     }
                 }
 
@@ -707,7 +714,17 @@
                 }
             });
 
+            // Count total points assigned
+            let totalAssignedPoints = 0;
+            pointsByUniverse.forEach(points => {
+                totalAssignedPoints += points.length;
+            });
+
             console.log('Points distributed across', pointsByUniverse.size, 'universes');
+            console.log('Total points assigned:', totalAssignedPoints, 'out of', pointCloudData.length);
+            if (totalAssignedPoints < pointCloudData.length) {
+                console.warn('Warning:', pointCloudData.length - totalAssignedPoints, 'points fell outside grid boundaries');
+            }
 
             // For each universe, sort points from top-right and create groups of 20
             pointsByUniverse.forEach((universePoints, universeNum) => {
