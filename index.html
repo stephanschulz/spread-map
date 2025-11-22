@@ -476,7 +476,73 @@
         let pointCloudBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         let pointCloudPitch = { x: 0, y: 0 }; // Detected pitch/spacing
         let cableGroups = []; // Groups of 20 points with their center points
-        
+
+        // Variable universe grid structure
+        let universeGrid = {
+            universesH: 6,
+            universesV: 5,
+            // Column widths for each universe (horizontal)
+            colWidths: [], // Array of arrays: [[u1_cols], [u2_cols], ...]
+            // Row heights for each universe (vertical)
+            rowHeights: [], // Array of arrays: [[u1_rows], [u2_rows], ...]
+            showCellText: false // Only show text after Apply
+        };
+
+        // Dragging state for boundaries
+        let draggingBoundary = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        // Initialize universe grid with uniform dimensions
+        function initializeUniverseGrid(cols, rows, universesH, universesV) {
+            universeGrid.universesH = universesH;
+            universeGrid.universesV = universesV;
+            universeGrid.colWidths = [];
+            universeGrid.rowHeights = [];
+
+            // Initialize each universe with uniform column widths
+            for (let uCol = 0; uCol < universesH; uCol++) {
+                const colArray = new Array(cols).fill(1); // Each column has width 1 (relative units)
+                universeGrid.colWidths.push(colArray);
+            }
+
+            // Initialize each universe with uniform row heights
+            for (let uRow = 0; uRow < universesV; uRow++) {
+                const rowArray = new Array(rows).fill(1); // Each row has height 1 (relative units)
+                universeGrid.rowHeights.push(rowArray);
+            }
+
+            console.log('Initialized universe grid:', universeGrid);
+        }
+
+        // Get total columns for a specific universe column index
+        function getTotalColsForUniverseCol(uCol) {
+            return universeGrid.colWidths[uCol] ? universeGrid.colWidths[uCol].length : 0;
+        }
+
+        // Get total rows for a specific universe row index
+        function getTotalRowsForUniverseRow(uRow) {
+            return universeGrid.rowHeights[uRow] ? universeGrid.rowHeights[uRow].length : 0;
+        }
+
+        // Get total columns across all universes
+        function getTotalCols() {
+            let total = 0;
+            for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                total += getTotalColsForUniverseCol(uCol);
+            }
+            return total;
+        }
+
+        // Get total rows across all universes
+        function getTotalRows() {
+            let total = 0;
+            for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                total += getTotalRowsForUniverseRow(uRow);
+            }
+            return total;
+        }
+
         // Parse CSV text into point cloud data
         function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
@@ -556,12 +622,6 @@
             cableGroups = [];
             const groupSize = 20;
 
-            // Get current grid configuration
-            const cols = parseInt(document.getElementById('cols')?.value) || 20;
-            const rows = parseInt(document.getElementById('rows')?.value) || 10;
-            const universesH = parseInt(document.getElementById('universes_h')?.value) || 6;
-            const universesV = parseInt(document.getElementById('universes_v')?.value) || 5;
-
             // Get point transformation settings
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
             const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
@@ -570,7 +630,7 @@
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
 
-            // Assign each point to a universe based on its cell position
+            // Assign each point to a universe based on its cell position (variable grid)
             const pointsByUniverse = new Map();
 
             pointCloudData.forEach((point, idx) => {
@@ -589,22 +649,44 @@
                 const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
                 const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
 
-                // Calculate universe from cell position
-                const universeCol = Math.floor(cellCol / cols);
-                const universeRow = Math.floor(cellRow / rows);
-                const universeNum = (universeRow * universesH) + universeCol + 1;
-
-                // Store point with its position info
-                if (!pointsByUniverse.has(universeNum)) {
-                    pointsByUniverse.set(universeNum, []);
+                // Calculate universe from cell position using variable grid
+                let currentCol = 0;
+                let universeCol = -1;
+                for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                    const colsInUniverse = getTotalColsForUniverseCol(uCol);
+                    if (cellCol < currentCol + colsInUniverse) {
+                        universeCol = uCol;
+                        break;
+                    }
+                    currentCol += colsInUniverse;
                 }
 
-                pointsByUniverse.get(universeNum).push({
-                    point: point,
-                    cellRow: cellRow,
-                    cellCol: cellCol,
-                    originalIndex: idx
-                });
+                let currentRow = 0;
+                let universeRow = -1;
+                for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                    const rowsInUniverse = getTotalRowsForUniverseRow(uRow);
+                    if (cellRow < currentRow + rowsInUniverse) {
+                        universeRow = uRow;
+                        break;
+                    }
+                    currentRow += rowsInUniverse;
+                }
+
+                if (universeCol >= 0 && universeRow >= 0) {
+                    const universeNum = (universeRow * universeGrid.universesH) + universeCol + 1;
+
+                    // Store point with its position info
+                    if (!pointsByUniverse.has(universeNum)) {
+                        pointsByUniverse.set(universeNum, []);
+                    }
+
+                    pointsByUniverse.get(universeNum).push({
+                        point: point,
+                        cellRow: cellRow,
+                        cellCol: cellCol,
+                        originalIndex: idx
+                    });
+                }
             });
 
             console.log('Points distributed across', pointsByUniverse.size, 'universes');
@@ -830,187 +912,185 @@
             console.log('Drew', cableGroups.length, 'cable groups');
         }
 
-        // Pre-render the grid to an off-screen canvas
-        function generateGridImage(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse) {
-            console.log('Generating high-res grid image...');
-            
-            // Calculate total dimensions
-            const totalCols = universesH * colsPerUniverse;
-            const totalRows = universesV * rowsPerUniverse;
-            
-            // Cell size for high-res rendering (larger for quality)
-            const cellSize = 60;
-            
-            // Create off-screen canvas
-            const offCanvas = document.createElement('canvas');
-            offCanvas.width = totalCols * cellSize;
-            offCanvas.height = totalRows * cellSize;
-            const ctx = offCanvas.getContext('2d');
-            
-            // Draw each individual cell
-            for (let row = 0; row < totalRows; row++) {
-                for (let col = 0; col < totalCols; col++) {
-                    // Determine which universe this cell belongs to
-                    const universeRow = Math.floor(row / rowsPerUniverse);
-                    const universeCol = Math.floor(col / colsPerUniverse);
-                    const universeNum = (universeRow * universesH) + universeCol + 1;
-                    
-                    // Position within universe
-                    const rowInUniverse = (row % rowsPerUniverse) + 1;
-                    const colInUniverse = (col % colsPerUniverse) + 1;
-                    
-                    // Calculate cell position
-                    const x = col * cellSize;
-                    const y = row * cellSize;
-                    
-                    // Get universe color
+        // Draw dynamic grid directly to canvas (supports variable universe sizes)
+        function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors) {
+            const baseCellSize = 60;
+
+            // Calculate cell positions and draw
+            let currentY = 0;
+
+            for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                let currentX = 0;
+                const rowsInThisUniverseRow = getTotalRowsForUniverseRow(uRow);
+
+                for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                    const colsInThisUniverseCol = getTotalColsForUniverseCol(uCol);
+                    const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
                     const hexColor = colors[universeNum] || 'CCCCCC';
-                    ctx.fillStyle = '#' + hexColor;
-                    ctx.fillRect(x, y, cellSize, cellSize);
-                    
-                    // Draw cell border
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(x, y, cellSize, cellSize);
-                    
-                    // Draw universe border (thicker) at universe boundaries
-                    if (col % colsPerUniverse === 0) {
-                        ctx.strokeStyle = '#000';
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(x, y + cellSize);
-                        ctx.stroke();
+
+                    // Draw all cells in this universe
+                    let yInUniverse = 0;
+                    for (let row = 0; row < rowsInThisUniverseRow; row++) {
+                        let xInUniverse = 0;
+                        for (let col = 0; col < colsInThisUniverseCol; col++) {
+                            const x = (currentX + xInUniverse) * baseCellSize;
+                            const y = (currentY + yInUniverse) * baseCellSize;
+                            const cellWidth = baseCellSize;
+                            const cellHeight = baseCellSize;
+
+                            // Transform to screen coordinates
+                            const screenX = offsetX + (x * scale);
+                            const screenY = offsetY + (y * scale);
+                            const screenWidth = cellWidth * scale;
+                            const screenHeight = cellHeight * scale;
+
+                            // Fill cell with universe color
+                            ctx.fillStyle = '#' + hexColor;
+                            ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+
+                            // Draw cell border
+                            ctx.strokeStyle = '#555';
+                            ctx.lineWidth = Math.max(0.5, scale * 0.5);
+                            ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+
+                            // Draw cell text only if enabled
+                            if (universeGrid.showCellText && scale > 0.3) {
+                                ctx.fillStyle = '#000';
+                                ctx.font = `${Math.max(8, scale * 9)}px Arial`;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'top';
+                                ctx.fillText(`${col + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+
+                                ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+
+                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(`B${row + 1}`, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                            }
+
+                            xInUniverse++;
+                        }
+                        yInUniverse++;
                     }
-                    if (row % rowsPerUniverse === 0) {
-                        ctx.strokeStyle = '#000';
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.moveTo(x, y);
-                        ctx.lineTo(x + cellSize, y);
-                        ctx.stroke();
+
+                    // Draw universe boundaries (thick lines)
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = Math.max(2, scale * 3);
+
+                    // Right boundary
+                    const rightX = offsetX + ((currentX + colsInThisUniverseCol) * baseCellSize * scale);
+                    const topY = offsetY + (currentY * baseCellSize * scale);
+                    const bottomY = offsetY + ((currentY + rowsInThisUniverseRow) * baseCellSize * scale);
+                    ctx.beginPath();
+                    ctx.moveTo(rightX, topY);
+                    ctx.lineTo(rightX, bottomY);
+                    ctx.stroke();
+
+                    currentX += colsInThisUniverseCol;
+                }
+
+                // Draw horizontal universe boundary
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = Math.max(2, scale * 3);
+                const bottomY = offsetY + ((currentY + rowsInThisUniverseRow) * baseCellSize * scale);
+                const leftX = offsetX;
+                const rightX = offsetX + (getTotalCols() * baseCellSize * scale);
+                ctx.beginPath();
+                ctx.moveTo(leftX, bottomY);
+                ctx.lineTo(rightX, bottomY);
+                ctx.stroke();
+
+                currentY += rowsInThisUniverseRow;
+            }
+
+            // Draw large universe labels if text is enabled
+            if (universeGrid.showCellText && scale > 0.5) {
+                let currentY = 0;
+                for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                    let currentX = 0;
+                    const rowsInThisUniverseRow = getTotalRowsForUniverseRow(uRow);
+
+                    for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                        const colsInThisUniverseCol = getTotalColsForUniverseCol(uCol);
+                        const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
+
+                        const centerX = offsetX + ((currentX + colsInThisUniverseCol / 2) * baseCellSize * scale);
+                        const centerY = offsetY + ((currentY + rowsInThisUniverseRow / 2) * baseCellSize * scale);
+
+                        const fontSize = Math.min(baseCellSize * 3 * scale, 120);
+                        ctx.font = `bold ${fontSize}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                        ctx.lineWidth = 4;
+                        ctx.strokeText(`U${universeNum}`, centerX, centerY);
+
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+                        ctx.fillText(`U${universeNum}`, centerX, centerY);
+
+                        currentX += colsInThisUniverseCol;
                     }
-                    
-                    // Draw cell labels
-                    ctx.fillStyle = '#000';
-                    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
-                    ctx.shadowBlur = 2;
-                    ctx.textAlign = 'center';
-                    
-                    const fontSize = 9;
-                    
-                    // Draw column number at top
-                    ctx.font = `${fontSize}px Arial`;
-                    ctx.textBaseline = 'top';
-                    ctx.fillText(`${colInUniverse}`, x + cellSize / 2, y + 5);
-                    
-                    // Draw universe label in middle
-                    ctx.font = `bold ${fontSize}px Arial`;
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(`U${universeNum}`, x + cellSize / 2, y + cellSize / 2);
-                    
-                    // Draw B label at bottom
-                    ctx.font = `${fontSize * 0.9}px Arial`;
-                    ctx.textBaseline = 'bottom';
-                    ctx.fillText(`B${rowInUniverse}`, x + cellSize / 2, y + cellSize - 5);
-                    
-                    ctx.shadowBlur = 0;
+                    currentY += rowsInThisUniverseRow;
                 }
             }
-            
-            // Draw large universe labels in the center of each universe (preview only)
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.lineWidth = 4;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            
-            for (let universeRow = 0; universeRow < universesV; universeRow++) {
-                for (let universeCol = 0; universeCol < universesH; universeCol++) {
-                    const universeNum = (universeRow * universesH) + universeCol + 1;
-                    
-                    // Calculate center of universe
-                    const centerX = (universeCol * colsPerUniverse + colsPerUniverse / 2) * cellSize;
-                    const centerY = (universeRow * rowsPerUniverse + rowsPerUniverse / 2) * cellSize;
-                    
-                    // Draw large universe label
-                    const fontSize = Math.min(cellSize * 3, 120);
-                    ctx.font = `bold ${fontSize}px Arial`;
-                    
-                    // Draw text stroke (outline)
-                    ctx.strokeText(`U${universeNum}`, centerX, centerY);
-                    // Draw text fill
-                    ctx.fillText(`U${universeNum}`, centerX, centerY);
-                }
-            }
-            
-            console.log('Grid image generated:', offCanvas.width, 'x', offCanvas.height);
-            return offCanvas;
         }
         
-        // Draw the pre-rendered grid with zoom and pan
+        // Draw the grid with zoom and pan (dynamic rendering)
         function drawGridPreview(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse) {
             const canvas = document.getElementById('gridCanvas');
             if (!canvas) {
                 console.error('Canvas not found!');
                 return;
             }
-            
+
             const ctx = canvas.getContext('2d');
             if (!ctx) {
                 console.error('Could not get canvas context!');
                 return;
             }
-            
-            // Check if we need to regenerate the cached image
-            const currentConfig = `${universesH}x${universesV}x${colsPerUniverse}x${rowsPerUniverse}`;
-            if (!cachedGridImage || cachedGridConfig !== currentConfig) {
-                cachedGridImage = generateGridImage(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse);
-                cachedGridConfig = currentConfig;
-            }
-            
+
             // Set canvas to full window size
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            
+
             // Clear canvas with background color
             ctx.fillStyle = '#2c3e50';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Calculate total dimensions
-            const totalCols = universesH * colsPerUniverse;
-            const totalRows = universesV * rowsPerUniverse;
-            
+
+            // Calculate total dimensions in cells
+            const baseCellSize = 60;
+            const totalCols = getTotalCols();
+            const totalRows = getTotalRows();
+            const gridPixelWidth = totalCols * baseCellSize;
+            const gridPixelHeight = totalRows * baseCellSize;
+
             // Calculate scale to fit all content in viewport
             const availableWidth = canvas.width * 0.9;
             const availableHeight = canvas.height * 0.9;
-            const scaleX = availableWidth / cachedGridImage.width;
-            const scaleY = availableHeight / cachedGridImage.height;
+            const scaleX = availableWidth / gridPixelWidth;
+            const scaleY = availableHeight / gridPixelHeight;
             const baseScale = Math.min(scaleX, scaleY);
             const scale = baseScale * zoom;
-            
+
             // Calculate display dimensions
-            const gridWidth = cachedGridImage.width * scale;
-            const gridHeight = cachedGridImage.height * scale;
-            
+            const gridWidth = gridPixelWidth * scale;
+            const gridHeight = gridPixelHeight * scale;
+
             // Center offset plus pan
             const baseOffsetX = (canvas.width - gridWidth) / 2;
             const baseOffsetY = (canvas.height - gridHeight) / 2;
             const offsetX = baseOffsetX + panX;
             const offsetY = baseOffsetY + panY;
-            
-            // Draw the pre-rendered image with current scale and position
+
+            // Draw the dynamic grid
             const showSpreadMap = document.getElementById('showSpreadMap')?.checked !== false;
             if (showSpreadMap) {
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(
-                    cachedGridImage,
-                    offsetX,
-                    offsetY,
-                    gridWidth,
-                    gridHeight
-                );
+                drawDynamicGrid(ctx, offsetX, offsetY, scale, colors);
             }
             
             // Draw cable groups if enabled
@@ -1045,18 +1125,35 @@
         function updatePreview() {
             try {
                 console.log('updatePreview called');
-                
+
                 const cols = parseInt(document.getElementById('cols').value) || 20;
                 const rows = parseInt(document.getElementById('rows').value) || 10;
                 const universesH = parseInt(document.getElementById('universes_h').value) || 6;
                 const universesV = parseInt(document.getElementById('universes_v').value) || 5;
-                
+
                 console.log('Grid config:', { cols, rows, universesH, universesV });
-                
-                const totalCols = cols * universesH;
-                const totalRows = rows * universesV;
+
+                // Initialize universe grid if not already initialized or if dimensions changed
+                if (universeGrid.colWidths.length === 0 ||
+                    universeGrid.universesH !== universesH ||
+                    universeGrid.universesV !== universesV) {
+                    initializeUniverseGrid(cols, rows, universesH, universesV);
+                }
+
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
                 const totalUniverses = universesH * universesV;
-                const cellsPerUniverse = cols * rows;
+
+                // Calculate average cells per universe
+                let totalCellsInAllUniverses = 0;
+                for (let uRow = 0; uRow < universesV; uRow++) {
+                    for (let uCol = 0; uCol < universesH; uCol++) {
+                        const cols = getTotalColsForUniverseCol(uCol);
+                        const rows = getTotalRowsForUniverseRow(uRow);
+                        totalCellsInAllUniverses += cols * rows;
+                    }
+                }
+                const cellsPerUniverse = Math.round(totalCellsInAllUniverses / totalUniverses);
                 const totalCells = totalCols * totalRows;
                 
                 // Update stats
@@ -1397,6 +1494,16 @@
         
         // Apply button for grid layout changes
         document.getElementById('applyGridBtn').addEventListener('click', () => {
+            // Enable cell text generation
+            universeGrid.showCellText = true;
+
+            // Re-initialize grid with current dimensions
+            const cols = parseInt(document.getElementById('cols').value) || 20;
+            const rows = parseInt(document.getElementById('rows').value) || 10;
+            const universesH = parseInt(document.getElementById('universes_h').value) || 6;
+            const universesV = parseInt(document.getElementById('universes_v').value) || 5;
+
+            initializeUniverseGrid(cols, rows, universesH, universesV);
             updatePreview();
             saveSettings();
         });
@@ -1609,16 +1716,164 @@
             updatePreview();
         }, { passive: false });
         
-        // Mouse drag to pan
+        // Detect if mouse is near a boundary line
+        function detectBoundaryAtPosition(mouseX, mouseY) {
+            const canvas = document.getElementById('gridCanvas');
+            const baseCellSize = 60;
+            const threshold = 10; // pixels
+
+            // Calculate grid transformation
+            const totalCols = getTotalCols();
+            const totalRows = getTotalRows();
+            const gridPixelWidth = totalCols * baseCellSize;
+            const gridPixelHeight = totalRows * baseCellSize;
+
+            const availableWidth = canvas.width * 0.9;
+            const availableHeight = canvas.height * 0.9;
+            const scaleX = availableWidth / gridPixelWidth;
+            const scaleY = availableHeight / gridPixelHeight;
+            const baseScale = Math.min(scaleX, scaleY);
+            const scale = baseScale * zoom;
+
+            const gridWidth = gridPixelWidth * scale;
+            const gridHeight = gridPixelHeight * scale;
+            const baseOffsetX = (canvas.width - gridWidth) / 2;
+            const baseOffsetY = (canvas.height - gridHeight) / 2;
+            const offsetX = baseOffsetX + panX;
+            const offsetY = baseOffsetY + panY;
+
+            // Check vertical boundaries (between universe columns)
+            let currentX = 0;
+            for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                currentX += getTotalColsForUniverseCol(uCol);
+                const boundaryX = offsetX + (currentX * baseCellSize * scale);
+
+                if (Math.abs(mouseX - boundaryX) < threshold) {
+                    return { type: 'vertical', index: uCol, x: boundaryX };
+                }
+            }
+
+            // Check horizontal boundaries (between universe rows)
+            let currentY = 0;
+            for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                currentY += getTotalRowsForUniverseRow(uRow);
+                const boundaryY = offsetY + (currentY * baseCellSize * scale);
+
+                if (Math.abs(mouseY - boundaryY) < threshold) {
+                    return { type: 'horizontal', index: uRow, y: boundaryY };
+                }
+            }
+
+            return null;
+        }
+
+        // Add or remove columns from a universe
+        function adjustUniverseColumns(uCol, delta) {
+            const currentCols = getTotalColsForUniverseCol(uCol);
+            const newCols = Math.max(1, currentCols + delta);
+
+            if (delta > 0) {
+                // Add columns
+                for (let i = 0; i < delta; i++) {
+                    universeGrid.colWidths[uCol].push(1);
+                }
+            } else if (delta < 0) {
+                // Remove columns
+                universeGrid.colWidths[uCol].splice(newCols, -delta);
+            }
+        }
+
+        // Add or remove rows from a universe
+        function adjustUniverseRows(uRow, delta) {
+            const currentRows = getTotalRowsForUniverseRow(uRow);
+            const newRows = Math.max(1, currentRows + delta);
+
+            if (delta > 0) {
+                // Add rows
+                for (let i = 0; i < delta; i++) {
+                    universeGrid.rowHeights[uRow].push(1);
+                }
+            } else if (delta < 0) {
+                // Remove rows
+                universeGrid.rowHeights[uRow].splice(newRows, -delta);
+            }
+        }
+
+        // Mouse drag to pan OR drag boundaries
         const canvas = document.getElementById('gridCanvas');
         canvas.addEventListener('mousedown', function(e) {
-            isDragging = true;
-            lastMouseX = e.clientX;
-            lastMouseY = e.clientY;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            const boundary = detectBoundaryAtPosition(mouseX, mouseY);
+
+            if (boundary) {
+                draggingBoundary = boundary;
+                dragStartX = mouseX;
+                dragStartY = mouseY;
+                canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
+            } else {
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+            }
         });
-        
+
         canvas.addEventListener('mousemove', function(e) {
-            if (isDragging) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (draggingBoundary) {
+                const baseCellSize = 60;
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
+                const gridPixelWidth = totalCols * baseCellSize;
+                const gridPixelHeight = totalRows * baseCellSize;
+                const availableWidth = canvas.width * 0.9;
+                const availableHeight = canvas.height * 0.9;
+                const scaleX = availableWidth / gridPixelWidth;
+                const scaleY = availableHeight / gridPixelHeight;
+                const baseScale = Math.min(scaleX, scaleY);
+                const scale = baseScale * zoom;
+
+                if (draggingBoundary.type === 'vertical') {
+                    const deltaX = mouseX - dragStartX;
+                    const cellDelta = Math.round(deltaX / (baseCellSize * scale));
+
+                    if (cellDelta !== 0) {
+                        // Adjust left universe (add/remove from right side)
+                        adjustUniverseColumns(draggingBoundary.index, cellDelta);
+
+                        // Adjust right universe (add/remove from left side)
+                        if (draggingBoundary.index + 1 < universeGrid.universesH) {
+                            adjustUniverseColumns(draggingBoundary.index + 1, -cellDelta);
+                        }
+
+                        dragStartX = mouseX;
+                        universeGrid.showCellText = false; // Hide text during adjustment
+                        updatePreview();
+                    }
+                } else if (draggingBoundary.type === 'horizontal') {
+                    const deltaY = mouseY - dragStartY;
+                    const cellDelta = Math.round(deltaY / (baseCellSize * scale));
+
+                    if (cellDelta !== 0) {
+                        // Adjust top universe (add/remove from bottom side)
+                        adjustUniverseRows(draggingBoundary.index, cellDelta);
+
+                        // Adjust bottom universe (add/remove from top side)
+                        if (draggingBoundary.index + 1 < universeGrid.universesV) {
+                            adjustUniverseRows(draggingBoundary.index + 1, -cellDelta);
+                        }
+
+                        dragStartY = mouseY;
+                        universeGrid.showCellText = false; // Hide text during adjustment
+                        updatePreview();
+                    }
+                }
+            } else if (isDragging) {
                 const deltaX = e.clientX - lastMouseX;
                 const deltaY = e.clientY - lastMouseY;
                 panX += deltaX;
@@ -1626,15 +1881,27 @@
                 lastMouseX = e.clientX;
                 lastMouseY = e.clientY;
                 updatePreview();
+            } else {
+                // Update cursor based on position
+                const boundary = detectBoundaryAtPosition(mouseX, mouseY);
+                if (boundary) {
+                    canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
+                } else {
+                    canvas.style.cursor = 'grab';
+                }
             }
         });
-        
+
         canvas.addEventListener('mouseup', function() {
+            draggingBoundary = null;
             isDragging = false;
+            canvas.style.cursor = 'grab';
         });
-        
+
         canvas.addEventListener('mouseleave', function() {
+            draggingBoundary = null;
             isDragging = false;
+            canvas.style.cursor = 'grab';
         });
         
         // Reset pan on double-click
