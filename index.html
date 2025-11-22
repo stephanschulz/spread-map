@@ -396,8 +396,8 @@
                     </label>
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 12px;">
-                    <label style="display: block; margin-bottom: 4px;">Load Point CSV:</label>
-                    <input type="file" id="csvFileInput" accept=".csv" style="font-size: 11px; width: 100%;">
+                    <label style="display: block; margin-bottom: 4px;">Load Spreadsheet:</label>
+                    <input type="file" id="csvFileInput" accept=".csv,.xlsx" style="font-size: 11px; width: 100%;">
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
                     <label style="display: block;">Point Scale: <span id="pointScaleValue">1.0x</span></label>
@@ -557,6 +557,305 @@
                 maxRows = Math.max(maxRows, colRows);
             }
             return maxRows;
+        }
+
+        // Read and parse Excel file
+        function parseExcelFile(arrayBuffer) {
+            try {
+                const workbook = XLSX.read(arrayBuffer, { type: 'array', cellStyles: true });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                return { workbook, worksheet };
+            } catch (error) {
+                console.error('Error parsing Excel file:', error);
+                throw new Error('Failed to parse Excel file');
+            }
+        }
+
+        // Detect if file is a point cloud CSV or exported map
+        function detectFileFormat(data, isExcel) {
+            if (isExcel) {
+                // For Excel, check the header row
+                const { worksheet } = data;
+                const range = XLSX.utils.decode_range(worksheet['!ref']);
+                
+                // Check first row for column headers
+                let hasColumnHeaders = false;
+                let hasPointCloudHeaders = false;
+                
+                for (let C = range.s.c; C <= Math.min(range.s.c + 5, range.e.c); C++) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+                    const cell = worksheet[cellAddress];
+                    if (cell && cell.v) {
+                        const value = String(cell.v).trim();
+                        if (value.match(/^C\d+$/)) {
+                            hasColumnHeaders = true;
+                        }
+                        if (value === 'ID' || value === 'px' || value === 'py') {
+                            hasPointCloudHeaders = true;
+                        }
+                    }
+                }
+                
+                return hasColumnHeaders ? 'exported-map' : (hasPointCloudHeaders ? 'point-cloud' : 'unknown');
+            } else {
+                // For CSV, check the first line
+                const firstLine = data.trim().split('\n')[0];
+                if (firstLine.includes('ID,px,py') || firstLine.includes('ID,') && firstLine.includes(',px,') && firstLine.includes(',py,')) {
+                    return 'point-cloud';
+                }
+                if (firstLine.match(/C\d+/)) {
+                    return 'exported-map';
+                }
+                return 'unknown';
+            }
+        }
+
+        // Import exported map - reconstruct grid and points
+        function importExportedMap(mapData) {
+            console.log('Importing exported map:', mapData);
+            
+            // Update form inputs
+            const avgCols = Math.round(mapData.universes[0].reduce((sum, u) => sum + u.cols, 0) / mapData.universesH);
+            const avgRows = Math.round(mapData.universes.reduce((sum, row) => sum + row[0].rows, 0) / mapData.universesV);
+            
+            document.getElementById('cols').value = avgCols;
+            document.getElementById('rows').value = avgRows;
+            document.getElementById('universes_h').value = mapData.universesH;
+            document.getElementById('universes_v').value = mapData.universesV;
+            
+            // Rebuild universe grid
+            universeGrid.universesH = mapData.universesH;
+            universeGrid.universesV = mapData.universesV;
+            universeGrid.universes = mapData.universes;
+            universeGrid.showCellText = true; // Show cell text since this is an imported map
+            
+            console.log('Universe grid rebuilt:', universeGrid);
+            
+            // Convert point positions to point cloud data
+            pointCloudData = [];
+            const baseCellSize = 60;
+            
+            if (mapData.points.length > 0) {
+                // Calculate cell positions and convert to coordinates
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                
+                // Need to flip Y because Excel row 1 is at top, but our coordinate system has Y increasing upward
+                const totalRows = mapData.totalRows;
+                
+                mapData.points.forEach(point => {
+                    // Convert grid position to pixel coordinates
+                    // Each cell is baseCellSize pixels
+                    const pixelX = point.gridCol * baseCellSize + baseCellSize / 2;
+                    
+                    // Flip Y coordinate: Excel row 0 (after header) should be at bottom of our grid
+                    const flippedGridRow = totalRows - 1 - point.gridRow;
+                    const pixelY = flippedGridRow * baseCellSize + baseCellSize / 2;
+                    
+                    pointCloudData.push({ x: pixelX / baseCellSize, y: pixelY / baseCellSize });
+                    
+                    minX = Math.min(minX, pixelX / baseCellSize);
+                    maxX = Math.max(maxX, pixelX / baseCellSize);
+                    minY = Math.min(minY, pixelY / baseCellSize);
+                    maxY = Math.max(maxY, pixelY / baseCellSize);
+                });
+                
+                pointCloudBounds = { minX, maxX, minY, maxY };
+                
+                // Detect pitch from imported points
+                const uniqueY = [...new Set(pointCloudData.map(p => p.y))].sort((a, b) => a - b);
+                let minYDiff = Infinity;
+                for (let i = 1; i < uniqueY.length; i++) {
+                    const diff = uniqueY[i] - uniqueY[i - 1];
+                    if (diff > 0.001) {
+                        minYDiff = Math.min(minYDiff, diff);
+                    }
+                }
+                pointCloudPitch.y = minYDiff;
+                
+                const uniqueX = [...new Set(pointCloudData.map(p => p.x))].sort((a, b) => a - b);
+                let minXDiff = Infinity;
+                for (let i = 1; i < uniqueX.length; i++) {
+                    const diff = uniqueX[i] - uniqueX[i - 1];
+                    if (diff > 0.001) {
+                        minXDiff = Math.min(minXDiff, diff);
+                    }
+                }
+                pointCloudPitch.x = minXDiff;
+                
+                pointCloudLoaded = true;
+                
+                // Set point scale to 1 since we're importing from the same coordinate system
+                document.getElementById('pointScale').value = 1.0;
+                document.getElementById('pointScaleValue').textContent = '1.0x';
+                
+                // Reset offsets
+                document.getElementById('pointOffsetX').value = 0;
+                document.getElementById('pointOffsetY').value = 0;
+                document.getElementById('pointOffsetXValue').textContent = '0';
+                document.getElementById('pointOffsetYValue').textContent = '0';
+                
+                // Calculate cable groups
+                calculateCableGroups();
+                
+                console.log('Imported', pointCloudData.length, 'points');
+            } else {
+                pointCloudLoaded = false;
+                pointCloudData = [];
+                console.log('No points found in imported map');
+            }
+            
+            // Update preview
+            updatePreview();
+            saveSettings();
+        }
+
+        // Parse exported map structure from Excel file
+        function parseExportedMap(worksheet) {
+            const range = XLSX.utils.decode_range(worksheet['!ref']);
+            console.log('Parsing exported map, range:', range);
+            
+            // Count columns (C1, C2, C3...)
+            const totalCols = range.e.c; // 0-based, so actual count is this value
+            
+            // Count rows (R1, R2, R3...)
+            const totalRows = range.e.r; // 0-based, so actual count is this value
+            
+            console.log('Grid dimensions:', totalCols, 'cols x', totalRows, 'rows');
+            
+            // Map to store universe info: universeNum -> {cells: [{row, col, hasPoint, pointLeft}], minRow, maxRow, minCol, maxCol}
+            const universeMap = new Map();
+            
+            // Parse all data cells (skip header row and column)
+            for (let R = 1; R <= range.e.r; R++) {
+                for (let C = 1; C <= range.e.c; C++) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                    const cell = worksheet[cellAddress];
+                    
+                    if (cell && cell.v) {
+                        const cellText = String(cell.v);
+                        const lines = cellText.split('\n');
+                        
+                        // Look for universe number (e.g., "U3-B2")
+                        let universeNum = null;
+                        let hasPoint = cellText.includes('●');
+                        let pointLeft = false;
+                        
+                        for (const line of lines) {
+                            const universeMatch = line.match(/U(\d+)/);
+                            if (universeMatch) {
+                                universeNum = parseInt(universeMatch[1]);
+                                break;
+                            }
+                        }
+                        
+                        // Check if point is on left or right
+                        if (hasPoint && lines.length > 0) {
+                            pointLeft = lines[0].trim().startsWith('●');
+                        }
+                        
+                        if (universeNum) {
+                            if (!universeMap.has(universeNum)) {
+                                universeMap.set(universeNum, {
+                                    cells: [],
+                                    minRow: R,
+                                    maxRow: R,
+                                    minCol: C,
+                                    maxCol: C
+                                });
+                            }
+                            
+                            const uniData = universeMap.get(universeNum);
+                            uniData.cells.push({ row: R, col: C, hasPoint, pointLeft });
+                            uniData.minRow = Math.min(uniData.minRow, R);
+                            uniData.maxRow = Math.max(uniData.maxRow, R);
+                            uniData.minCol = Math.min(uniData.minCol, C);
+                            uniData.maxCol = Math.max(uniData.maxCol, C);
+                        }
+                    }
+                }
+            }
+            
+            console.log('Found', universeMap.size, 'universes');
+            
+            // Determine universe grid layout
+            // Find max universe number to determine total count
+            const maxUniverseNum = Math.max(...Array.from(universeMap.keys()));
+            
+            // Calculate grid dimensions for universes
+            // We need to determine universesH and universesV from the layout
+            // Strategy: find the universe positions and infer the grid
+            
+            // Get position of each universe (top-left corner)
+            const universePositions = new Map();
+            universeMap.forEach((data, num) => {
+                universePositions.set(num, { row: data.minRow, col: data.minCol });
+            });
+            
+            // Find unique row and column positions
+            const uniqueRows = [...new Set(Array.from(universePositions.values()).map(p => p.row))].sort((a, b) => a - b);
+            const uniqueCols = [...new Set(Array.from(universePositions.values()).map(p => p.col))].sort((a, b) => a - b);
+            
+            const universesV = uniqueRows.length;
+            const universesH = uniqueCols.length;
+            
+            console.log('Universe grid:', universesH, 'x', universesV);
+            
+            // Build universe grid structure
+            const universes = [];
+            for (let uRow = 0; uRow < universesV; uRow++) {
+                const rowArray = [];
+                for (let uCol = 0; uCol < universesH; uCol++) {
+                    // Find which universe is at this position
+                    const targetRow = uniqueRows[uRow];
+                    const targetCol = uniqueCols[uCol];
+                    
+                    let foundUniverse = null;
+                    universeMap.forEach((data, num) => {
+                        if (data.minRow === targetRow && data.minCol === targetCol) {
+                            foundUniverse = { num, data };
+                        }
+                    });
+                    
+                    if (foundUniverse) {
+                        const cols = foundUniverse.data.maxCol - foundUniverse.data.minCol + 1;
+                        const rows = foundUniverse.data.maxRow - foundUniverse.data.minRow + 1;
+                        rowArray.push({ cols, rows });
+                    } else {
+                        // Shouldn't happen, but handle gracefully
+                        rowArray.push({ cols: 20, rows: 10 });
+                    }
+                }
+                universes.push(rowArray);
+            }
+            
+            // Extract point locations
+            const points = [];
+            universeMap.forEach((data, num) => {
+                data.cells.forEach(cell => {
+                    if (cell.hasPoint) {
+                        // Convert cell position (1-based in Excel) to 0-based grid position
+                        points.push({
+                            gridRow: cell.row - 1,  // -1 to account for header row
+                            gridCol: cell.col - 1,  // -1 to account for header column
+                            leftStagger: cell.pointLeft
+                        });
+                    }
+                });
+            });
+            
+            console.log('Extracted', points.length, 'points');
+            
+            return {
+                universesH,
+                universesV,
+                universes,
+                points,
+                totalCols,
+                totalRows
+            };
         }
 
         // Parse CSV text into point cloud data
@@ -1246,10 +1545,11 @@
             return `${colLabel}\n${universeLabel}-${bLabel}\n`;
         }
         
-        // Generate map data
-        function generateMapData(colsPerUniverse, rowsPerUniverse, universesH, universesV) {
-            const totalRows = rowsPerUniverse * universesV;
-            const totalCols = colsPerUniverse * universesH;
+        // Generate map data using actual universe grid structure (respects custom boundaries)
+        function generateMapData() {
+            // Calculate total dimensions from actual universe grid
+            const totalCols = getTotalCols();
+            const totalRows = getTotalRows();
             
             const grid = [];
             
@@ -1260,20 +1560,48 @@
             }
             grid.push(headerRow);
             
-            // Data rows
+            // Data rows - using dynamic universe grid
             for (let row = 0; row < totalRows; row++) {
                 const rowData = [`R${row + 1}`];
                 
-                const universeRow = Math.floor(row / rowsPerUniverse);
-                const rowInUniverse = (row % rowsPerUniverse) + 1;
-                
+                // For each column, determine which universe and position within that universe
                 for (let col = 0; col < totalCols; col++) {
-                    const universeCol = Math.floor(col / colsPerUniverse);
-                    const colInUniverse = col % colsPerUniverse;
-                    const universeNum = (universeRow * universesH) + universeCol + 1;
+                    // Find which universe this cell belongs to
+                    let cellValue = '';
+                    let foundUniverse = false;
                     
-                    const cellLabel = generateCellLabel(rowInUniverse, colInUniverse, universeNum);
-                    rowData.push(cellLabel);
+                    for (let uRow = 0; uRow < universeGrid.universesV && !foundUniverse; uRow++) {
+                        for (let uCol = 0; uCol < universeGrid.universesH && !foundUniverse; uCol++) {
+                            // Calculate X position by summing widths in the SAME ROW
+                            let currentX = 0;
+                            for (let c = 0; c < uCol; c++) {
+                                currentX += getUniverseCols(uRow, c);
+                            }
+                            
+                            // Calculate Y position by summing heights in the SAME COLUMN
+                            let currentY = 0;
+                            for (let r = 0; r < uRow; r++) {
+                                currentY += getUniverseRows(r, uCol);
+                            }
+                            
+                            const colsInUniverse = getUniverseCols(uRow, uCol);
+                            const rowsInUniverse = getUniverseRows(uRow, uCol);
+                            
+                            // Check if this cell is in this universe
+                            if (col >= currentX && col < currentX + colsInUniverse &&
+                                row >= currentY && row < currentY + rowsInUniverse) {
+                                
+                                const colInUniverse = col - currentX;
+                                const rowInUniverse = row - currentY + 1; // +1 because B1, B2, etc.
+                                const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
+                                
+                                cellValue = generateCellLabel(rowInUniverse, colInUniverse, universeNum);
+                                foundUniverse = true;
+                            }
+                        }
+                    }
+                    
+                    rowData.push(cellValue);
                 }
                 
                 grid.push(rowData);
@@ -1331,8 +1659,8 @@
                 const universesH = parseInt(document.getElementById('universes_h').value);
                 const universesV = parseInt(document.getElementById('universes_v').value);
                 
-                // Generate data
-                const grid = generateMapData(cols, rows, universesH, universesV);
+                // Generate data using actual universe grid structure (respects custom boundaries)
+                const grid = generateMapData();
                 const colors = generateUniverseColors(universesH * universesV);
                 
                 // Map points to cells using EXACT same logic as visual rendering
@@ -1567,22 +1895,62 @@
             saveSettings();
         });
         
-        // CSV file upload handler
+        // Spreadsheet file upload handler (CSV or Excel)
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                const fileName = file.name.toLowerCase();
+                const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+                
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     try {
-                        parseCSV(event.target.result);
-                        updatePreview();
-                        console.log('CSV file loaded successfully');
+                        if (isExcel) {
+                            // Parse Excel file
+                            const data = parseExcelFile(event.target.result);
+                            const format = detectFileFormat(data, true);
+                            
+                            console.log('Detected format:', format);
+                            
+                            if (format === 'exported-map') {
+                                // Import exported map
+                                const mapData = parseExportedMap(data.worksheet);
+                                importExportedMap(mapData);
+                                console.log('Exported map loaded successfully');
+                            } else if (format === 'point-cloud') {
+                                // Convert Excel to CSV-like data and parse
+                                const worksheet = data.worksheet;
+                                const csvData = XLSX.utils.sheet_to_csv(worksheet);
+                                parseCSV(csvData);
+                                updatePreview();
+                                console.log('Point cloud Excel loaded successfully');
+                            } else {
+                                throw new Error('Unknown Excel file format');
+                            }
+                        } else {
+                            // Parse CSV file
+                            const csvText = event.target.result;
+                            const format = detectFileFormat(csvText, false);
+                            
+                            if (format === 'point-cloud') {
+                                parseCSV(csvText);
+                                updatePreview();
+                                console.log('Point cloud CSV loaded successfully');
+                            } else {
+                                throw new Error('CSV format not supported for exported maps. Please use Excel files.');
+                            }
+                        }
                     } catch (error) {
-                        console.error('Failed to parse CSV:', error);
-                        alert('Failed to load CSV file. Make sure it has ID,px,py,pz,Universe columns.');
+                        console.error('Failed to parse file:', error);
+                        alert('Failed to load file: ' + error.message);
                     }
                 };
-                reader.readAsText(file);
+                
+                if (isExcel) {
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    reader.readAsText(file);
+                }
             }
         });
         
