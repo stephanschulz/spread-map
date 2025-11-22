@@ -477,14 +477,12 @@
         let pointCloudPitch = { x: 0, y: 0 }; // Detected pitch/spacing
         let cableGroups = []; // Groups of 20 points with their center points
 
-        // Variable universe grid structure
+        // Variable universe grid structure - each universe has independent dimensions
         let universeGrid = {
             universesH: 6,
             universesV: 5,
-            // Column widths for each universe (horizontal)
-            colWidths: [], // Array of arrays: [[u1_cols], [u2_cols], ...]
-            // Row heights for each universe (vertical)
-            rowHeights: [], // Array of arrays: [[u1_rows], [u2_rows], ...]
+            // 2D array of universes: universes[uRow][uCol] = {cols, rows}
+            universes: [],
             showCellText: false // Only show text after Apply
         };
 
@@ -497,50 +495,68 @@
         function initializeUniverseGrid(cols, rows, universesH, universesV) {
             universeGrid.universesH = universesH;
             universeGrid.universesV = universesV;
-            universeGrid.colWidths = [];
-            universeGrid.rowHeights = [];
+            universeGrid.universes = [];
 
-            // Initialize each universe with uniform column widths
-            for (let uCol = 0; uCol < universesH; uCol++) {
-                const colArray = new Array(cols).fill(1); // Each column has width 1 (relative units)
-                universeGrid.colWidths.push(colArray);
-            }
-
-            // Initialize each universe with uniform row heights
+            // Initialize each universe with independent dimensions
             for (let uRow = 0; uRow < universesV; uRow++) {
-                const rowArray = new Array(rows).fill(1); // Each row has height 1 (relative units)
-                universeGrid.rowHeights.push(rowArray);
+                const rowArray = [];
+                for (let uCol = 0; uCol < universesH; uCol++) {
+                    rowArray.push({
+                        cols: cols,
+                        rows: rows
+                    });
+                }
+                universeGrid.universes.push(rowArray);
             }
 
             console.log('Initialized universe grid:', universeGrid);
         }
 
-        // Get total columns for a specific universe column index
-        function getTotalColsForUniverseCol(uCol) {
-            return universeGrid.colWidths[uCol] ? universeGrid.colWidths[uCol].length : 0;
+        // Get universe at specific position
+        function getUniverse(uRow, uCol) {
+            if (uRow >= 0 && uRow < universeGrid.universesV &&
+                uCol >= 0 && uCol < universeGrid.universesH) {
+                return universeGrid.universes[uRow][uCol];
+            }
+            return null;
         }
 
-        // Get total rows for a specific universe row index
-        function getTotalRowsForUniverseRow(uRow) {
-            return universeGrid.rowHeights[uRow] ? universeGrid.rowHeights[uRow].length : 0;
+        // Get total columns for a specific universe
+        function getUniverseCols(uRow, uCol) {
+            const uni = getUniverse(uRow, uCol);
+            return uni ? uni.cols : 0;
         }
 
-        // Get total columns across all universes
+        // Get total rows for a specific universe
+        function getUniverseRows(uRow, uCol) {
+            const uni = getUniverse(uRow, uCol);
+            return uni ? uni.rows : 0;
+        }
+
+        // Get total columns across all universes (max in any row)
         function getTotalCols() {
-            let total = 0;
-            for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
-                total += getTotalColsForUniverseCol(uCol);
+            let maxCols = 0;
+            for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                let rowCols = 0;
+                for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                    rowCols += getUniverseCols(uRow, uCol);
+                }
+                maxCols = Math.max(maxCols, rowCols);
             }
-            return total;
+            return maxCols;
         }
 
-        // Get total rows across all universes
+        // Get total rows across all universes (max in any column)
         function getTotalRows() {
-            let total = 0;
-            for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
-                total += getTotalRowsForUniverseRow(uRow);
+            let maxRows = 0;
+            for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                let colRows = 0;
+                for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
+                    colRows += getUniverseRows(uRow, uCol);
+                }
+                maxRows = Math.max(maxRows, colRows);
             }
-            return total;
+            return maxRows;
         }
 
         // Parse CSV text into point cloud data
@@ -650,26 +666,28 @@
                 const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
 
                 // Calculate universe from cell position using variable grid
-                let currentCol = 0;
                 let universeCol = -1;
-                for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
-                    const colsInUniverse = getTotalColsForUniverseCol(uCol);
-                    if (cellCol < currentCol + colsInUniverse) {
-                        universeCol = uCol;
-                        break;
-                    }
-                    currentCol += colsInUniverse;
-                }
-
-                let currentRow = 0;
                 let universeRow = -1;
-                for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
-                    const rowsInUniverse = getTotalRowsForUniverseRow(uRow);
-                    if (cellRow < currentRow + rowsInUniverse) {
-                        universeRow = uRow;
-                        break;
+
+                // Find which universe this cell belongs to
+                let currentY = 0;
+                for (let uRow = 0; uRow < universeGrid.universesV && universeRow < 0; uRow++) {
+                    let currentX = 0;
+                    for (let uCol = 0; uCol < universeGrid.universesH && universeCol < 0; uCol++) {
+                        const colsInUniverse = getUniverseCols(uRow, uCol);
+                        const rowsInUniverse = getUniverseRows(uRow, uCol);
+
+                        if (cellCol >= currentX && cellCol < currentX + colsInUniverse &&
+                            cellRow >= currentY && cellRow < currentY + rowsInUniverse) {
+                            universeCol = uCol;
+                            universeRow = uRow;
+                            break;
+                        }
+                        currentX += colsInUniverse;
                     }
-                    currentRow += rowsInUniverse;
+                    if (universeRow < 0) {
+                        currentY += getUniverseRows(uRow, 0);
+                    }
                 }
 
                 if (universeCol >= 0 && universeRow >= 0) {
@@ -916,25 +934,31 @@
         function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors) {
             const baseCellSize = 60;
 
-            // Calculate cell positions and draw
-            let currentY = 0;
-
+            // Draw each universe independently - calculate position based on actual row/column
             for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
-                let currentX = 0;
-                const rowsInThisUniverseRow = getTotalRowsForUniverseRow(uRow);
-
                 for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
-                    const colsInThisUniverseCol = getTotalColsForUniverseCol(uCol);
+                    // Calculate X position by summing widths of all universes in the SAME ROW before this column
+                    let currentX = 0;
+                    for (let c = 0; c < uCol; c++) {
+                        currentX += getUniverseCols(uRow, c);
+                    }
+
+                    // Calculate Y position by summing heights of all universes in the SAME COLUMN before this row
+                    let currentY = 0;
+                    for (let r = 0; r < uRow; r++) {
+                        currentY += getUniverseRows(r, uCol);
+                    }
+
                     const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
                     const hexColor = colors[universeNum] || 'CCCCCC';
+                    const colsInUniverse = getUniverseCols(uRow, uCol);
+                    const rowsInUniverse = getUniverseRows(uRow, uCol);
 
                     // Draw all cells in this universe
-                    let yInUniverse = 0;
-                    for (let row = 0; row < rowsInThisUniverseRow; row++) {
-                        let xInUniverse = 0;
-                        for (let col = 0; col < colsInThisUniverseCol; col++) {
-                            const x = (currentX + xInUniverse) * baseCellSize;
-                            const y = (currentY + yInUniverse) * baseCellSize;
+                    for (let row = 0; row < rowsInUniverse; row++) {
+                        for (let col = 0; col < colsInUniverse; col++) {
+                            const x = (currentX + col) * baseCellSize;
+                            const y = (currentY + row) * baseCellSize;
                             const cellWidth = baseCellSize;
                             const cellHeight = baseCellSize;
 
@@ -969,55 +993,53 @@
                                 ctx.textBaseline = 'bottom';
                                 ctx.fillText(`B${row + 1}`, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
                             }
-
-                            xInUniverse++;
                         }
-                        yInUniverse++;
                     }
 
                     // Draw universe boundaries (thick lines)
                     ctx.strokeStyle = '#000';
                     ctx.lineWidth = Math.max(2, scale * 3);
 
-                    // Right boundary
-                    const rightX = offsetX + ((currentX + colsInThisUniverseCol) * baseCellSize * scale);
+                    // Right boundary of this universe
+                    const rightX = offsetX + ((currentX + colsInUniverse) * baseCellSize * scale);
                     const topY = offsetY + (currentY * baseCellSize * scale);
-                    const bottomY = offsetY + ((currentY + rowsInThisUniverseRow) * baseCellSize * scale);
+                    const bottomY = offsetY + ((currentY + rowsInUniverse) * baseCellSize * scale);
                     ctx.beginPath();
                     ctx.moveTo(rightX, topY);
                     ctx.lineTo(rightX, bottomY);
                     ctx.stroke();
 
-                    currentX += colsInThisUniverseCol;
+                    // Bottom boundary of this universe
+                    const leftX = offsetX + (currentX * baseCellSize * scale);
+                    ctx.beginPath();
+                    ctx.moveTo(leftX, bottomY);
+                    ctx.lineTo(rightX, bottomY);
+                    ctx.stroke();
                 }
-
-                // Draw horizontal universe boundary
-                ctx.strokeStyle = '#000';
-                ctx.lineWidth = Math.max(2, scale * 3);
-                const bottomY = offsetY + ((currentY + rowsInThisUniverseRow) * baseCellSize * scale);
-                const leftX = offsetX;
-                const rightX = offsetX + (getTotalCols() * baseCellSize * scale);
-                ctx.beginPath();
-                ctx.moveTo(leftX, bottomY);
-                ctx.lineTo(rightX, bottomY);
-                ctx.stroke();
-
-                currentY += rowsInThisUniverseRow;
             }
 
             // Draw large universe labels if text is enabled
             if (universeGrid.showCellText && scale > 0.5) {
-                let currentY = 0;
                 for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
-                    let currentX = 0;
-                    const rowsInThisUniverseRow = getTotalRowsForUniverseRow(uRow);
-
                     for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
-                        const colsInThisUniverseCol = getTotalColsForUniverseCol(uCol);
+                        // Calculate X position by summing widths in the SAME ROW
+                        let currentX = 0;
+                        for (let c = 0; c < uCol; c++) {
+                            currentX += getUniverseCols(uRow, c);
+                        }
+
+                        // Calculate Y position by summing heights in the SAME COLUMN
+                        let currentY = 0;
+                        for (let r = 0; r < uRow; r++) {
+                            currentY += getUniverseRows(r, uCol);
+                        }
+
+                        const colsInUniverse = getUniverseCols(uRow, uCol);
+                        const rowsInUniverse = getUniverseRows(uRow, uCol);
                         const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
 
-                        const centerX = offsetX + ((currentX + colsInThisUniverseCol / 2) * baseCellSize * scale);
-                        const centerY = offsetY + ((currentY + rowsInThisUniverseRow / 2) * baseCellSize * scale);
+                        const centerX = offsetX + ((currentX + colsInUniverse / 2) * baseCellSize * scale);
+                        const centerY = offsetY + ((currentY + rowsInUniverse / 2) * baseCellSize * scale);
 
                         const fontSize = Math.min(baseCellSize * 3 * scale, 120);
                         ctx.font = `bold ${fontSize}px Arial`;
@@ -1030,10 +1052,7 @@
 
                         ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
                         ctx.fillText(`U${universeNum}`, centerX, centerY);
-
-                        currentX += colsInThisUniverseCol;
                     }
-                    currentY += rowsInThisUniverseRow;
                 }
             }
         }
@@ -1134,7 +1153,7 @@
                 console.log('Grid config:', { cols, rows, universesH, universesV });
 
                 // Initialize universe grid if not already initialized or if dimensions changed
-                if (universeGrid.colWidths.length === 0 ||
+                if (universeGrid.universes.length === 0 ||
                     universeGrid.universesH !== universesH ||
                     universeGrid.universesV !== universesV) {
                     initializeUniverseGrid(cols, rows, universesH, universesV);
@@ -1148,8 +1167,8 @@
                 let totalCellsInAllUniverses = 0;
                 for (let uRow = 0; uRow < universesV; uRow++) {
                     for (let uCol = 0; uCol < universesH; uCol++) {
-                        const cols = getTotalColsForUniverseCol(uCol);
-                        const rows = getTotalRowsForUniverseRow(uRow);
+                        const cols = getUniverseCols(uRow, uCol);
+                        const rows = getUniverseRows(uRow, uCol);
                         totalCellsInAllUniverses += cols * rows;
                     }
                 }
@@ -1716,7 +1735,7 @@
             updatePreview();
         }, { passive: false });
         
-        // Detect if mouse is near a boundary line
+        // Detect if mouse is near a boundary line segment
         function detectBoundaryAtPosition(mouseX, mouseY) {
             const canvas = document.getElementById('gridCanvas');
             const baseCellSize = 60;
@@ -1742,61 +1761,68 @@
             const offsetX = baseOffsetX + panX;
             const offsetY = baseOffsetY + panY;
 
-            // Check vertical boundaries (between universe columns)
-            let currentX = 0;
-            for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
-                currentX += getTotalColsForUniverseCol(uCol);
-                const boundaryX = offsetX + (currentX * baseCellSize * scale);
-
-                if (Math.abs(mouseX - boundaryX) < threshold) {
-                    return { type: 'vertical', index: uCol, x: boundaryX };
-                }
-            }
-
-            // Check horizontal boundaries (between universe rows)
+            // Check vertical boundaries (between specific universe pairs)
             let currentY = 0;
             for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
-                currentY += getTotalRowsForUniverseRow(uRow);
-                const boundaryY = offsetY + (currentY * baseCellSize * scale);
+                let currentX = 0;
+                const rowsInUniverse = getUniverseRows(uRow, 0);
 
-                if (Math.abs(mouseY - boundaryY) < threshold) {
-                    return { type: 'horizontal', index: uRow, y: boundaryY };
+                for (let uCol = 0; uCol < universeGrid.universesH - 1; uCol++) {
+                    const colsInUniverse = getUniverseCols(uRow, uCol);
+                    currentX += colsInUniverse;
+
+                    const boundaryX = offsetX + (currentX * baseCellSize * scale);
+                    const topY = offsetY + (currentY * baseCellSize * scale);
+                    const bottomY = offsetY + ((currentY + rowsInUniverse) * baseCellSize * scale);
+
+                    // Check if mouse is near this vertical boundary segment
+                    if (Math.abs(mouseX - boundaryX) < threshold &&
+                        mouseY >= topY && mouseY <= bottomY) {
+                        return {
+                            type: 'vertical',
+                            leftURow: uRow,
+                            leftUCol: uCol,
+                            rightURow: uRow,
+                            rightUCol: uCol + 1
+                        };
+                    }
                 }
+
+                currentY += rowsInUniverse;
+            }
+
+            // Check horizontal boundaries (between specific universe pairs)
+            let currentX = 0;
+            for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
+                let currentY = 0;
+                const colsInFirstRow = getUniverseCols(0, uCol);
+
+                for (let uRow = 0; uRow < universeGrid.universesV - 1; uRow++) {
+                    const rowsInUniverse = getUniverseRows(uRow, uCol);
+                    const colsInThisUniverse = getUniverseCols(uRow, uCol);
+                    currentY += rowsInUniverse;
+
+                    const boundaryY = offsetY + (currentY * baseCellSize * scale);
+                    const leftX = offsetX + (currentX * baseCellSize * scale);
+                    const rightX = offsetX + ((currentX + colsInThisUniverse) * baseCellSize * scale);
+
+                    // Check if mouse is near this horizontal boundary segment
+                    if (Math.abs(mouseY - boundaryY) < threshold &&
+                        mouseX >= leftX && mouseX <= rightX) {
+                        return {
+                            type: 'horizontal',
+                            topURow: uRow,
+                            topUCol: uCol,
+                            bottomURow: uRow + 1,
+                            bottomUCol: uCol
+                        };
+                    }
+                }
+
+                currentX += colsInFirstRow;
             }
 
             return null;
-        }
-
-        // Add or remove columns from a universe
-        function adjustUniverseColumns(uCol, delta) {
-            const currentCols = getTotalColsForUniverseCol(uCol);
-            const newCols = Math.max(1, currentCols + delta);
-
-            if (delta > 0) {
-                // Add columns
-                for (let i = 0; i < delta; i++) {
-                    universeGrid.colWidths[uCol].push(1);
-                }
-            } else if (delta < 0) {
-                // Remove columns
-                universeGrid.colWidths[uCol].splice(newCols, -delta);
-            }
-        }
-
-        // Add or remove rows from a universe
-        function adjustUniverseRows(uRow, delta) {
-            const currentRows = getTotalRowsForUniverseRow(uRow);
-            const newRows = Math.max(1, currentRows + delta);
-
-            if (delta > 0) {
-                // Add rows
-                for (let i = 0; i < delta; i++) {
-                    universeGrid.rowHeights[uRow].push(1);
-                }
-            } else if (delta < 0) {
-                // Remove rows
-                universeGrid.rowHeights[uRow].splice(newRows, -delta);
-            }
         }
 
         // Mouse drag to pan OR drag boundaries
@@ -1843,34 +1869,64 @@
                     const cellDelta = Math.round(deltaX / (baseCellSize * scale));
 
                     if (cellDelta !== 0) {
-                        // Adjust left universe (add/remove from right side)
-                        adjustUniverseColumns(draggingBoundary.index, cellDelta);
+                        // Get the two specific universes
+                        const leftUni = getUniverse(draggingBoundary.leftURow, draggingBoundary.leftUCol);
+                        const rightUni = getUniverse(draggingBoundary.rightURow, draggingBoundary.rightUCol);
 
-                        // Adjust right universe (add/remove from left side)
-                        if (draggingBoundary.index + 1 < universeGrid.universesH) {
-                            adjustUniverseColumns(draggingBoundary.index + 1, -cellDelta);
+                        // Adjust only these two universes with equal and opposite deltas
+                        if (leftUni && rightUni) {
+                            // Calculate the actual delta that can be applied (constrained by minimums)
+                            let actualDelta;
+                            if (cellDelta > 0) {
+                                // Dragging right: left grows, right shrinks
+                                // Constraint: right can shrink by at most (rightUni.cols - 1)
+                                actualDelta = Math.min(cellDelta, rightUni.cols - 1);
+                            } else {
+                                // Dragging left: left shrinks, right grows
+                                // Constraint: left can shrink by at most (leftUni.cols - 1)
+                                actualDelta = Math.max(cellDelta, -(leftUni.cols - 1));
+                            }
+
+                            // Apply equal and opposite changes to maintain shared boundary
+                            leftUni.cols += actualDelta;
+                            rightUni.cols -= actualDelta;
+
+                            dragStartX = mouseX;
+                            universeGrid.showCellText = false; // Hide text during adjustment
+                            updatePreview();
                         }
-
-                        dragStartX = mouseX;
-                        universeGrid.showCellText = false; // Hide text during adjustment
-                        updatePreview();
                     }
                 } else if (draggingBoundary.type === 'horizontal') {
                     const deltaY = mouseY - dragStartY;
                     const cellDelta = Math.round(deltaY / (baseCellSize * scale));
 
                     if (cellDelta !== 0) {
-                        // Adjust top universe (add/remove from bottom side)
-                        adjustUniverseRows(draggingBoundary.index, cellDelta);
+                        // Get only the two specific universes at this boundary segment
+                        const topUni = getUniverse(draggingBoundary.topURow, draggingBoundary.topUCol);
+                        const bottomUni = getUniverse(draggingBoundary.bottomURow, draggingBoundary.bottomUCol);
 
-                        // Adjust bottom universe (add/remove from top side)
-                        if (draggingBoundary.index + 1 < universeGrid.universesV) {
-                            adjustUniverseRows(draggingBoundary.index + 1, -cellDelta);
+                        // Adjust only these two universes with equal and opposite deltas
+                        if (topUni && bottomUni) {
+                            // Calculate the actual delta that can be applied (constrained by minimums)
+                            let actualDelta;
+                            if (cellDelta > 0) {
+                                // Dragging down: top grows, bottom shrinks
+                                // Constraint: bottom can shrink by at most (bottomUni.rows - 1)
+                                actualDelta = Math.min(cellDelta, bottomUni.rows - 1);
+                            } else {
+                                // Dragging up: top shrinks, bottom grows
+                                // Constraint: top can shrink by at most (topUni.rows - 1)
+                                actualDelta = Math.max(cellDelta, -(topUni.rows - 1));
+                            }
+
+                            // Apply equal and opposite changes to maintain shared boundary
+                            topUni.rows += actualDelta;
+                            bottomUni.rows -= actualDelta;
+
+                            dragStartY = mouseY;
+                            universeGrid.showCellText = false; // Hide text during adjustment
+                            updatePreview();
                         }
-
-                        dragStartY = mouseY;
-                        universeGrid.showCellText = false; // Hide text during adjustment
-                        updatePreview();
                     }
                 }
             } else if (isDragging) {
