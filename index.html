@@ -1684,53 +1684,55 @@
         // Mouse wheel zoom (zoom to cursor position)
         document.getElementById('gridCanvas').addEventListener('wheel', function(e) {
             e.preventDefault();
-            
+
             const canvas = e.target;
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
-            
+
             // Calculate current zoom parameters
             const oldZoom = zoom;
             const zoomSpeed = 0.1;
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
             const newZoom = Math.max(0.8, Math.min(20, zoom * (1 + delta)));
-            
+
             // Calculate the mouse position in world space before zoom
-            // This requires knowing the current grid transform
+            // Use actual grid dimensions instead of cachedGridImage
+            const baseCellSize = 60;
+            const totalCols = getTotalCols();
+            const totalRows = getTotalRows();
+            const gridPixelWidth = totalCols * baseCellSize;
+            const gridPixelHeight = totalRows * baseCellSize;
+
             const availableWidth = canvas.width * 0.9;
             const availableHeight = canvas.height * 0.9;
-            
-            // Assuming cachedGridImage exists and has dimensions
-            if (cachedGridImage) {
-                const scaleX = availableWidth / cachedGridImage.width;
-                const scaleY = availableHeight / cachedGridImage.height;
-                const baseScale = Math.min(scaleX, scaleY);
-                
-                const oldScale = baseScale * oldZoom;
-                const newScale = baseScale * newZoom;
-                
-                const oldGridWidth = cachedGridImage.width * oldScale;
-                const oldGridHeight = cachedGridImage.height * oldScale;
-                const newGridWidth = cachedGridImage.width * newScale;
-                const newGridHeight = cachedGridImage.height * newScale;
-                
-                const oldBaseOffsetX = (canvas.width - oldGridWidth) / 2;
-                const oldBaseOffsetY = (canvas.height - oldGridHeight) / 2;
-                const newBaseOffsetX = (canvas.width - newGridWidth) / 2;
-                const newBaseOffsetY = (canvas.height - newGridHeight) / 2;
-                
-                // Mouse position relative to grid origin before zoom
-                const oldOffsetX = oldBaseOffsetX + panX;
-                const oldOffsetY = oldBaseOffsetY + panY;
-                const worldX = (mouseX - oldOffsetX) / oldScale;
-                const worldY = (mouseY - oldOffsetY) / oldScale;
-                
-                // Adjust pan so the same world point ends up under the mouse after zoom
-                panX = mouseX - newBaseOffsetX - worldX * newScale;
-                panY = mouseY - newBaseOffsetY - worldY * newScale;
-            }
-            
+            const scaleX = availableWidth / gridPixelWidth;
+            const scaleY = availableHeight / gridPixelHeight;
+            const baseScale = Math.min(scaleX, scaleY);
+
+            const oldScale = baseScale * oldZoom;
+            const newScale = baseScale * newZoom;
+
+            const oldGridWidth = gridPixelWidth * oldScale;
+            const oldGridHeight = gridPixelHeight * oldScale;
+            const newGridWidth = gridPixelWidth * newScale;
+            const newGridHeight = gridPixelHeight * newScale;
+
+            const oldBaseOffsetX = (canvas.width - oldGridWidth) / 2;
+            const oldBaseOffsetY = (canvas.height - oldGridHeight) / 2;
+            const newBaseOffsetX = (canvas.width - newGridWidth) / 2;
+            const newBaseOffsetY = (canvas.height - newGridHeight) / 2;
+
+            // Mouse position relative to grid origin before zoom
+            const oldOffsetX = oldBaseOffsetX + panX;
+            const oldOffsetY = oldBaseOffsetY + panY;
+            const worldX = (mouseX - oldOffsetX) / oldScale;
+            const worldY = (mouseY - oldOffsetY) / oldScale;
+
+            // Adjust pan so the same world point ends up under the mouse after zoom
+            panX = mouseX - newBaseOffsetX - worldX * newScale;
+            panY = mouseY - newBaseOffsetY - worldY * newScale;
+
             zoom = newZoom;
             updatePreview();
         }, { passive: false });
