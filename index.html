@@ -385,6 +385,12 @@
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
                     <label>
+                        <input type="checkbox" id="showCableGroups" checked>
+                        Show Cable Groups (20)
+                    </label>
+                </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label>
                         <input type="checkbox" id="showPointCloud" checked>
                         Show Points
                     </label>
@@ -469,6 +475,7 @@
         let pointCloudLoaded = false;
         let pointCloudBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         let pointCloudPitch = { x: 0, y: 0 }; // Detected pitch/spacing
+        let cableGroups = []; // Groups of 20 points with their center points
         
         // Parse CSV text into point cloud data
         function parseCSV(csvText) {
@@ -539,6 +546,104 @@
                 document.getElementById('pointScaleValue').textContent = idealScale.toFixed(2) + 'x';
                 console.log('Auto-adjusted point scale to:', idealScale.toFixed(3));
             }
+
+            // Calculate cable groups
+            calculateCableGroups();
+        }
+
+        // Calculate cable groups - group by universe, 20 points per group, starting from top-right
+        function calculateCableGroups() {
+            cableGroups = [];
+            const groupSize = 20;
+
+            // Get current grid configuration
+            const cols = parseInt(document.getElementById('cols')?.value) || 20;
+            const rows = parseInt(document.getElementById('rows')?.value) || 10;
+            const universesH = parseInt(document.getElementById('universes_h')?.value) || 6;
+            const universesV = parseInt(document.getElementById('universes_v')?.value) || 5;
+
+            // Get point transformation settings
+            const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+            const baseCellSize = 60;
+            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
+            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+
+            // Assign each point to a universe based on its cell position
+            const pointsByUniverse = new Map();
+
+            pointCloudData.forEach((point, idx) => {
+                // Same logic as drawPointCloud and Excel generation
+                const relativeX = point.x - pointCloudBounds.minX;
+                const relativeY = point.y - pointCloudBounds.minY;
+
+                const gridPixelX = relativeX * baseCellSize * pointScale;
+                const gridPixelY = relativeY * baseCellSize * pointScale;
+                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+
+                // Convert to cell indices
+                const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+
+                // Calculate universe from cell position
+                const universeCol = Math.floor(cellCol / cols);
+                const universeRow = Math.floor(cellRow / rows);
+                const universeNum = (universeRow * universesH) + universeCol + 1;
+
+                // Store point with its position info
+                if (!pointsByUniverse.has(universeNum)) {
+                    pointsByUniverse.set(universeNum, []);
+                }
+
+                pointsByUniverse.get(universeNum).push({
+                    point: point,
+                    cellRow: cellRow,
+                    cellCol: cellCol,
+                    originalIndex: idx
+                });
+            });
+
+            console.log('Points distributed across', pointsByUniverse.size, 'universes');
+
+            // For each universe, sort points from top-right and create groups of 20
+            pointsByUniverse.forEach((universePoints, universeNum) => {
+                // Sort by row (top first = lower cellRow), then by column (right first = higher cellCol)
+                universePoints.sort((a, b) => {
+                    if (a.cellRow !== b.cellRow) {
+                        return a.cellRow - b.cellRow; // Top rows first
+                    }
+                    return b.cellCol - a.cellCol; // Right columns first within same row
+                });
+
+                // Create groups of 20
+                for (let i = 0; i < universePoints.length; i += groupSize) {
+                    const groupPointsData = universePoints.slice(i, i + groupSize);
+                    const groupPoints = groupPointsData.map(p => p.point);
+
+                    // Calculate center point to minimize total distance (using centroid as approximation)
+                    let sumX = 0, sumY = 0;
+                    groupPoints.forEach(point => {
+                        sumX += point.x;
+                        sumY += point.y;
+                    });
+
+                    const centerX = sumX / groupPoints.length;
+                    const centerY = sumY / groupPoints.length;
+
+                    cableGroups.push({
+                        points: groupPoints,
+                        center: { x: centerX, y: centerY },
+                        universeNum: universeNum,
+                        groupInUniverse: Math.floor(i / groupSize) + 1
+                    });
+                }
+            });
+
+            console.log('Calculated', cableGroups.length, 'cable groups of up to', groupSize, 'points each across', pointsByUniverse.size, 'universes');
         }
         
         // Load point cloud data from CSV file
@@ -655,7 +760,76 @@
             
             ctx.restore();
         }
-        
+
+        // Draw cable group lines - lines from each point to the group center
+        function drawCableGroups(ctx, gridOffsetX, gridOffsetY, gridScale, pointScale, pointOffsetX, pointOffsetY) {
+            const baseCellSize = 60;
+            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
+            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+
+            ctx.save();
+
+            // Helper function to convert point coordinates to screen coordinates
+            function pointToScreen(point) {
+                const relativeX = point.x - pointCloudBounds.minX;
+                const relativeY = point.y - pointCloudBounds.minY;
+
+                const gridPixelX = relativeX * baseCellSize * pointScale;
+                const gridPixelY = relativeY * baseCellSize * pointScale;
+
+                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+
+                const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
+                const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
+
+                return { x: px, y: py };
+            }
+
+            // Draw each cable group
+            cableGroups.forEach((group, groupIndex) => {
+                // Get center point screen coordinates
+                const centerScreen = pointToScreen(group.center);
+
+                // Draw lines from each point to center
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; // Black for cables
+                ctx.lineWidth = Math.max(1, gridScale * 1.5);
+
+                group.points.forEach(point => {
+                    const pointScreen = pointToScreen(point);
+
+                    ctx.beginPath();
+                    ctx.moveTo(pointScreen.x, pointScreen.y);
+                    ctx.lineTo(centerScreen.x, centerScreen.y);
+                    ctx.stroke();
+                });
+
+                // Draw center point marker
+                const centerMarkerSize = Math.max(8, gridScale * 10);
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Red for center
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = Math.max(2, gridScale * 2);
+
+                ctx.beginPath();
+                ctx.arc(centerScreen.x, centerScreen.y, centerMarkerSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw group number label
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.font = `bold ${Math.max(10, gridScale * 12)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`U${group.universeNum}-${group.groupInUniverse}`, centerScreen.x, centerScreen.y);
+            });
+
+            ctx.restore();
+
+            console.log('Drew', cableGroups.length, 'cable groups');
+        }
+
         // Pre-render the grid to an off-screen canvas
         function generateGridImage(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse) {
             console.log('Generating high-res grid image...');
@@ -839,6 +1013,16 @@
                 );
             }
             
+            // Draw cable groups if enabled
+            const showCables = document.getElementById('showCableGroups')?.checked;
+            if (showCables && pointCloudLoaded && cableGroups.length > 0) {
+                const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                console.log('Drawing cable groups:', cableGroups.length);
+                drawCableGroups(ctx, offsetX, offsetY, scale, pointScale, pointOffsetX, pointOffsetY);
+            }
+
             // Draw point cloud overlay if enabled
             const showPoints = document.getElementById('showPointCloud')?.checked;
             if (showPoints && pointCloudLoaded && pointCloudData.length > 0) {
@@ -1278,6 +1462,7 @@
                 universesH: document.getElementById('universes_h').value,
                 universesV: document.getElementById('universes_v').value,
                 showSpreadMap: document.getElementById('showSpreadMap').checked,
+                showCableGroups: document.getElementById('showCableGroups').checked,
                 showPointCloud: document.getElementById('showPointCloud').checked,
                 pointScale: document.getElementById('pointScale').value,
                 pointSize: document.getElementById('pointSize').value,
@@ -1302,6 +1487,7 @@
                     if (settings.universesH) document.getElementById('universes_h').value = settings.universesH;
                     if (settings.universesV) document.getElementById('universes_v').value = settings.universesV;
                     if (settings.showSpreadMap !== undefined) document.getElementById('showSpreadMap').checked = settings.showSpreadMap;
+                    if (settings.showCableGroups !== undefined) document.getElementById('showCableGroups').checked = settings.showCableGroups;
                     if (settings.showPointCloud !== undefined) document.getElementById('showPointCloud').checked = settings.showPointCloud;
                     if (settings.pointScale) document.getElementById('pointScale').value = settings.pointScale;
                     if (settings.pointSize) document.getElementById('pointSize').value = settings.pointSize;
