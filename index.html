@@ -418,8 +418,12 @@
                     <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">0</span></label>
                     <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="0" style="width: 100%;">
                 </div>
+
+                <button type="button" id="recalculateCableGroupsBtn" style="width: 100%; margin-top: 12px; padding: 6px; background: #667eea; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-weight: 500;">
+                    Recalculate Cable Groups
+                </button>
             </div>
-            
+
             <div class="divider"></div>
             
             <div class="section-title">View Controls</div>
@@ -1578,7 +1582,18 @@
                 alert('No point cloud loaded yet. Please load a CSV file first.');
             }
         });
-        
+
+        // Recalculate cable groups button
+        document.getElementById('recalculateCableGroupsBtn').addEventListener('click', function() {
+            if (pointCloudLoaded && pointCloudData.length > 0) {
+                calculateCableGroups();
+                updatePreview();
+                console.log('Cable groups recalculated');
+            } else {
+                alert('No point cloud loaded. Please load a CSV file first.');
+            }
+        });
+
         // Initialize the application
         // Save settings to localStorage
         function saveSettings() {
