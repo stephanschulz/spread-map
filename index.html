@@ -418,10 +418,6 @@
                     <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">0</span></label>
                     <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="0" style="width: 100%;">
                 </div>
-
-                <button type="button" id="recalculateCableGroupsBtn" style="width: 100%; margin-top: 12px; padding: 6px; background: #667eea; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-weight: 500;">
-                    Recalculate Cable Groups
-                </button>
             </div>
 
             <div class="divider"></div>
@@ -1520,13 +1516,36 @@
             // Enable cell text generation
             universeGrid.showCellText = true;
 
-            // Re-initialize grid with current dimensions
+            // Get current dimensions from input fields
             const cols = parseInt(document.getElementById('cols').value) || 20;
             const rows = parseInt(document.getElementById('rows').value) || 10;
             const universesH = parseInt(document.getElementById('universes_h').value) || 6;
             const universesV = parseInt(document.getElementById('universes_v').value) || 5;
 
-            initializeUniverseGrid(cols, rows, universesH, universesV);
+            // Check if grid dimensions have changed (requires reset)
+            const dimensionsChanged =
+                universeGrid.universes.length === 0 ||
+                universeGrid.universesH !== universesH ||
+                universeGrid.universesV !== universesV ||
+                (universeGrid.universes.length > 0 &&
+                 universeGrid.universes[0].length > 0 &&
+                 (universeGrid.universes[0][0].cols !== cols ||
+                  universeGrid.universes[0][0].rows !== rows));
+
+            if (dimensionsChanged) {
+                // Reset universe boundaries to uniform dimensions
+                console.log('Grid dimensions changed - resetting universe boundaries');
+                initializeUniverseGrid(cols, rows, universesH, universesV);
+            } else {
+                console.log('Grid dimensions unchanged - keeping custom boundaries');
+            }
+
+            // Always recalculate cable groups based on current grid layout
+            if (pointCloudLoaded && pointCloudData.length > 0) {
+                calculateCableGroups();
+                console.log('Cable groups recalculated');
+            }
+
             updatePreview();
             saveSettings();
         });
@@ -1580,17 +1599,6 @@
                 console.log('Reset point scale to ideal:', idealScale.toFixed(3));
             } else {
                 alert('No point cloud loaded yet. Please load a CSV file first.');
-            }
-        });
-
-        // Recalculate cable groups button
-        document.getElementById('recalculateCableGroupsBtn').addEventListener('click', function() {
-            if (pointCloudLoaded && pointCloudData.length > 0) {
-                calculateCableGroups();
-                updatePreview();
-                console.log('Cable groups recalculated');
-            } else {
-                alert('No point cloud loaded. Please load a CSV file first.');
             }
         });
 
