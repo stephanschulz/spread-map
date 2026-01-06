@@ -378,10 +378,8 @@
             <div class="section-title">Display Options</div>
             <div class="form-group">
                 <div class="input-wrapper" style="width: 100%;">
-                    <label>
-                        <input type="checkbox" id="showSpreadMap" checked>
-                        Show Spread-Map
-                    </label>
+                    <label style="display: block;">Spread-Map Alpha: <span id="mapAlphaValue">100%</span></label>
+                    <input type="range" id="mapAlpha" min="0" max="100" step="1" value="100" style="width: 100%;">
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
                     <label>
@@ -645,14 +643,45 @@
                 // Need to flip Y because Excel row 1 is at top, but our coordinate system has Y increasing upward
                 const totalRows = mapData.totalRows;
                 
+                // Group points by Y position to detect stagger pattern
+                const pointsByY = new Map();
+                mapData.points.forEach(point => {
+                    const flippedGridRow = totalRows - 1 - point.gridRow;
+                    if (!pointsByY.has(flippedGridRow)) {
+                        pointsByY.set(flippedGridRow, []);
+                    }
+                    pointsByY.get(flippedGridRow).push(point);
+                });
+                
+                // Detect if there's a consistent stagger pattern and what the offset should be
+                let detectedStaggerOffset = 0;
+                const yRows = Array.from(pointsByY.keys()).sort((a, b) => a - b);
+                
+                // Check if alternate rows have left/right stagger pattern
+                if (yRows.length >= 2) {
+                    // Sample first row to determine base pattern
+                    const firstRowPoints = pointsByY.get(yRows[0]);
+                    const hasLeftStagger = firstRowPoints.some(p => p.leftStagger);
+                    
+                    // Set stagger offset (in cell fraction) based on pattern
+                    // Left stagger (even rows) = no offset, Right stagger (odd rows) = 0.5 cell offset
+                    detectedStaggerOffset = hasLeftStagger ? 0 : 0.5;
+                    console.log('Detected stagger offset:', detectedStaggerOffset, 'hasLeftStagger:', hasLeftStagger);
+                }
+                
                 mapData.points.forEach(point => {
                     // Convert grid position to pixel coordinates
                     // Each cell is baseCellSize pixels
-                    const pixelX = point.gridCol * baseCellSize + baseCellSize / 2;
                     
                     // Flip Y coordinate: Excel row 0 (after header) should be at bottom of our grid
                     const flippedGridRow = totalRows - 1 - point.gridRow;
                     const pixelY = flippedGridRow * baseCellSize + baseCellSize / 2;
+                    
+                    // Apply stagger offset based on left/right indicator
+                    // leftStagger = true means even row (no X offset)
+                    // leftStagger = false means odd row (X offset by 0.5 cells)
+                    const xOffset = point.leftStagger ? 0 : 0.5;
+                    const pixelX = (point.gridCol + xOffset) * baseCellSize + baseCellSize / 2;
                     
                     pointCloudData.push({ x: pixelX / baseCellSize, y: pixelY / baseCellSize });
                     
@@ -1246,91 +1275,135 @@
             console.log('Drew', cableGroups.length, 'cable groups');
         }
 
-        // Draw dynamic grid directly to canvas (supports variable universe sizes)
-        function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors) {
-            const baseCellSize = 60;
-
-            // Draw each universe independently - calculate position based on actual row/column
+        // Helper function to find which universe a cell belongs to
+        function getCellUniverse(cellCol, cellRow) {
             for (let uRow = 0; uRow < universeGrid.universesV; uRow++) {
                 for (let uCol = 0; uCol < universeGrid.universesH; uCol++) {
-                    // Calculate X position by summing widths of all universes in the SAME ROW before this column
+                    // Calculate X position by summing widths in the SAME ROW
                     let currentX = 0;
                     for (let c = 0; c < uCol; c++) {
                         currentX += getUniverseCols(uRow, c);
                     }
 
-                    // Calculate Y position by summing heights of all universes in the SAME COLUMN before this row
+                    // Calculate Y position by summing heights in the SAME COLUMN
                     let currentY = 0;
                     for (let r = 0; r < uRow; r++) {
                         currentY += getUniverseRows(r, uCol);
                     }
 
-                    const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
-                    const hexColor = colors[universeNum] || 'CCCCCC';
                     const colsInUniverse = getUniverseCols(uRow, uCol);
                     const rowsInUniverse = getUniverseRows(uRow, uCol);
 
-                    // Draw all cells in this universe
-                    for (let row = 0; row < rowsInUniverse; row++) {
-                        for (let col = 0; col < colsInUniverse; col++) {
-                            const x = (currentX + col) * baseCellSize;
-                            const y = (currentY + row) * baseCellSize;
-                            const cellWidth = baseCellSize;
-                            const cellHeight = baseCellSize;
+                    if (cellCol >= currentX && cellCol < currentX + colsInUniverse &&
+                        cellRow >= currentY && cellRow < currentY + rowsInUniverse) {
+                        return {
+                            uRow: uRow,
+                            uCol: uCol,
+                            universeNum: (uRow * universeGrid.universesH) + uCol + 1,
+                            cellInUniverseCol: cellCol - currentX,
+                            cellInUniverseRow: cellRow - currentY
+                        };
+                    }
+                }
+            }
+            return null; // Cell doesn't belong to any universe
+        }
 
-                            // Transform to screen coordinates
-                            const screenX = offsetX + (x * scale);
-                            const screenY = offsetY + (y * scale);
-                            const screenWidth = cellWidth * scale;
-                            const screenHeight = cellHeight * scale;
+        // Draw dynamic grid directly to canvas (supports variable universe sizes with cut-out corners)
+        function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors) {
+            const baseCellSize = 60;
 
-                            // Fill cell with universe color
-                            ctx.fillStyle = '#' + hexColor;
-                            ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+            // Calculate total grid dimensions
+            const totalCols = getTotalCols();
+            const totalRows = getTotalRows();
 
-                            // Draw cell border
-                            ctx.strokeStyle = '#555';
-                            ctx.lineWidth = Math.max(0.5, scale * 0.5);
-                            ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+            // Draw cells globally (prevents overlaps, creates cut-out corners)
+            for (let cellRow = 0; cellRow < totalRows; cellRow++) {
+                for (let cellCol = 0; cellCol < totalCols; cellCol++) {
+                    // Find which universe this cell belongs to
+                    const cellUniverse = getCellUniverse(cellCol, cellRow);
 
-                            // Draw cell text only if enabled
-                            if (universeGrid.showCellText && scale > 0.3) {
-                                ctx.fillStyle = '#000';
-                                ctx.font = `${Math.max(8, scale * 9)}px Arial`;
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'top';
-                                ctx.fillText(`${col + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+                    if (!cellUniverse) continue; // Skip cells that don't belong to any universe
 
-                                ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
-                                ctx.textBaseline = 'middle';
-                                ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+                    const universeNum = cellUniverse.universeNum;
+                    const hexColor = colors[universeNum] || 'CCCCCC';
 
-                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                ctx.textBaseline = 'bottom';
-                                ctx.fillText(`B${row + 1}`, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
-                            }
-                        }
+                    // Calculate cell position
+                    const x = cellCol * baseCellSize;
+                    const y = cellRow * baseCellSize;
+                    const cellWidth = baseCellSize;
+                    const cellHeight = baseCellSize;
+
+                    // Transform to screen coordinates
+                    const screenX = offsetX + (x * scale);
+                    const screenY = offsetY + (y * scale);
+                    const screenWidth = cellWidth * scale;
+                    const screenHeight = cellHeight * scale;
+
+                    // Fill cell with universe color
+                    ctx.fillStyle = '#' + hexColor;
+                    ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+
+                    // Draw cell border
+                    ctx.strokeStyle = '#555';
+                    ctx.lineWidth = Math.max(0.5, scale * 0.5);
+                    ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+
+                    // Draw cell text only if enabled
+                    if (universeGrid.showCellText && scale > 0.3) {
+                        ctx.fillStyle = '#000';
+                        ctx.font = `${Math.max(8, scale * 9)}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+
+                        ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+
+                        ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(`B${cellUniverse.cellInUniverseRow + 1}`, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                    }
+                }
+            }
+
+            // Draw universe boundaries
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = Math.max(2, scale * 3);
+
+            // Draw boundaries between different universes
+            for (let cellRow = 0; cellRow < totalRows; cellRow++) {
+                for (let cellCol = 0; cellCol < totalCols; cellCol++) {
+                    const cellUniverse = getCellUniverse(cellCol, cellRow);
+                    if (!cellUniverse) continue;
+
+                    const x = cellCol * baseCellSize;
+                    const y = cellRow * baseCellSize;
+
+                    // Check right edge
+                    const rightNeighbor = getCellUniverse(cellCol + 1, cellRow);
+                    if (!rightNeighbor || rightNeighbor.universeNum !== cellUniverse.universeNum) {
+                        const rightX = offsetX + ((x + baseCellSize) * scale);
+                        const topY = offsetY + (y * scale);
+                        const bottomY = offsetY + ((y + baseCellSize) * scale);
+                        ctx.beginPath();
+                        ctx.moveTo(rightX, topY);
+                        ctx.lineTo(rightX, bottomY);
+                        ctx.stroke();
                     }
 
-                    // Draw universe boundaries (thick lines)
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = Math.max(2, scale * 3);
-
-                    // Right boundary of this universe
-                    const rightX = offsetX + ((currentX + colsInUniverse) * baseCellSize * scale);
-                    const topY = offsetY + (currentY * baseCellSize * scale);
-                    const bottomY = offsetY + ((currentY + rowsInUniverse) * baseCellSize * scale);
-                    ctx.beginPath();
-                    ctx.moveTo(rightX, topY);
-                    ctx.lineTo(rightX, bottomY);
-                    ctx.stroke();
-
-                    // Bottom boundary of this universe
-                    const leftX = offsetX + (currentX * baseCellSize * scale);
-                    ctx.beginPath();
-                    ctx.moveTo(leftX, bottomY);
-                    ctx.lineTo(rightX, bottomY);
-                    ctx.stroke();
+                    // Check bottom edge
+                    const bottomNeighbor = getCellUniverse(cellCol, cellRow + 1);
+                    if (!bottomNeighbor || bottomNeighbor.universeNum !== cellUniverse.universeNum) {
+                        const leftX = offsetX + (x * scale);
+                        const rightX = offsetX + ((x + baseCellSize) * scale);
+                        const bottomY = offsetY + ((y + baseCellSize) * scale);
+                        ctx.beginPath();
+                        ctx.moveTo(leftX, bottomY);
+                        ctx.lineTo(rightX, bottomY);
+                        ctx.stroke();
+                    }
                 }
             }
 
@@ -1420,12 +1493,14 @@
             const offsetX = baseOffsetX + panX;
             const offsetY = baseOffsetY + panY;
 
-            // Draw the dynamic grid
-            const showSpreadMap = document.getElementById('showSpreadMap')?.checked !== false;
-            if (showSpreadMap) {
+            // Draw the dynamic grid with alpha
+            const mapAlpha = parseFloat(document.getElementById('mapAlpha')?.value || 100) / 100;
+            if (mapAlpha > 0) {
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
+                ctx.globalAlpha = mapAlpha;
                 drawDynamicGrid(ctx, offsetX, offsetY, scale, colors);
+                ctx.globalAlpha = 1.0; // Reset alpha for other elements
             }
             
             // Draw cable groups if enabled
@@ -1973,6 +2048,11 @@
             document.getElementById('pointOffsetYValue').textContent = this.value;
         });
         
+        // Map alpha slider value display
+        document.getElementById('mapAlpha').addEventListener('input', function() {
+            document.getElementById('mapAlphaValue').textContent = this.value + '%';
+        });
+        
         // Reset point scale button
         document.getElementById('resetPointScale').addEventListener('click', function() {
             if (pointCloudPitch.y > 0) {
@@ -1995,7 +2075,7 @@
                 rows: document.getElementById('rows').value,
                 universesH: document.getElementById('universes_h').value,
                 universesV: document.getElementById('universes_v').value,
-                showSpreadMap: document.getElementById('showSpreadMap').checked,
+                mapAlpha: document.getElementById('mapAlpha').value,
                 showCableGroups: document.getElementById('showCableGroups').checked,
                 showPointCloud: document.getElementById('showPointCloud').checked,
                 pointScale: document.getElementById('pointScale').value,
@@ -2020,7 +2100,7 @@
                     if (settings.rows) document.getElementById('rows').value = settings.rows;
                     if (settings.universesH) document.getElementById('universes_h').value = settings.universesH;
                     if (settings.universesV) document.getElementById('universes_v').value = settings.universesV;
-                    if (settings.showSpreadMap !== undefined) document.getElementById('showSpreadMap').checked = settings.showSpreadMap;
+                    if (settings.mapAlpha !== undefined) document.getElementById('mapAlpha').value = settings.mapAlpha;
                     if (settings.showCableGroups !== undefined) document.getElementById('showCableGroups').checked = settings.showCableGroups;
                     if (settings.showPointCloud !== undefined) document.getElementById('showPointCloud').checked = settings.showPointCloud;
                     if (settings.pointScale) document.getElementById('pointScale').value = settings.pointScale;
@@ -2029,6 +2109,7 @@
                     if (settings.pointOffsetY) document.getElementById('pointOffsetY').value = settings.pointOffsetY;
                     
                     // Update slider displays
+                    document.getElementById('mapAlphaValue').textContent = (settings.mapAlpha || 100) + '%';
                     document.getElementById('pointScaleValue').textContent = parseFloat(settings.pointScale || 1).toFixed(2) + 'x';
                     document.getElementById('pointSizeValue').textContent = (settings.pointSize || 20) + 'px';
                     document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX || 0;
