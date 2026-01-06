@@ -9,7 +9,7 @@ A client-side web application that generates Excel spreadsheets with multiple "u
 ## Screenshots
 
 ### Web Application
-![Web Interface](screenshot-web.jpg)
+![Web Interface](screenshot-web1.jpg)
 *Interactive canvas with zoom/pan controls, point cloud overlay, and live preview*
 
 ### Excel Export
