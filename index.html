@@ -393,6 +393,18 @@
                         Show Points
                     </label>
                 </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label>
+                        <input type="checkbox" id="showRowColHeaders" checked>
+                        Show Row/Column Headers
+                    </label>
+                </div>
+                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                    <label>
+                        <input type="checkbox" id="showCrosshair">
+                        Show Crosshair
+                    </label>
+                </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 12px;">
                     <label style="display: block; margin-bottom: 4px;">Load Spreadsheet:</label>
                     <input type="file" id="csvFileInput" accept=".csv,.xlsx" style="font-size: 11px; width: 100%;">
@@ -463,6 +475,10 @@
         let isDragging = false;
         let lastMouseX = 0;
         let lastMouseY = 0;
+        
+        // Global mouse position for crosshair
+        let currentMouseX = -1;
+        let currentMouseY = -1;
         
         // Cache for pre-rendered grid image
         let cachedGridImage = null;
@@ -1081,14 +1097,21 @@
                 // First, check for manual B number assignments
                 const pointsWithManualBox = [];
                 const pointsWithoutBox = [];
+                const pointsExplicitlyNoBox = []; // Points with explicitly empty B field
                 
                 universePoints.forEach(pointData => {
                     const key = `${pointData.cellRow},${pointData.cellCol}`;
                     const manualBoxNum = manualAssignments.get(key);
+                    const customData = cellCustomData.get(key);
+                    
+                    // Check if there's a manual box assignment first (takes priority)
                     if (manualBoxNum !== undefined) {
                         pointsWithManualBox.push({ ...pointData, boxNum: manualBoxNum });
                         // Restore the manual assignment
                         cellToBoxNumber.set(key, manualBoxNum);
+                    } else if (customData && customData.box === '') {
+                        // Explicitly no box (and no manual assignment) - don't assign to any group
+                        pointsExplicitlyNoBox.push(pointData);
                     } else {
                         pointsWithoutBox.push(pointData);
                     }
@@ -1231,6 +1254,24 @@
                 // Apply offsets in grid space (before scale so they zoom with the map)
                 const gridPixelXWithOffset = gridPixelX + pointOffsetX;
                 const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                
+                // Convert to cell indices to check if this cell has empty B
+                const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                const cellKey = `${cellRow},${cellCol}`;
+                
+                // Check if this cell has explicitly empty B - if so, skip drawing the point
+                const customData = cellCustomData.get(cellKey);
+                const hasBoxNumber = cellToBoxNumber.has(cellKey);
+                
+                // Don't draw if B is explicitly empty (in custom data) AND there's no box number assigned
+                // If there's a box number, always draw (even if customData.box was previously empty)
+                if (customData && customData.box === '' && !hasBoxNumber) {
+                    // Cell has explicitly empty B and no box number - don't draw the point
+                    return;
+                }
+                
+                // If there's a box number, the point should be drawn (will be connected to green dot)
                 
                 // Apply grid's transformation (same as the spread-map image)
                 // This makes points zoom/pan with the map
@@ -1381,6 +1422,153 @@
         }
 
         // Draw dynamic grid directly to canvas (supports variable universe sizes with cut-out corners)
+        // Draw row and column headers on all four edges (R1, R2... for rows, C1, C2... for columns)
+        function drawRowColHeaders(ctx, offsetX, offsetY, scale, totalCols, totalRows) {
+            const baseCellSize = 60;
+            const headerSize = 30 * scale; // Size of header cells
+            const gridWidth = totalCols * baseCellSize * scale;
+            const gridHeight = totalRows * baseCellSize * scale;
+            
+            ctx.save();
+            ctx.fillStyle = 'rgba(50, 50, 60, 0.9)';
+            
+            // Top column headers background
+            ctx.fillRect(offsetX, offsetY - headerSize, gridWidth, headerSize);
+            
+            // Bottom column headers background
+            ctx.fillRect(offsetX, offsetY + gridHeight, gridWidth, headerSize);
+            
+            // Left row headers background
+            ctx.fillRect(offsetX - headerSize, offsetY, headerSize, gridHeight);
+            
+            // Right row headers background
+            ctx.fillRect(offsetX + gridWidth, offsetY, headerSize, gridHeight);
+            
+            // Corner cells
+            ctx.fillRect(offsetX - headerSize, offsetY - headerSize, headerSize, headerSize); // Top-left
+            ctx.fillRect(offsetX + gridWidth, offsetY - headerSize, headerSize, headerSize); // Top-right
+            ctx.fillRect(offsetX - headerSize, offsetY + gridHeight, headerSize, headerSize); // Bottom-left
+            ctx.fillRect(offsetX + gridWidth, offsetY + gridHeight, headerSize, headerSize); // Bottom-right
+            
+            // Text style
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${Math.max(8, 10 * scale)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Column headers (C1, C2, etc.) - top and bottom
+            for (let col = 0; col < totalCols; col++) {
+                const x = offsetX + (col + 0.5) * baseCellSize * scale;
+                const colLabel = `C${col + 1}`;
+                // Top
+                ctx.fillText(colLabel, x, offsetY - headerSize / 2);
+                // Bottom
+                ctx.fillText(colLabel, x, offsetY + gridHeight + headerSize / 2);
+            }
+            
+            // Row headers (R1, R2, etc.) - left and right
+            for (let row = 0; row < totalRows; row++) {
+                const y = offsetY + (row + 0.5) * baseCellSize * scale;
+                const rowLabel = `R${row + 1}`;
+                // Left
+                ctx.fillText(rowLabel, offsetX - headerSize / 2, y);
+                // Right
+                ctx.fillText(rowLabel, offsetX + gridWidth + headerSize / 2, y);
+            }
+            
+            // Draw header borders
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1;
+            
+            // Top column header border
+            ctx.strokeRect(offsetX, offsetY - headerSize, gridWidth, headerSize);
+            // Bottom column header border
+            ctx.strokeRect(offsetX, offsetY + gridHeight, gridWidth, headerSize);
+            // Left row header border
+            ctx.strokeRect(offsetX - headerSize, offsetY, headerSize, gridHeight);
+            // Right row header border
+            ctx.strokeRect(offsetX + gridWidth, offsetY, headerSize, gridHeight);
+            
+            // Corner borders
+            ctx.strokeRect(offsetX - headerSize, offsetY - headerSize, headerSize, headerSize);
+            ctx.strokeRect(offsetX + gridWidth, offsetY - headerSize, headerSize, headerSize);
+            ctx.strokeRect(offsetX - headerSize, offsetY + gridHeight, headerSize, headerSize);
+            ctx.strokeRect(offsetX + gridWidth, offsetY + gridHeight, headerSize, headerSize);
+            
+            ctx.restore();
+        }
+        
+        // Draw crosshair with 50px gap around mouse cursor
+        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight) {
+            if (mouseX < 0 || mouseY < 0) return;
+            
+            const gap = 50; // Gap around mouse cursor
+            
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; // 50% transparent black
+            ctx.lineWidth = 1;
+            
+            // Vertical line (top part)
+            ctx.beginPath();
+            ctx.moveTo(mouseX, 0);
+            ctx.lineTo(mouseX, mouseY - gap);
+            ctx.stroke();
+            
+            // Vertical line (bottom part)
+            ctx.beginPath();
+            ctx.moveTo(mouseX, mouseY + gap);
+            ctx.lineTo(mouseX, canvasHeight);
+            ctx.stroke();
+            
+            // Horizontal line (left part)
+            ctx.beginPath();
+            ctx.moveTo(0, mouseY);
+            ctx.lineTo(mouseX - gap, mouseY);
+            ctx.stroke();
+            
+            // Horizontal line (right part)
+            ctx.beginPath();
+            ctx.moveTo(mouseX + gap, mouseY);
+            ctx.lineTo(canvasWidth, mouseY);
+            ctx.stroke();
+            
+            // 45° diagonal line (top-right direction) - going from mouse up and to the right
+            ctx.beginPath();
+            const diag1StartX = mouseX + gap * Math.cos(Math.PI / 4);
+            const diag1StartY = mouseY - gap * Math.sin(Math.PI / 4);
+            ctx.moveTo(diag1StartX, diag1StartY);
+            // Calculate where line exits canvas (top or right edge)
+            const distToTop = mouseY;
+            const distToRight = canvasWidth - mouseX;
+            if (distToTop < distToRight) {
+                // Hits top edge first
+                ctx.lineTo(mouseX + distToTop, 0);
+            } else {
+                // Hits right edge first
+                ctx.lineTo(canvasWidth, mouseY - distToRight);
+            }
+            ctx.stroke();
+            
+            // 45° diagonal line (bottom-left direction) - going from mouse down and to the left
+            ctx.beginPath();
+            const diag2StartX = mouseX - gap * Math.cos(Math.PI / 4);
+            const diag2StartY = mouseY + gap * Math.sin(Math.PI / 4);
+            ctx.moveTo(diag2StartX, diag2StartY);
+            // Calculate where line exits canvas (bottom or left edge)
+            const distToBottom = canvasHeight - mouseY;
+            const distToLeft = mouseX;
+            if (distToBottom < distToLeft) {
+                // Hits bottom edge first
+                ctx.lineTo(mouseX - distToBottom, canvasHeight);
+            } else {
+                // Hits left edge first
+                ctx.lineTo(0, mouseY + distToLeft);
+            }
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+
         function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors) {
             const baseCellSize = 60;
 
@@ -1637,6 +1825,18 @@
                 const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
                 console.log('Drawing points:', pointCloudData.length, 'scale:', pointScale, 'size:', pointSize);
                 drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, pointOffsetX, pointOffsetY);
+            }
+            
+            // Draw row and column headers if enabled
+            const showHeaders = document.getElementById('showRowColHeaders')?.checked;
+            if (showHeaders) {
+                drawRowColHeaders(ctx, offsetX, offsetY, scale, totalCols, totalRows);
+            }
+            
+            // Draw crosshair if enabled
+            const showCrosshair = document.getElementById('showCrosshair')?.checked;
+            if (showCrosshair && currentMouseX >= 0 && currentMouseY >= 0) {
+                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height);
             }
             
             // Update zoom label
@@ -2254,6 +2454,18 @@
             document.getElementById('mapAlphaValue').textContent = this.value + '%';
         });
         
+        // Row/column headers checkbox
+        document.getElementById('showRowColHeaders').addEventListener('change', function() {
+            saveSettings();
+            updatePreview();
+        });
+        
+        // Crosshair checkbox
+        document.getElementById('showCrosshair').addEventListener('change', function() {
+            saveSettings();
+            updatePreview();
+        });
+        
         // Reset point scale button
         document.getElementById('resetPointScale').addEventListener('click', function() {
             if (pointCloudPitch.y > 0) {
@@ -2279,6 +2491,8 @@
                 mapAlpha: document.getElementById('mapAlpha').value,
                 showCableGroups: document.getElementById('showCableGroups').checked,
                 showPointCloud: document.getElementById('showPointCloud').checked,
+                showRowColHeaders: document.getElementById('showRowColHeaders').checked,
+                showCrosshair: document.getElementById('showCrosshair').checked,
                 pointScale: document.getElementById('pointScale').value,
                 pointSize: document.getElementById('pointSize').value,
                 pointOffsetX: document.getElementById('pointOffsetX').value,
@@ -2304,6 +2518,8 @@
                     if (settings.mapAlpha !== undefined) document.getElementById('mapAlpha').value = settings.mapAlpha;
                     if (settings.showCableGroups !== undefined) document.getElementById('showCableGroups').checked = settings.showCableGroups;
                     if (settings.showPointCloud !== undefined) document.getElementById('showPointCloud').checked = settings.showPointCloud;
+                    if (settings.showRowColHeaders !== undefined) document.getElementById('showRowColHeaders').checked = settings.showRowColHeaders;
+                    if (settings.showCrosshair !== undefined) document.getElementById('showCrosshair').checked = settings.showCrosshair;
                     if (settings.pointScale) document.getElementById('pointScale').value = settings.pointScale;
                     if (settings.pointSize) document.getElementById('pointSize').value = settings.pointSize;
                     if (settings.pointOffsetX) document.getElementById('pointOffsetX').value = settings.pointOffsetX;
@@ -2542,6 +2758,16 @@
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
+            
+            // Update global mouse position for crosshair
+            currentMouseX = mouseX;
+            currentMouseY = mouseY;
+            
+            // Redraw if crosshair is enabled (for smooth crosshair tracking)
+            const showCrosshair = document.getElementById('showCrosshair')?.checked;
+            if (showCrosshair && !isDragging && !draggingBoundary) {
+                updatePreview();
+            }
 
             if (draggingBoundary) {
                 const baseCellSize = 60;
@@ -2650,6 +2876,14 @@
             draggingBoundary = null;
             isDragging = false;
             canvas.style.cursor = 'grab';
+            
+            // Reset crosshair position when mouse leaves canvas
+            currentMouseX = -1;
+            currentMouseY = -1;
+            const showCrosshair = document.getElementById('showCrosshair')?.checked;
+            if (showCrosshair) {
+                updatePreview();
+            }
         });
         
         // Edit cell fields on double-click
@@ -2930,7 +3164,13 @@
                 return;
             }
             
-            const cellKey = `${editingCell.cellRow},${editingCell.cellCol}`;
+            // Use the actual cell key (based on point position) if available
+            const cellKey = editingCell.actualCellKey || `${editingCell.cellRow},${editingCell.cellCol}`;
+            
+            // Check if this cell has a point - if not, warn about B number
+            if (!editingCell.hasPoint && boxInput.value.trim()) {
+                console.warn('Cell has no point - B number will not create a black dot');
+            }
             
             // Get values
             const index = indexInput.value.trim();
@@ -2938,18 +3178,23 @@
             const box = boxInput.value.trim();
             const note = noteInput.value.trim();
             
-            // Store custom cell data
+            // Store custom data if any field has a value
+            // If B is empty but other fields have values, we store box: '' to mark it as "explicitly no box"
             if (index || universe || box || note) {
-                cellCustomData.set(cellKey, { index, universe, box, note });
+                // Store custom data - include box even if empty string to mark it as "explicitly no box"
+                cellCustomData.set(cellKey, { index, universe, box: box, note });
                 
                 // Update box number mapping if box is set
                 if (box) {
                     const boxNum = parseInt(box);
                     if (!isNaN(boxNum) && boxNum > 0) {
                         cellToBoxNumber.set(cellKey, boxNum);
+                    } else {
+                        // Invalid box number, clear it
+                        cellToBoxNumber.delete(cellKey);
                     }
                 } else {
-                    // Clear box assignment if empty
+                    // B is explicitly empty - clear box assignment and don't auto-assign
                     cellToBoxNumber.delete(cellKey);
                 }
             } else {
@@ -3022,6 +3267,43 @@
             return null;
         }
         
+        // Find the point that maps to a given cell position
+        // Returns { pointIndex, cellKey } or null if no point in this cell
+        function findPointInCell(cellRow, cellCol) {
+            if (!pointCloudLoaded || pointCloudData.length === 0) return null;
+            
+            const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+            const baseCellSize = 60;
+            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
+            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+            
+            for (let i = 0; i < pointCloudData.length; i++) {
+                const point = pointCloudData[i];
+                const relativeX = point.x - pointCloudBounds.minX;
+                const relativeY = point.y - pointCloudBounds.minY;
+                
+                const gridPixelX = relativeX * baseCellSize * pointScale;
+                const gridPixelY = relativeY * baseCellSize * pointScale;
+                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                
+                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                
+                const pointCellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                const pointCellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                
+                if (pointCellRow === cellRow && pointCellCol === cellCol) {
+                    return {
+                        pointIndex: i,
+                        cellKey: `${pointCellRow},${pointCellCol}`
+                    };
+                }
+            }
+            return null;
+        }
+        
         canvas.addEventListener('dblclick', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -3034,8 +3316,16 @@
             if (cell) {
                 editingCell = cell;
                 
-                // Get current cell data
-                const cellKey = `${cell.cellRow},${cell.cellCol}`;
+                // Find if there's a point in this cell and get its actual cell key
+                const pointInfo = findPointInCell(cell.cellRow, cell.cellCol);
+                
+                // Use the point's cell key if found, otherwise use the clicked cell's key
+                const cellKey = pointInfo ? pointInfo.cellKey : `${cell.cellRow},${cell.cellCol}`;
+                
+                // Store the actual cell key for use in finishEditing
+                editingCell.actualCellKey = cellKey;
+                editingCell.hasPoint = pointInfo !== null;
+                
                 let cellData = cellCustomData.get(cellKey);
                 
                 // If no custom data, parse from current cell content or use defaults
