@@ -428,7 +428,7 @@
             </div>
             <div style="font-size: 10px; color: #888; text-align: center; margin-top: 4px;">
                 Scroll to zoom • Drag to pan<br>
-                Double-click to reset view
+                Double-click cell to edit B number
             </div>
             
             <div class="divider"></div>
@@ -965,7 +965,9 @@
         // Calculate cable groups - group by universe, 20 points per group, starting from top-right
         function calculateCableGroups() {
             cableGroups = [];
-            cellToBoxNumber.clear(); // Clear previous mappings
+            // Preserve manual B number assignments
+            const manualAssignments = new Map(cellToBoxNumber);
+            cellToBoxNumber.clear(); // Clear for recalculation
             const groupSize = 20;
 
             // Get point transformation settings
@@ -1056,45 +1058,87 @@
                 console.warn('Warning:', pointCloudData.length - totalAssignedPoints, 'points fell outside grid boundaries');
             }
 
-            // For each universe, sort points from top-right and create groups of 20
+            // For each universe, group points by B number (manual or automatic)
             pointsByUniverse.forEach((universePoints, universeNum) => {
-                // Sort by row (top first = lower cellRow), then by column (right first = higher cellCol)
-                universePoints.sort((a, b) => {
+                // First, check for manual B number assignments
+                const pointsWithManualBox = [];
+                const pointsWithoutBox = [];
+                
+                universePoints.forEach(pointData => {
+                    const key = `${pointData.cellRow},${pointData.cellCol}`;
+                    const manualBoxNum = manualAssignments.get(key);
+                    if (manualBoxNum !== undefined) {
+                        pointsWithManualBox.push({ ...pointData, boxNum: manualBoxNum });
+                        // Restore the manual assignment
+                        cellToBoxNumber.set(key, manualBoxNum);
+                    } else {
+                        pointsWithoutBox.push(pointData);
+                    }
+                });
+                
+                // Group points with manual assignments by their box number
+                const manualGroups = new Map();
+                pointsWithManualBox.forEach(pointData => {
+                    if (!manualGroups.has(pointData.boxNum)) {
+                        manualGroups.set(pointData.boxNum, []);
+                    }
+                    manualGroups.get(pointData.boxNum).push(pointData);
+                });
+                
+                // For points without manual assignments, sort and auto-group
+                pointsWithoutBox.sort((a, b) => {
                     if (a.cellRow !== b.cellRow) {
                         return a.cellRow - b.cellRow; // Top rows first
                     }
                     return b.cellCol - a.cellCol; // Right columns first within same row
                 });
-
-                // Create groups of 20
-                for (let i = 0; i < universePoints.length; i += groupSize) {
-                    const groupPointsData = universePoints.slice(i, i + groupSize);
-                    const groupPoints = groupPointsData.map(p => p.point);
-                    const boxNum = Math.floor(i / groupSize) + 1;
-
+                
+                // Auto-assign box numbers to unassigned points
+                let nextBoxNum = 1;
+                // Find the highest manual box number to continue from
+                if (manualGroups.size > 0) {
+                    nextBoxNum = Math.max(...Array.from(manualGroups.keys())) + 1;
+                }
+                
+                for (let i = 0; i < pointsWithoutBox.length; i += groupSize) {
+                    const groupPointsData = pointsWithoutBox.slice(i, i + groupSize);
+                    const boxNum = nextBoxNum;
+                    nextBoxNum++;
+                    
                     // Map each cell in this group to its box number
                     groupPointsData.forEach(pointData => {
                         const key = `${pointData.cellRow},${pointData.cellCol}`;
                         cellToBoxNumber.set(key, boxNum);
                     });
-
-                    // Calculate center point to minimize total distance (using centroid as approximation)
+                    
+                    // Add to manual groups for processing
+                    if (!manualGroups.has(boxNum)) {
+                        manualGroups.set(boxNum, []);
+                    }
+                    manualGroups.get(boxNum).push(...groupPointsData);
+                }
+                
+                // Create cable groups from all groups (manual and auto)
+                manualGroups.forEach((groupPointsData, boxNum) => {
+                    const groupPoints = groupPointsData.map(p => p.point);
+                    
+                    // Calculate center point (green dot position)
                     let sumX = 0, sumY = 0;
                     groupPoints.forEach(point => {
                         sumX += point.x;
                         sumY += point.y;
                     });
-
+                    
                     const centerX = sumX / groupPoints.length;
                     const centerY = sumY / groupPoints.length;
-
+                    
                     cableGroups.push({
                         points: groupPoints,
                         center: { x: centerX, y: centerY },
                         universeNum: universeNum,
                         groupInUniverse: boxNum
                     });
-                }
+                });
             });
 
             console.log('Calculated', cableGroups.length, 'cable groups of up to', groupSize, 'points each across', pointsByUniverse.size, 'universes');
@@ -2483,12 +2527,181 @@
             canvas.style.cursor = 'grab';
         });
         
-        // Reset pan on double-click
-        canvas.addEventListener('dblclick', function() {
-            zoom = 1.0;
-            panX = 0;
-            panY = 0;
+        // Edit cell B number on double-click
+        let editingCell = null;
+        let editInput = null;
+        
+        function createEditInput(x, y, currentValue) {
+            // Remove existing input if any
+            if (editInput) {
+                editInput.remove();
+            }
+            
+            // Create input element
+            editInput = document.createElement('input');
+            editInput.type = 'text';
+            editInput.value = currentValue || '';
+            editInput.style.position = 'fixed';
+            editInput.style.left = x + 'px';
+            editInput.style.top = y + 'px';
+            editInput.style.width = '60px';
+            editInput.style.padding = '4px';
+            editInput.style.fontSize = '12px';
+            editInput.style.zIndex = '10000';
+            editInput.style.border = '2px solid #667eea';
+            editInput.style.borderRadius = '3px';
+            editInput.style.background = 'white';
+            
+            document.body.appendChild(editInput);
+            editInput.focus();
+            editInput.select();
+            
+            // Handle Enter key
+            editInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    finishEditing();
+                } else if (e.key === 'Escape') {
+                    cancelEditing();
+                }
+            });
+            
+            // Handle blur (click outside)
+            editInput.addEventListener('blur', function() {
+                setTimeout(finishEditing, 200); // Small delay to allow click events
+            });
+        }
+        
+        function finishEditing() {
+            if (!editingCell || !editInput) return;
+            
+            const newValue = editInput.value.trim();
+            const cellKey = `${editingCell.cellRow},${editingCell.cellCol}`;
+            
+            if (newValue === '') {
+                // Clear the B number assignment (remove from manual assignments)
+                cellToBoxNumber.delete(cellKey);
+            } else {
+                const newBoxNum = parseInt(newValue);
+                if (!isNaN(newBoxNum) && newBoxNum > 0) {
+                    // Update the cell's box number
+                    cellToBoxNumber.set(cellKey, newBoxNum);
+                } else {
+                    // Invalid number, cancel
+                    cancelEditing();
+                    return;
+                }
+            }
+            
+            // Recalculate cable groups to update green dot positions and groupings
+            if (pointCloudLoaded && pointCloudData.length > 0) {
+                calculateCableGroups();
+            }
+            
+            // Redraw to show updated B number and green dot connections
             updatePreview();
+            
+            cancelEditing();
+        }
+        
+        function cancelEditing() {
+            if (editInput) {
+                editInput.remove();
+                editInput = null;
+            }
+            editingCell = null;
+        }
+        
+        // Detect which cell was clicked
+        function getCellAtPosition(mouseX, mouseY) {
+            const canvas = document.getElementById('gridCanvas');
+            const baseCellSize = 60;
+            const totalCols = getTotalCols();
+            const totalRows = getTotalRows();
+            const gridPixelWidth = totalCols * baseCellSize;
+            const gridPixelHeight = totalRows * baseCellSize;
+            
+            const availableWidth = canvas.width * 0.9;
+            const availableHeight = canvas.height * 0.9;
+            const scaleX = availableWidth / gridPixelWidth;
+            const scaleY = availableHeight / gridPixelHeight;
+            const baseScale = Math.min(scaleX, scaleY);
+            const scale = baseScale * zoom;
+            
+            const gridWidth = gridPixelWidth * scale;
+            const gridHeight = gridPixelHeight * scale;
+            const baseOffsetX = (canvas.width - gridWidth) / 2;
+            const baseOffsetY = (canvas.height - gridHeight) / 2;
+            const offsetX = baseOffsetX + panX;
+            const offsetY = baseOffsetY + panY;
+            
+            // Convert mouse position to grid coordinates
+            const gridX = (mouseX - offsetX) / scale;
+            const gridY = (mouseY - offsetY) / scale;
+            
+            const cellCol = Math.floor(gridX / baseCellSize);
+            const cellRow = Math.floor(gridY / baseCellSize);
+            
+            if (cellCol >= 0 && cellCol < totalCols && cellRow >= 0 && cellRow < totalRows) {
+                const cellUniverse = getCellUniverse(cellCol, cellRow);
+                if (cellUniverse) {
+                    return {
+                        cellCol: cellCol,
+                        cellRow: cellRow,
+                        universeNum: cellUniverse.universeNum,
+                        screenX: offsetX + (cellCol * baseCellSize * scale),
+                        screenY: offsetY + (cellRow * baseCellSize * scale)
+                    };
+                }
+            }
+            return null;
+        }
+        
+        canvas.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const cell = getCellAtPosition(mouseX, mouseY);
+            if (cell) {
+                // Get current B number for this cell
+                const cellKey = `${cell.cellRow},${cell.cellCol}`;
+                const currentBoxNum = cellToBoxNumber.get(cellKey);
+                const currentValue = currentBoxNum ? currentBoxNum.toString() : '';
+                
+                editingCell = cell;
+                // Position input near the cell (centered horizontally, at bottom where B number is)
+                const baseCellSize = 60;
+                const canvas = document.getElementById('gridCanvas');
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
+                const gridPixelWidth = totalCols * baseCellSize;
+                const gridPixelHeight = totalRows * baseCellSize;
+                const availableWidth = canvas.width * 0.9;
+                const availableHeight = canvas.height * 0.9;
+                const scaleX = availableWidth / gridPixelWidth;
+                const scaleY = availableHeight / gridPixelHeight;
+                const baseScale = Math.min(scaleX, scaleY);
+                const currentScale = baseScale * zoom;
+                
+                const gridWidth = gridPixelWidth * currentScale;
+                const gridHeight = gridPixelHeight * currentScale;
+                const baseOffsetX = (canvas.width - gridWidth) / 2;
+                const baseOffsetY = (canvas.height - gridHeight) / 2;
+                const offsetX = baseOffsetX + panX;
+                const offsetY = baseOffsetY + panY;
+                
+                const cellScreenX = offsetX + (cell.cellCol * baseCellSize * currentScale);
+                const cellScreenY = offsetY + (cell.cellRow * baseCellSize * currentScale);
+                const cellHeight = baseCellSize * currentScale;
+                
+                // Position input at center-bottom of cell
+                const inputX = rect.left + cellScreenX + (baseCellSize * currentScale) / 2 - 30;
+                const inputY = rect.top + cellScreenY + cellHeight - 15;
+                createEditInput(inputX, inputY, currentValue);
+            }
         });
     </script>
 </body>
