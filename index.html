@@ -1427,7 +1427,7 @@
                          const boxNum = cellToBoxNumber.get(cellKey);
                          
                          if (customData) {
-                             // Draw custom formatted cell content
+                             // Draw custom formatted cell content (without & prefix)
                              ctx.fillStyle = '#000';
                              ctx.font = `${Math.max(7, scale * 8)}px Arial`;
                              ctx.textAlign = 'center';
@@ -1437,30 +1437,30 @@
                              
                              if (customData.index) {
                                  ctx.textBaseline = 'top';
-                                 ctx.fillText(`&${customData.index}`, screenX + screenWidth / 2, yOffset);
+                                 ctx.fillText(customData.index, screenX + screenWidth / 2, yOffset);
                                  yOffset += lineHeight;
                              }
                              if (customData.universe) {
                                  ctx.font = `bold ${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.fillText(`&U${customData.universe}`, screenX + screenWidth / 2, yOffset);
+                                 ctx.fillText(`U${customData.universe}`, screenX + screenWidth / 2, yOffset);
                                  yOffset += lineHeight;
                              }
                              if (customData.box) {
                                  ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.fillText(`&B${customData.box}`, screenX + screenWidth / 2, yOffset);
+                                 ctx.fillText(`B${customData.box}`, screenX + screenWidth / 2, yOffset);
                                  yOffset += lineHeight;
                              } else if (boxNum !== undefined) {
                                  ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.fillText(`&B${boxNum}`, screenX + screenWidth / 2, yOffset);
+                                 ctx.fillText(`B${boxNum}`, screenX + screenWidth / 2, yOffset);
                                  yOffset += lineHeight;
                              } else {
                                  ctx.font = `${Math.max(7, scale * 8)}px Arial`;
                                  ctx.textBaseline = 'bottom';
-                                 ctx.fillText('&B', screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                                 ctx.fillText('B', screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
                              }
                              if (customData.note) {
                                  ctx.font = `${Math.max(6, scale * 7)}px Arial`;
-                                 ctx.fillText(`&?${customData.note}`, screenX + screenWidth / 2, yOffset);
+                                 ctx.fillText(`?${customData.note}`, screenX + screenWidth / 2, yOffset);
                              }
                          } else {
                              // Default format
@@ -1741,24 +1741,24 @@
             }
             
             if (customData) {
-                // Use custom data with & prefix for each field
+                // Use custom data without & prefix in cell content
                 const lines = [];
                 if (customData.index) {
-                    lines.push(`&${customData.index}`);
+                    lines.push(customData.index);
                 }
                 if (customData.universe) {
-                    lines.push(`&U${customData.universe}`);
+                    lines.push(`U${customData.universe}`);
                 }
                 if (customData.box) {
-                    lines.push(`&B${customData.box}`);
+                    lines.push(`B${customData.box}`);
                 } else if (boxNum !== null) {
                     // Fallback to calculated box number
-                    lines.push(`&B${boxNum}`);
+                    lines.push(`B${boxNum}`);
                 } else {
-                    lines.push('&B');
+                    lines.push('B');
                 }
                 if (customData.note) {
-                    lines.push(`&?${customData.note}`);
+                    lines.push(`?${customData.note}`);
                 }
                 return lines.join('\n') + '\n';
             } else {
@@ -1985,10 +1985,14 @@
                                     
                                     // Update box number if point has one
                                     if (pointInfo.boxNum) {
-                                        // Find and update the &B line
+                                        // Find and update the B line (without & prefix)
                                         for (let i = 0; i < lines.length; i++) {
-                                            if (lines[i].startsWith('&B')) {
-                                                lines[i] = `&B${pointInfo.boxNum}`;
+                                            const trimmed = lines[i].trim();
+                                            if (trimmed.startsWith('B') && trimmed.length > 1 && !isNaN(trimmed.substring(1))) {
+                                                lines[i] = `B${pointInfo.boxNum}`;
+                                                break;
+                                            } else if (trimmed === 'B') {
+                                                lines[i] = `B${pointInfo.boxNum}`;
                                                 break;
                                             }
                                         }
@@ -3039,14 +3043,22 @@
                     // Get the cell's universe info
                     const cellUniverse = getCellUniverse(cell.cellCol, cell.cellRow);
                     if (cellUniverse) {
-                        const colInUniverse = cell.cellCol;
-                        const rowInUniverse = cell.cellRow;
+                        const colInUniverse = cellUniverse.cellInUniverseCol;
+                        const rowInUniverse = cellUniverse.cellInUniverseRow;
+                        const universeNum = cellUniverse.universeNum;
                         const currentBoxNum = cellToBoxNumber.get(cellKey);
+                        
+                        // Get the current cell label to parse the first line (index)
+                        const currentLabel = generateCellLabel(rowInUniverse + 1, colInUniverse, universeNum, currentBoxNum, cell.cellRow, cell.cellCol);
+                        const lines = currentLabel.split('\n');
+                        const firstLine = lines[0] ? lines[0].trim() : '';
+                        // Remove dot if present
+                        const indexValue = firstLine.replace(/●\s*/g, '').replace(/\s*●/g, '').trim();
                         
                         // Try to parse existing cell format
                         cellData = {
-                            index: (colInUniverse + 1).toString(),
-                            universe: cellUniverse.universeNum.toString(),
+                            index: indexValue || (colInUniverse + 1).toString(), // Use first line or fallback to column
+                            universe: universeNum.toString(),
                             box: currentBoxNum ? currentBoxNum.toString() : '',
                             note: ''
                         };
