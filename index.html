@@ -630,6 +630,15 @@
             universeGrid.universes = mapData.universes;
             universeGrid.showCellText = true; // Show cell text since this is an imported map
             
+            // Import custom cell data if available
+            if (mapData.customCellData) {
+                cellCustomData.clear();
+                mapData.customCellData.forEach((value, key) => {
+                    cellCustomData.set(key, value);
+                });
+                console.log('Imported', cellCustomData.size, 'cells with custom data');
+            }
+            
             console.log('Universe grid rebuilt:', universeGrid);
             
             // Convert point positions to point cloud data
@@ -757,6 +766,7 @@
             
             // Map to store universe info: universeNum -> {cells: [{row, col, hasPoint, pointLeft}], minRow, maxRow, minCol, maxCol}
             const universeMap = new Map();
+            const customCellData = new Map(); // key: "row,col", value: {index, universe, box, note}
             
             // Parse all data cells (skip header row and column)
             for (let R = 1; R <= range.e.r; R++) {
@@ -767,6 +777,13 @@
                     if (cell && cell.v) {
                         const cellText = String(cell.v);
                         const lines = cellText.split('\n');
+                        
+                        // Parse custom cell data if using new format
+                        const parsedData = parseCellContent(cellText);
+                        if (parsedData.index || parsedData.universe || parsedData.box || parsedData.note) {
+                            const cellKey = `${R - 1},${C - 1}`; // Convert to 0-based
+                            customCellData.set(cellKey, parsedData);
+                        }
                         
                         // Look for universe number (e.g., "U3-B2")
                         let universeNum = null;
@@ -884,7 +901,8 @@
                 universes,
                 points,
                 totalCols,
-                totalRows
+                totalRows,
+                customCellData
             };
         }
 
@@ -1404,23 +1422,63 @@
 
                      // Draw cell text only if enabled
                      if (universeGrid.showCellText && scale > 0.3) {
-                         ctx.fillStyle = '#000';
-                         ctx.font = `${Math.max(8, scale * 9)}px Arial`;
-                         ctx.textAlign = 'center';
-                         ctx.textBaseline = 'top';
-                         ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
-
-                         ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
-                         ctx.textBaseline = 'middle';
-                         ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
-
-                         ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                         ctx.textBaseline = 'bottom';
-                         // Check if this cell has a box number (from cable groups)
                          const cellKey = `${cellRow},${cellCol}`;
+                         const customData = cellCustomData.get(cellKey);
                          const boxNum = cellToBoxNumber.get(cellKey);
-                         const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
-                         ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                         
+                         if (customData) {
+                             // Draw custom formatted cell content
+                             ctx.fillStyle = '#000';
+                             ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                             ctx.textAlign = 'center';
+                             
+                             let yOffset = screenY + 5 * scale;
+                             const lineHeight = Math.max(10, scale * 11);
+                             
+                             if (customData.index) {
+                                 ctx.textBaseline = 'top';
+                                 ctx.fillText(`&${customData.index}`, screenX + screenWidth / 2, yOffset);
+                                 yOffset += lineHeight;
+                             }
+                             if (customData.universe) {
+                                 ctx.font = `bold ${Math.max(7, scale * 8)}px Arial`;
+                                 ctx.fillText(`&U${customData.universe}`, screenX + screenWidth / 2, yOffset);
+                                 yOffset += lineHeight;
+                             }
+                             if (customData.box) {
+                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                 ctx.fillText(`&B${customData.box}`, screenX + screenWidth / 2, yOffset);
+                                 yOffset += lineHeight;
+                             } else if (boxNum !== undefined) {
+                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                 ctx.fillText(`&B${boxNum}`, screenX + screenWidth / 2, yOffset);
+                                 yOffset += lineHeight;
+                             } else {
+                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                 ctx.textBaseline = 'bottom';
+                                 ctx.fillText('&B', screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                             }
+                             if (customData.note) {
+                                 ctx.font = `${Math.max(6, scale * 7)}px Arial`;
+                                 ctx.fillText(`&?${customData.note}`, screenX + screenWidth / 2, yOffset);
+                             }
+                         } else {
+                             // Default format
+                             ctx.fillStyle = '#000';
+                             ctx.font = `${Math.max(8, scale * 9)}px Arial`;
+                             ctx.textAlign = 'center';
+                             ctx.textBaseline = 'top';
+                             ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+
+                             ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
+                             ctx.textBaseline = 'middle';
+                             ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+
+                             ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                             ctx.textBaseline = 'bottom';
+                             const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
+                             ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                         }
                      }
                 }
             }
@@ -1673,13 +1731,43 @@
             }
         }
         
-        // Generate cell label
-        function generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum = null) {
-            const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
-            const universeLabel = `U${universeNum}`;
-            // If boxNum is provided (from cable group), use it; otherwise just "B"
-            const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
-            return `${colLabel}\n${universeLabel}-${bLabel}\n`;
+        // Generate cell label with custom data support
+        function generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum = null, cellRow = null, cellCol = null) {
+            // Check for custom cell data
+            let customData = null;
+            if (cellRow !== null && cellCol !== null) {
+                const cellKey = `${cellRow},${cellCol}`;
+                customData = cellCustomData.get(cellKey);
+            }
+            
+            if (customData) {
+                // Use custom data with & prefix for each field
+                const lines = [];
+                if (customData.index) {
+                    lines.push(`&${customData.index}`);
+                }
+                if (customData.universe) {
+                    lines.push(`&U${customData.universe}`);
+                }
+                if (customData.box) {
+                    lines.push(`&B${customData.box}`);
+                } else if (boxNum !== null) {
+                    // Fallback to calculated box number
+                    lines.push(`&B${boxNum}`);
+                } else {
+                    lines.push('&B');
+                }
+                if (customData.note) {
+                    lines.push(`&?${customData.note}`);
+                }
+                return lines.join('\n') + '\n';
+            } else {
+                // Default format
+                const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
+                const universeLabel = `U${universeNum}`;
+                const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
+                return `${colLabel}\n${universeLabel}-${bLabel}\n`;
+            }
         }
         
         // Generate map data using actual universe grid structure (respects custom boundaries)
@@ -1732,7 +1820,11 @@
                                 const rowInUniverse = row - currentY + 1; // +1 because B1, B2, etc.
                                 const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
                                 
-                                cellValue = generateCellLabel(rowInUniverse, colInUniverse, universeNum);
+                                // Get box number for this cell
+                                const cellKey = `${row},${col}`;
+                                const boxNum = cellToBoxNumber.get(cellKey);
+                                
+                                cellValue = generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum, row, col);
                                 foundUniverse = true;
                             }
                         }
@@ -1874,25 +1966,54 @@
                         
                         // Check if this cell has a point
                         const pointKey = `${R},${C}`;
+                        const cellKey = `${R - 1},${C - 1}`; // Convert to 0-based for cellCustomData
+                        const customData = cellCustomData.get(cellKey);
+                        
                         if (cellsWithPoints.has(pointKey) && R > 0 && C > 0) {
                             const pointInfo = cellsWithPoints.get(pointKey);
-                            const lines = cellValue.split('\n');
                             
-                            if (lines.length >= 2) {
-                                // Add dot on first line with the number, left or right based on stagger pattern
-                                if (pointInfo.left) {
-                                    lines[0] = '● ' + lines[0]; // Dot before number
-                                } else {
-                                    lines[0] = lines[0] + ' ●'; // Dot after number
+                            if (customData) {
+                                // Custom format - add dot to first line and update box if needed
+                                const lines = cellValue.split('\n');
+                                if (lines.length > 0) {
+                                    // Add dot to first line
+                                    if (pointInfo.left) {
+                                        lines[0] = '● ' + lines[0];
+                                    } else {
+                                        lines[0] = lines[0] + ' ●';
+                                    }
+                                    
+                                    // Update box number if point has one
+                                    if (pointInfo.boxNum) {
+                                        // Find and update the &B line
+                                        for (let i = 0; i < lines.length; i++) {
+                                            if (lines[i].startsWith('&B')) {
+                                                lines[i] = `&B${pointInfo.boxNum}`;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    
+                                    cellValue = lines.join('\n');
                                 }
-                                
-                                // Update the B number to show the box/group number
-                                if (pointInfo.boxNum) {
-                                    // Replace the B number in the second line (e.g., "U3-B5" becomes "U3-B2")
-                                    lines[1] = lines[1].replace(/B\d+/, `B${pointInfo.boxNum}`);
+                            } else {
+                                // Default format
+                                const lines = cellValue.split('\n');
+                                if (lines.length >= 2) {
+                                    // Add dot on first line
+                                    if (pointInfo.left) {
+                                        lines[0] = '● ' + lines[0];
+                                    } else {
+                                        lines[0] = lines[0] + ' ●';
+                                    }
+                                    
+                                    // Update the B number
+                                    if (pointInfo.boxNum) {
+                                        lines[1] = lines[1].replace(/B\d+/, `B${pointInfo.boxNum}`);
+                                    }
+                                    
+                                    cellValue = lines.join('\n');
                                 }
-                                
-                                cellValue = lines.join('\n');
                             }
                         }
                         
@@ -2527,69 +2648,310 @@
             canvas.style.cursor = 'grab';
         });
         
-        // Edit cell B number on double-click
+        // Edit cell fields on double-click
         let editingCell = null;
-        let editInput = null;
+        let editDialog = null;
         
-        function createEditInput(x, y, currentValue) {
-            // Remove existing input if any
-            if (editInput) {
-                editInput.remove();
+        // Parse cell content to extract values
+        function parseCellContent(cellValue) {
+            const lines = cellValue ? cellValue.split('\n') : [];
+            let index = '';
+            let universe = '';
+            let box = '';
+            let note = '';
+            
+            // Check if using new & format
+            const hasNewFormat = lines.some(line => line.trim().startsWith('&'));
+            
+            if (hasNewFormat) {
+                // Parse new format: &value, &Uvalue, &Bvalue, &?value
+                lines.forEach(line => {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('&')) {
+                        const content = trimmed.substring(1); // Remove &
+                        if (content.startsWith('U')) {
+                            universe = content.substring(1);
+                        } else if (content.startsWith('B')) {
+                            box = content.substring(1);
+                        } else if (content.startsWith('?')) {
+                            note = content.substring(1);
+                        } else {
+                            // First & without prefix is the index
+                            if (!index) {
+                                // Remove dot if present
+                                index = content.replace(/●\s*/g, '').replace(/\s*●/g, '').trim();
+                            }
+                        }
+                    }
+                });
+            } else {
+                // Parse old format
+                if (lines.length > 0) {
+                    // First line might have index or column number
+                    const firstLine = lines[0].trim();
+                    // Remove dot if present
+                    const cleanFirst = firstLine.replace(/●\s*/g, '').replace(/\s*●/g, '').trim();
+                    index = cleanFirst;
+                }
+                
+                if (lines.length > 1) {
+                    // Second line has universe and box (e.g., "U6-B10" or "U6-B")
+                    const secondLine = lines[1].trim();
+                    const universeMatch = secondLine.match(/U(\d+)/);
+                    if (universeMatch) {
+                        universe = universeMatch[1];
+                    }
+                    const boxMatch = secondLine.match(/B(\d+)/);
+                    if (boxMatch) {
+                        box = boxMatch[1];
+                    } else if (secondLine.includes('B') && !boxMatch) {
+                        box = ''; // Just "B" without number
+                    }
+                }
+                
+                if (lines.length > 2) {
+                    // Third line or beyond might have notes
+                    note = lines.slice(2).join('\n').trim();
+                }
             }
             
-            // Create input element
-            editInput = document.createElement('input');
-            editInput.type = 'text';
-            editInput.value = currentValue || '';
-            editInput.style.position = 'fixed';
-            editInput.style.left = x + 'px';
-            editInput.style.top = y + 'px';
-            editInput.style.width = '60px';
-            editInput.style.padding = '4px';
-            editInput.style.fontSize = '12px';
-            editInput.style.zIndex = '10000';
-            editInput.style.border = '2px solid #667eea';
-            editInput.style.borderRadius = '3px';
-            editInput.style.background = 'white';
-            
-            document.body.appendChild(editInput);
-            editInput.focus();
-            editInput.select();
-            
-            // Handle Enter key
-            editInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    finishEditing();
-                } else if (e.key === 'Escape') {
-                    cancelEditing();
-                }
-            });
-            
-            // Handle blur (click outside)
-            editInput.addEventListener('blur', function() {
-                setTimeout(finishEditing, 200); // Small delay to allow click events
-            });
+            return { index, universe, box, note };
         }
         
-        function finishEditing() {
-            if (!editingCell || !editInput) return;
+        function createEditDialog(x, y, cellData) {
+            // Remove existing dialog if any
+            if (editDialog) {
+                editDialog.remove();
+            }
             
-            const newValue = editInput.value.trim();
+            // Create dialog container
+            editDialog = document.createElement('div');
+            editDialog.style.position = 'fixed';
+            editDialog.style.left = x + 'px';
+            editDialog.style.top = y + 'px';
+            editDialog.style.width = '200px';
+            editDialog.style.padding = '12px';
+            editDialog.style.fontSize = '12px';
+            editDialog.style.zIndex = '10000';
+            editDialog.style.border = '2px solid #667eea';
+            editDialog.style.borderRadius = '6px';
+            editDialog.style.background = 'rgba(44, 62, 80, 0.95)';
+            editDialog.style.backdropFilter = 'blur(10px)';
+            editDialog.style.color = 'white';
+            editDialog.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
+            
+            // Create form
+            const form = document.createElement('div');
+            form.style.display = 'flex';
+            form.style.flexDirection = 'column';
+            form.style.gap = '8px';
+            
+            // Index field (#)
+            const indexGroup = document.createElement('div');
+            indexGroup.style.display = 'flex';
+            indexGroup.style.alignItems = 'center';
+            indexGroup.style.gap = '6px';
+            const indexLabel = document.createElement('label');
+            indexLabel.textContent = '&';
+            indexLabel.style.minWidth = '20px';
+            indexLabel.style.color = '#aaa';
+            const indexSymbol = document.createElement('span');
+            indexSymbol.textContent = '#';
+            indexSymbol.style.minWidth = '15px';
+            indexSymbol.style.color = '#667eea';
+            const indexInput = document.createElement('input');
+            indexInput.type = 'text';
+            indexInput.value = cellData.index || '';
+            indexInput.placeholder = '1-20';
+            indexInput.style.flex = '1';
+            indexInput.style.padding = '4px';
+            indexInput.style.border = '1px solid #444';
+            indexInput.style.borderRadius = '3px';
+            indexInput.style.background = 'rgba(255, 255, 255, 0.1)';
+            indexInput.style.color = 'white';
+            indexInput.id = 'editIndex';
+            indexGroup.appendChild(indexLabel);
+            indexGroup.appendChild(indexSymbol);
+            indexGroup.appendChild(indexInput);
+            
+            // Universe field (U)
+            const universeGroup = document.createElement('div');
+            universeGroup.style.display = 'flex';
+            universeGroup.style.alignItems = 'center';
+            universeGroup.style.gap = '6px';
+            const universeLabel = document.createElement('label');
+            universeLabel.textContent = '&';
+            universeLabel.style.minWidth = '20px';
+            universeLabel.style.color = '#aaa';
+            const universeSymbol = document.createElement('span');
+            universeSymbol.textContent = 'U';
+            universeSymbol.style.minWidth = '15px';
+            universeSymbol.style.color = '#667eea';
+            const universeInput = document.createElement('input');
+            universeInput.type = 'text';
+            universeInput.value = cellData.universe || '';
+            universeInput.placeholder = 'Universe';
+            universeInput.style.flex = '1';
+            universeInput.style.padding = '4px';
+            universeInput.style.border = '1px solid #444';
+            universeInput.style.borderRadius = '3px';
+            universeInput.style.background = 'rgba(255, 255, 255, 0.1)';
+            universeInput.style.color = 'white';
+            universeInput.id = 'editUniverse';
+            universeGroup.appendChild(universeLabel);
+            universeGroup.appendChild(universeSymbol);
+            universeGroup.appendChild(universeInput);
+            
+            // Box field (B)
+            const boxGroup = document.createElement('div');
+            boxGroup.style.display = 'flex';
+            boxGroup.style.alignItems = 'center';
+            boxGroup.style.gap = '6px';
+            const boxLabel = document.createElement('label');
+            boxLabel.textContent = '&';
+            boxLabel.style.minWidth = '20px';
+            boxLabel.style.color = '#aaa';
+            const boxSymbol = document.createElement('span');
+            boxSymbol.textContent = 'B';
+            boxSymbol.style.minWidth = '15px';
+            boxSymbol.style.color = '#667eea';
+            const boxInput = document.createElement('input');
+            boxInput.type = 'text';
+            boxInput.value = cellData.box || '';
+            boxInput.placeholder = 'Box';
+            boxInput.style.flex = '1';
+            boxInput.style.padding = '4px';
+            boxInput.style.border = '1px solid #444';
+            boxInput.style.borderRadius = '3px';
+            boxInput.style.background = 'rgba(255, 255, 255, 0.1)';
+            boxInput.style.color = 'white';
+            boxInput.id = 'editBox';
+            boxGroup.appendChild(boxLabel);
+            boxGroup.appendChild(boxSymbol);
+            boxGroup.appendChild(boxInput);
+            
+            // Note field (?)
+            const noteGroup = document.createElement('div');
+            noteGroup.style.display = 'flex';
+            noteGroup.style.alignItems = 'center';
+            noteGroup.style.gap = '6px';
+            const noteLabel = document.createElement('label');
+            noteLabel.textContent = '&';
+            noteLabel.style.minWidth = '20px';
+            noteLabel.style.color = '#aaa';
+            const noteSymbol = document.createElement('span');
+            noteSymbol.textContent = '?';
+            noteSymbol.style.minWidth = '15px';
+            noteSymbol.style.color = '#667eea';
+            const noteInput = document.createElement('input');
+            noteInput.type = 'text';
+            noteInput.value = cellData.note || '';
+            noteInput.placeholder = 'Note';
+            noteInput.style.flex = '1';
+            noteInput.style.padding = '4px';
+            noteInput.style.border = '1px solid #444';
+            noteInput.style.borderRadius = '3px';
+            noteInput.style.background = 'rgba(255, 255, 255, 0.1)';
+            noteInput.style.color = 'white';
+            noteInput.id = 'editNote';
+            noteGroup.appendChild(noteLabel);
+            noteGroup.appendChild(noteSymbol);
+            noteGroup.appendChild(noteInput);
+            
+            // Buttons
+            const buttonGroup = document.createElement('div');
+            buttonGroup.style.display = 'flex';
+            buttonGroup.style.gap = '6px';
+            buttonGroup.style.marginTop = '4px';
+            
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.style.flex = '1';
+            saveBtn.style.padding = '6px';
+            saveBtn.style.background = '#667eea';
+            saveBtn.style.color = 'white';
+            saveBtn.style.border = 'none';
+            saveBtn.style.borderRadius = '3px';
+            saveBtn.style.cursor = 'pointer';
+            saveBtn.onclick = finishEditing;
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.flex = '1';
+            cancelBtn.style.padding = '6px';
+            cancelBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            cancelBtn.style.color = 'white';
+            cancelBtn.style.border = '1px solid #444';
+            cancelBtn.style.borderRadius = '3px';
+            cancelBtn.style.cursor = 'pointer';
+            cancelBtn.onclick = cancelEditing;
+            
+            buttonGroup.appendChild(saveBtn);
+            buttonGroup.appendChild(cancelBtn);
+            
+            form.appendChild(indexGroup);
+            form.appendChild(universeGroup);
+            form.appendChild(boxGroup);
+            form.appendChild(noteGroup);
+            form.appendChild(buttonGroup);
+            editDialog.appendChild(form);
+            
+            document.body.appendChild(editDialog);
+            indexInput.focus();
+            indexInput.select();
+            
+            // Handle Escape key
+            const escapeHandler = function(e) {
+                if (e.key === 'Escape') {
+                    cancelEditing();
+                    document.removeEventListener('keydown', escapeHandler);
+                }
+            };
+            document.addEventListener('keydown', escapeHandler);
+        }
+        
+        // Store custom cell data
+        let cellCustomData = new Map(); // key: "row,col", value: {index, universe, box, note}
+        
+        function finishEditing() {
+            if (!editingCell || !editDialog) return;
+            
+            const indexInput = document.getElementById('editIndex');
+            const universeInput = document.getElementById('editUniverse');
+            const boxInput = document.getElementById('editBox');
+            const noteInput = document.getElementById('editNote');
+            
+            if (!indexInput || !universeInput || !boxInput || !noteInput) {
+                cancelEditing();
+                return;
+            }
+            
             const cellKey = `${editingCell.cellRow},${editingCell.cellCol}`;
             
-            if (newValue === '') {
-                // Clear the B number assignment (remove from manual assignments)
-                cellToBoxNumber.delete(cellKey);
-            } else {
-                const newBoxNum = parseInt(newValue);
-                if (!isNaN(newBoxNum) && newBoxNum > 0) {
-                    // Update the cell's box number
-                    cellToBoxNumber.set(cellKey, newBoxNum);
+            // Get values
+            const index = indexInput.value.trim();
+            const universe = universeInput.value.trim();
+            const box = boxInput.value.trim();
+            const note = noteInput.value.trim();
+            
+            // Store custom cell data
+            if (index || universe || box || note) {
+                cellCustomData.set(cellKey, { index, universe, box, note });
+                
+                // Update box number mapping if box is set
+                if (box) {
+                    const boxNum = parseInt(box);
+                    if (!isNaN(boxNum) && boxNum > 0) {
+                        cellToBoxNumber.set(cellKey, boxNum);
+                    }
                 } else {
-                    // Invalid number, cancel
-                    cancelEditing();
-                    return;
+                    // Clear box assignment if empty
+                    cellToBoxNumber.delete(cellKey);
                 }
+            } else {
+                // Clear all custom data if all fields are empty
+                cellCustomData.delete(cellKey);
+                cellToBoxNumber.delete(cellKey);
             }
             
             // Recalculate cable groups to update green dot positions and groupings
@@ -2597,16 +2959,16 @@
                 calculateCableGroups();
             }
             
-            // Redraw to show updated B number and green dot connections
+            // Redraw to show updated cell content
             updatePreview();
             
             cancelEditing();
         }
         
         function cancelEditing() {
-            if (editInput) {
-                editInput.remove();
-                editInput = null;
+            if (editDialog) {
+                editDialog.remove();
+                editDialog = null;
             }
             editingCell = null;
         }
@@ -2666,13 +3028,34 @@
             
             const cell = getCellAtPosition(mouseX, mouseY);
             if (cell) {
-                // Get current B number for this cell
-                const cellKey = `${cell.cellRow},${cell.cellCol}`;
-                const currentBoxNum = cellToBoxNumber.get(cellKey);
-                const currentValue = currentBoxNum ? currentBoxNum.toString() : '';
-                
                 editingCell = cell;
-                // Position input near the cell (centered horizontally, at bottom where B number is)
+                
+                // Get current cell data
+                const cellKey = `${cell.cellRow},${cell.cellCol}`;
+                let cellData = cellCustomData.get(cellKey);
+                
+                // If no custom data, parse from current cell content or use defaults
+                if (!cellData) {
+                    // Get the cell's universe info
+                    const cellUniverse = getCellUniverse(cell.cellCol, cell.cellRow);
+                    if (cellUniverse) {
+                        const colInUniverse = cell.cellCol;
+                        const rowInUniverse = cell.cellRow;
+                        const currentBoxNum = cellToBoxNumber.get(cellKey);
+                        
+                        // Try to parse existing cell format
+                        cellData = {
+                            index: (colInUniverse + 1).toString(),
+                            universe: cellUniverse.universeNum.toString(),
+                            box: currentBoxNum ? currentBoxNum.toString() : '',
+                            note: ''
+                        };
+                    } else {
+                        cellData = { index: '', universe: '', box: '', note: '' };
+                    }
+                }
+                
+                // Position dialog near the cell
                 const baseCellSize = 60;
                 const canvas = document.getElementById('gridCanvas');
                 const totalCols = getTotalCols();
@@ -2695,12 +3078,12 @@
                 
                 const cellScreenX = offsetX + (cell.cellCol * baseCellSize * currentScale);
                 const cellScreenY = offsetY + (cell.cellRow * baseCellSize * currentScale);
-                const cellHeight = baseCellSize * currentScale;
                 
-                // Position input at center-bottom of cell
-                const inputX = rect.left + cellScreenX + (baseCellSize * currentScale) / 2 - 30;
-                const inputY = rect.top + cellScreenY + cellHeight - 15;
-                createEditInput(inputX, inputY, currentValue);
+                // Position dialog at center of cell, offset to avoid covering it
+                const dialogX = rect.left + cellScreenX + (baseCellSize * currentScale) / 2 - 100;
+                const dialogY = rect.top + cellScreenY + (baseCellSize * currentScale) / 2 - 100;
+                
+                createEditDialog(dialogX, dialogY, cellData);
             }
         });
     </script>
