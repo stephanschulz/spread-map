@@ -1016,20 +1016,29 @@
             const pointsByUniverse = new Map();
 
             pointCloudData.forEach((point, idx) => {
-                // Same logic as drawPointCloud and Excel generation
-                const relativeX = point.x - pointCloudBounds.minX;
-                const relativeY = point.y - pointCloudBounds.minY;
+                let cellRow, cellCol;
+                
+                // Handle created points (have direct grid position) vs CSV points
+                if (point.isCreated && point.gridPixelX !== undefined) {
+                    // Created point - use stored cell position directly
+                    cellRow = point.cellRow;
+                    cellCol = point.cellCol;
+                } else {
+                    // Same logic as drawPointCloud and Excel generation
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const relativeY = point.y - pointCloudBounds.minY;
 
-                const gridPixelX = relativeX * baseCellSize * pointScale;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
 
-                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                    const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
 
-                // Convert to cell indices
-                const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                    // Convert to cell indices
+                    cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                    cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                }
 
                 // Calculate universe from cell position using variable grid
                 // Use same logic as drawDynamicGrid - calculate position independently per universe
@@ -1092,6 +1101,12 @@
                 console.warn('Warning:', pointCloudData.length - totalAssignedPoints, 'points fell outside grid boundaries');
             }
 
+            // Log manual assignments for debugging
+            console.log('calculateCableGroups: manualAssignments has', manualAssignments.size, 'entries');
+            manualAssignments.forEach((val, key) => {
+                console.log(`  manualAssignment: ${key} -> ${val}`);
+            });
+            
             // For each universe, group points by B number (manual or automatic)
             pointsByUniverse.forEach((universePoints, universeNum) => {
                 // First, check for manual B number assignments
@@ -1103,6 +1118,11 @@
                     const key = `${pointData.cellRow},${pointData.cellCol}`;
                     const manualBoxNum = manualAssignments.get(key);
                     const customData = cellCustomData.get(key);
+                    
+                    // Debug log for each point
+                    if (customData) {
+                        console.log(`calculateCableGroups point: key=${key}, manualBoxNum=${manualBoxNum}, customData.box='${customData.box}'`);
+                    }
                     
                     // Check if there's a manual box assignment first (takes priority)
                     if (manualBoxNum !== undefined) {
@@ -1164,18 +1184,36 @@
                     const groupPoints = groupPointsData.map(p => p.point);
                     
                     // Calculate center point (green dot position)
-                    let sumX = 0, sumY = 0;
+                    // Handle both CSV points (have x,y) and created points (have gridPixelX,gridPixelY)
+                    let sumGridX = 0, sumGridY = 0;
                     groupPoints.forEach(point => {
-                        sumX += point.x;
-                        sumY += point.y;
+                        if (point.isCreated && point.gridPixelX !== undefined) {
+                            // Created point - use direct grid position
+                            sumGridX += point.gridPixelX;
+                            sumGridY += point.gridPixelY;
+                        } else {
+                            // CSV point - calculate grid position
+                            const relativeX = point.x - pointCloudBounds.minX;
+                            const relativeY = point.y - pointCloudBounds.minY;
+                            const gridPixelX = relativeX * baseCellSize * pointScale;
+                            const gridPixelY = relativeY * baseCellSize * pointScale;
+                            const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                            sumGridX += gridPixelX + pointOffsetX;
+                            sumGridY += gridPixelYFlipped + pointOffsetY;
+                        }
                     });
                     
-                    const centerX = sumX / groupPoints.length;
-                    const centerY = sumY / groupPoints.length;
+                    // Center is stored as grid position (same as created points)
+                    const centerGridX = sumGridX / groupPoints.length;
+                    const centerGridY = sumGridY / groupPoints.length;
                     
                     cableGroups.push({
                         points: groupPoints,
-                        center: { x: centerX, y: centerY },
+                        center: { 
+                            isCreated: true,  // Mark as grid position format
+                            gridPixelX: centerGridX, 
+                            gridPixelY: centerGridY 
+                        },
                         universeNum: universeNum,
                         groupInUniverse: boxNum
                     });
@@ -1239,30 +1277,48 @@
             
             // Draw each point
             pointCloudData.forEach((point, idx) => {
-                // Translate point relative to CSV min bounds
-                const relativeX = point.x - pointCloudBounds.minX;
-                const relativeY = point.y - pointCloudBounds.minY;
+                let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
+                let cellRow, cellCol, cellKey;
                 
-                // Convert to "grid pixel space" (as if in the high-res rendered image)
-                // Scale to match cell size, apply point scale adjustment
-                const gridPixelX = relativeX * baseCellSize * pointScale;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
-                
-                // Flip Y coordinate
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                
-                // Apply offsets in grid space (before scale so they zoom with the map)
-                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
-                
-                // Convert to cell indices to check if this cell has empty B
-                const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
-                const cellKey = `${cellRow},${cellCol}`;
+                // Handle created points (have direct grid position) vs CSV points
+                if (point.isCreated && point.gridPixelX !== undefined) {
+                    // Created point - use stored grid position directly
+                    gridPixelXWithOffset = point.gridPixelX;
+                    gridPixelYFlippedWithOffset = point.gridPixelY;
+                    cellRow = point.cellRow;
+                    cellCol = point.cellCol;
+                    cellKey = point.cellKey;
+                } else {
+                    // CSV point - calculate from x,y coordinates
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const relativeY = point.y - pointCloudBounds.minY;
+                    
+                    // Convert to "grid pixel space" (as if in the high-res rendered image)
+                    // Scale to match cell size, apply point scale adjustment
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
+                    
+                    // Flip Y coordinate
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                    
+                    // Apply offsets in grid space (before scale so they zoom with the map)
+                    gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                    
+                    // Convert to cell indices
+                    cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                    cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                    cellKey = `${cellRow},${cellCol}`;
+                }
                 
                 // Check if this cell has explicitly empty B - if so, skip drawing the point
                 const customData = cellCustomData.get(cellKey);
                 const hasBoxNumber = cellToBoxNumber.has(cellKey);
+                
+                // Debug log for first few points
+                if (idx < 5) {
+                    console.log(`drawPointCloud point ${idx}: cellKey=${cellKey}, customData.box=${customData?.box}, hasBoxNumber=${hasBoxNumber}`);
+                }
                 
                 // Don't draw if B is explicitly empty (in custom data) AND there's no box number assigned
                 // If there's a box number, always draw (even if customData.box was previously empty)
@@ -1297,7 +1353,11 @@
                 
                 // Debug: log first few points
                 if (idx < 3) {
-                    console.log(`Point ${idx}: CSV(${point.x.toFixed(2)}, ${point.y.toFixed(2)}) -> GridPx(${gridPixelX.toFixed(0)}, ${gridPixelYFlipped.toFixed(0)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)})`);
+                    if (point.isCreated) {
+                        console.log(`Point ${idx}: CREATED cellKey=${cellKey} -> GridPx(${gridPixelXWithOffset.toFixed(0)}, ${gridPixelYFlippedWithOffset.toFixed(0)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)})`);
+                    } else {
+                        console.log(`Point ${idx}: CSV(${point.x.toFixed(2)}, ${point.y.toFixed(2)}) -> GridPx(${gridPixelXWithOffset.toFixed(0)}, ${gridPixelYFlippedWithOffset.toFixed(0)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)})`);
+                    }
                 }
             });
             
@@ -1328,16 +1388,26 @@
 
             // Helper function to convert point coordinates to screen coordinates
             function pointToScreen(point) {
-                const relativeX = point.x - pointCloudBounds.minX;
-                const relativeY = point.y - pointCloudBounds.minY;
+                let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
+                
+                // Handle created points (have direct grid position) vs CSV points
+                if (point.isCreated && point.gridPixelX !== undefined) {
+                    // Created point - use stored grid position directly
+                    gridPixelXWithOffset = point.gridPixelX;
+                    gridPixelYFlippedWithOffset = point.gridPixelY;
+                } else {
+                    // CSV point - calculate from x,y coordinates
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const relativeY = point.y - pointCloudBounds.minY;
 
-                const gridPixelX = relativeX * baseCellSize * pointScale;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
 
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
 
-                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                    gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                }
 
                 const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
                 const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
@@ -1498,12 +1568,11 @@
             ctx.restore();
         }
         
-        // Draw crosshair with 50px gap around mouse cursor and labels at 100px
-        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight, cellRow, cellCol) {
+        // Draw crosshair with 50px gap around mouse cursor
+        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight) {
             if (mouseX < 0 || mouseY < 0) return;
             
             const gap = 50; // Gap around mouse cursor
-            const labelDistance = 100; // Distance from mouse for labels
             
             ctx.save();
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; // 50% transparent black
@@ -1566,42 +1635,6 @@
                 ctx.lineTo(0, mouseY + distToLeft);
             }
             ctx.stroke();
-            
-            // Draw row and column labels if we have valid cell coordinates
-            if (cellRow !== null && cellCol !== null && cellRow >= 0 && cellCol >= 0) {
-                ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                
-                const rowLabel = `R${cellRow + 1}`;
-                const colLabel = `C${cellCol + 1}`;
-                
-                // Draw label background and text helper
-                const drawLabel = (text, x, y) => {
-                    const padding = 4;
-                    const metrics = ctx.measureText(text);
-                    const textWidth = metrics.width;
-                    const textHeight = 14;
-                    
-                    // Background
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(x - textWidth/2 - padding, y - textHeight/2 - padding, textWidth + padding*2, textHeight + padding*2);
-                    
-                    // Text
-                    ctx.fillStyle = '#fff';
-                    ctx.fillText(text, x, y);
-                };
-                
-                // Column label on vertical line (above gap)
-                if (mouseY - labelDistance > 0) {
-                    drawLabel(colLabel, mouseX, mouseY - labelDistance);
-                }
-                
-                // Row label on horizontal line (left of gap)
-                if (mouseX - labelDistance > 0) {
-                    drawLabel(rowLabel, mouseX - labelDistance, mouseY);
-                }
-            }
             
             ctx.restore();
         }
@@ -1873,17 +1906,7 @@
             // Draw crosshair if enabled
             const showCrosshair = document.getElementById('showCrosshair')?.checked;
             if (showCrosshair && currentMouseX >= 0 && currentMouseY >= 0) {
-                // Calculate which cell the mouse is over
-                const gridX = (currentMouseX - offsetX) / scale;
-                const gridY = (currentMouseY - offsetY) / scale;
-                const cellCol = Math.floor(gridX / baseCellSize);
-                const cellRow = Math.floor(gridY / baseCellSize);
-                
-                // Only pass valid cell coordinates (within grid bounds)
-                const validCellCol = (cellCol >= 0 && cellCol < totalCols) ? cellCol : null;
-                const validCellRow = (cellRow >= 0 && cellRow < totalRows) ? cellRow : null;
-                
-                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height, validCellRow, validCellCol);
+                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height);
             }
             
             // Update zoom label
@@ -2151,24 +2174,39 @@
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
                     
                     pointCloudData.forEach((point, idx) => {
-                        // Same logic as drawPointCloud
-                        const relativeX = point.x - pointCloudBounds.minX;
-                        const relativeY = point.y - pointCloudBounds.minY;
+                        let cellCol, cellRow, isOffsetLeft;
                         
-                        // Convert to grid pixel space
-                        const gridPixelX = relativeX * baseCellSize * pointScale;
-                        const gridPixelY = relativeY * baseCellSize * pointScale;
-                        
-                        // Flip Y coordinate
-                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                        
-                        // Apply offsets (in grid space)
-                        const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                        const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
-                        
-                        // Convert to cell indices (each cell is baseCellSize pixels)
-                        const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                        const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                        // Handle created points (have direct grid position) vs CSV points
+                        if (point.isCreated && point.gridPixelX !== undefined) {
+                            // Created point - use stored cell position directly
+                            cellRow = point.cellRow;
+                            cellCol = point.cellCol;
+                            // Created points don't have stagger, default to left
+                            isOffsetLeft = true;
+                        } else {
+                            // Same logic as drawPointCloud
+                            const relativeX = point.x - pointCloudBounds.minX;
+                            const relativeY = point.y - pointCloudBounds.minY;
+                            
+                            // Convert to grid pixel space
+                            const gridPixelX = relativeX * baseCellSize * pointScale;
+                            const gridPixelY = relativeY * baseCellSize * pointScale;
+                            
+                            // Flip Y coordinate
+                            const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                            
+                            // Apply offsets (in grid space)
+                            const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                            const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                            
+                            // Convert to cell indices (each cell is baseCellSize pixels)
+                            cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                            cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                            
+                            // Determine if this is an even or odd CSV row (for staggered positioning)
+                            const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
+                            isOffsetLeft = csvRowIndex % 2 === 0;
+                        }
                         
                         // Add 1 to account for header row/col in Excel
                         const excelRow = cellRow + 1;
@@ -2179,10 +2217,6 @@
                         const boxNum = cellToBoxNumber.get(cellKey);
                         
                         if (boxNum !== undefined) {
-                            // Determine if this is an even or odd CSV row (for staggered positioning)
-                            const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
-                            const isOffsetLeft = csvRowIndex % 2 === 0;
-                            
                             const key = `${excelRow},${excelCol}`;
                             cellsWithPoints.set(key, { left: isOffsetLeft, boxNum: boxNum });
                         }
@@ -3198,6 +3232,54 @@
         // Store custom cell data
         let cellCustomData = new Map(); // key: "row,col", value: {index, universe, box, note}
         
+        // Track manually created points (not from CSV)
+        let createdPoints = new Set(); // Set of cellKeys that have manually created points
+        
+        // Create a new point for a cell based on grid structure
+        // For created points, we store the grid position directly (not CSV coordinates)
+        function createPointForCell(cellRow, cellCol, cellKey) {
+            const baseCellSize = 60;
+            
+            // For created points, store the grid pixel position directly
+            // This avoids complex coordinate transformations
+            const gridPixelX = (cellCol + 0.5) * baseCellSize;
+            const gridPixelY = (cellRow + 0.5) * baseCellSize;
+            
+            console.log('createPointForCell:', {
+                cellRow, cellCol, cellKey,
+                gridPixel: { x: gridPixelX, y: gridPixelY }
+            });
+            
+            // Add the new point to pointCloudData
+            // Mark as manually created with grid position stored directly
+            const newPoint = {
+                isCreated: true,  // Mark as manually created
+                cellKey: cellKey,
+                gridPixelX: gridPixelX,  // Direct grid position (no transformation needed)
+                gridPixelY: gridPixelY,
+                cellRow: cellRow,
+                cellCol: cellCol
+            };
+            
+            pointCloudData.push(newPoint);
+            createdPoints.add(cellKey);
+            
+            console.log('Created new point:', newPoint, 'Total points:', pointCloudData.length);
+        }
+        
+        // Remove a manually created point for a cell
+        function removeCreatedPointForCell(cellKey) {
+            if (!createdPoints.has(cellKey)) return;
+            
+            // Find and remove the point with this cellKey
+            const index = pointCloudData.findIndex(p => p.isCreated && p.cellKey === cellKey);
+            if (index !== -1) {
+                pointCloudData.splice(index, 1);
+                createdPoints.delete(cellKey);
+                console.log('Removed created point for cell:', cellKey, 'Total points:', pointCloudData.length);
+            }
+        }
+        
         function finishEditing() {
             if (!editingCell || !editDialog) return;
             
@@ -3213,6 +3295,13 @@
             
             // Use the actual cell key (based on point position) if available
             const cellKey = editingCell.actualCellKey || `${editingCell.cellRow},${editingCell.cellCol}`;
+            
+            console.log('finishEditing:', {
+                clickedCell: `${editingCell.cellRow},${editingCell.cellCol}`,
+                actualCellKey: editingCell.actualCellKey,
+                usedCellKey: cellKey,
+                hasPoint: editingCell.hasPoint
+            });
             
             // Check if this cell has a point - if not, warn about B number
             if (!editingCell.hasPoint && boxInput.value.trim()) {
@@ -3236,6 +3325,11 @@
                     const boxNum = parseInt(box);
                     if (!isNaN(boxNum) && boxNum > 0) {
                         cellToBoxNumber.set(cellKey, boxNum);
+                        
+                        // If this cell had no point and a B number was added, CREATE a new point
+                        if (!editingCell.hasPoint) {
+                            createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey);
+                        }
                     } else {
                         // Invalid box number, clear it
                         cellToBoxNumber.delete(cellKey);
@@ -3243,11 +3337,17 @@
                 } else {
                     // B is explicitly empty - clear box assignment and don't auto-assign
                     cellToBoxNumber.delete(cellKey);
+                    
+                    // If the cell had a point that was CREATED (not from CSV), remove it
+                    removeCreatedPointForCell(cellKey);
                 }
             } else {
                 // Clear all custom data if all fields are empty
                 cellCustomData.delete(cellKey);
                 cellToBoxNumber.delete(cellKey);
+                
+                // Remove any created point
+                removeCreatedPointForCell(cellKey);
             }
             
             // Recalculate cable groups to update green dot positions and groupings
@@ -3314,10 +3414,13 @@
             return null;
         }
         
-        // Find the point that maps to a given cell position
-        // Returns { pointIndex, cellKey } or null if no point in this cell
-        function findPointInCell(cellRow, cellCol) {
-            if (!pointCloudLoaded || pointCloudData.length === 0) return null;
+        // Find the point that is visually closest to the clicked screen position
+        // Returns { pointIndex, cellKey } or null if no point near the click
+        function findPointAtScreenPosition(screenX, screenY, gridOffsetX, gridOffsetY, gridScale) {
+            if (!pointCloudLoaded || pointCloudData.length === 0) {
+                console.log('findPointAtScreenPosition: No point cloud loaded');
+                return null;
+            }
             
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
             const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
@@ -3325,6 +3428,11 @@
             const baseCellSize = 60;
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+            
+            // Find the point closest to the clicked screen position
+            let closestPoint = null;
+            let closestDistance = Infinity;
+            const maxDistance = baseCellSize * gridScale; // Max distance = one cell size in screen pixels
             
             for (let i = 0; i < pointCloudData.length; i++) {
                 const point = pointCloudData[i];
@@ -3338,16 +3446,47 @@
                 const gridPixelXWithOffset = gridPixelX + pointOffsetX;
                 const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
                 
-                const pointCellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                const pointCellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                // Calculate screen position (same as in drawPointCloud)
+                const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
+                const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
                 
-                if (pointCellRow === cellRow && pointCellCol === cellCol) {
-                    return {
+                // Distance from clicked position to this point's screen position
+                const dist = Math.sqrt(Math.pow(px - screenX, 2) + Math.pow(py - screenY, 2));
+                
+                if (dist < closestDistance && dist < maxDistance) {
+                    closestDistance = dist;
+                    
+                    // Calculate the point's cell key (same as elsewhere)
+                    const pointCellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                    const pointCellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                    
+                    closestPoint = {
                         pointIndex: i,
-                        cellKey: `${pointCellRow},${pointCellCol}`
+                        cellKey: `${pointCellRow},${pointCellCol}`,
+                        screenX: px,
+                        screenY: py,
+                        distance: dist
                     };
                 }
             }
+            
+            if (closestPoint) {
+                console.log(`findPointAtScreenPosition: Found point ${closestPoint.pointIndex} at screen (${closestPoint.screenX.toFixed(0)}, ${closestPoint.screenY.toFixed(0)}), distance: ${closestPoint.distance.toFixed(0)}px, cellKey: ${closestPoint.cellKey}`);
+                return {
+                    pointIndex: closestPoint.pointIndex,
+                    cellKey: closestPoint.cellKey
+                };
+            }
+            
+            console.log(`findPointAtScreenPosition: No point found within ${maxDistance.toFixed(0)}px of click at (${screenX.toFixed(0)}, ${screenY.toFixed(0)})`);
+            return null;
+        }
+        
+        // Legacy function - kept for compatibility but now uses screen-based search
+        function findPointInCell(cellRow, cellCol) {
+            console.log(`findPointInCell: Delegating to screen-based search for cell (${cellRow}, ${cellCol})`);
+            // This will be called without screen coordinates, so return null
+            // The actual search happens in the double-click handler
             return null;
         }
         
@@ -3363,8 +3502,38 @@
             if (cell) {
                 editingCell = cell;
                 
-                // Find if there's a point in this cell and get its actual cell key
-                const pointInfo = findPointInCell(cell.cellRow, cell.cellCol);
+                // Calculate the grid transform parameters (same as in drawGridPreview)
+                const baseCellSize = 60;
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
+                const gridPixelWidth = totalCols * baseCellSize;
+                const gridPixelHeight = totalRows * baseCellSize;
+                const availableWidth = canvas.width * 0.9;
+                const availableHeight = canvas.height * 0.9;
+                const scaleX = availableWidth / gridPixelWidth;
+                const scaleY = availableHeight / gridPixelHeight;
+                const baseScale = Math.min(scaleX, scaleY);
+                const currentScale = baseScale * zoom;
+                
+                const gridWidth = gridPixelWidth * currentScale;
+                const gridHeight = gridPixelHeight * currentScale;
+                const baseOffsetX = (canvas.width - gridWidth) / 2;
+                const baseOffsetY = (canvas.height - gridHeight) / 2;
+                const gridOffsetX = baseOffsetX + panX;
+                const gridOffsetY = baseOffsetY + panY;
+                
+                // Find point using screen coordinates (accounts for zoom, pan, and point transform)
+                const pointInfo = findPointAtScreenPosition(mouseX, mouseY, gridOffsetX, gridOffsetY, currentScale);
+                
+                console.log('Double-click on cell:', {
+                    screenPos: { x: mouseX.toFixed(0), y: mouseY.toFixed(0) },
+                    visualCellRow: cell.cellRow,
+                    visualCellCol: cell.cellCol,
+                    universeNum: cell.universeNum,
+                    gridTransform: { offsetX: gridOffsetX.toFixed(0), offsetY: gridOffsetY.toFixed(0), scale: currentScale.toFixed(3) },
+                    pointFound: pointInfo !== null,
+                    pointCellKey: pointInfo ? pointInfo.cellKey : 'none'
+                });
                 
                 // Use the point's cell key if found, otherwise use the clicked cell's key
                 const cellKey = pointInfo ? pointInfo.cellKey : `${cell.cellRow},${cell.cellCol}`;
@@ -3404,29 +3573,9 @@
                     }
                 }
                 
-                // Position dialog near the cell
-                const baseCellSize = 60;
-                const canvas = document.getElementById('gridCanvas');
-                const totalCols = getTotalCols();
-                const totalRows = getTotalRows();
-                const gridPixelWidth = totalCols * baseCellSize;
-                const gridPixelHeight = totalRows * baseCellSize;
-                const availableWidth = canvas.width * 0.9;
-                const availableHeight = canvas.height * 0.9;
-                const scaleX = availableWidth / gridPixelWidth;
-                const scaleY = availableHeight / gridPixelHeight;
-                const baseScale = Math.min(scaleX, scaleY);
-                const currentScale = baseScale * zoom;
-                
-                const gridWidth = gridPixelWidth * currentScale;
-                const gridHeight = gridPixelHeight * currentScale;
-                const baseOffsetX = (canvas.width - gridWidth) / 2;
-                const baseOffsetY = (canvas.height - gridHeight) / 2;
-                const offsetX = baseOffsetX + panX;
-                const offsetY = baseOffsetY + panY;
-                
-                const cellScreenX = offsetX + (cell.cellCol * baseCellSize * currentScale);
-                const cellScreenY = offsetY + (cell.cellRow * baseCellSize * currentScale);
+                // Position dialog near the cell (reuse grid transform values from above)
+                const cellScreenX = gridOffsetX + (cell.cellCol * baseCellSize * currentScale);
+                const cellScreenY = gridOffsetY + (cell.cellRow * baseCellSize * currentScale);
                 
                 // Position dialog at center of cell, offset to avoid covering it
                 const dialogX = rect.left + cellScreenX + (baseCellSize * currentScale) / 2 - 100;
@@ -3438,4 +3587,5 @@
     </script>
 </body>
 </html>
+
 
