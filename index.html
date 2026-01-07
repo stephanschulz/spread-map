@@ -474,6 +474,7 @@
         let pointCloudBounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         let pointCloudPitch = { x: 0, y: 0 }; // Detected pitch/spacing
         let cableGroups = []; // Groups of 20 points with their center points
+        let cellToBoxNumber = new Map(); // Maps "row,col" to box number
 
         // Variable universe grid structure - each universe has independent dimensions
         let universeGrid = {
@@ -481,7 +482,7 @@
             universesV: 5,
             // 2D array of universes: universes[uRow][uCol] = {cols, rows}
             universes: [],
-            showCellText: false // Only show text after Apply
+            showCellText: true // Show text on initial load
         };
 
         // Dragging state for boundaries
@@ -964,6 +965,7 @@
         // Calculate cable groups - group by universe, 20 points per group, starting from top-right
         function calculateCableGroups() {
             cableGroups = [];
+            cellToBoxNumber.clear(); // Clear previous mappings
             const groupSize = 20;
 
             // Get point transformation settings
@@ -1068,6 +1070,13 @@
                 for (let i = 0; i < universePoints.length; i += groupSize) {
                     const groupPointsData = universePoints.slice(i, i + groupSize);
                     const groupPoints = groupPointsData.map(p => p.point);
+                    const boxNum = Math.floor(i / groupSize) + 1;
+
+                    // Map each cell in this group to its box number
+                    groupPointsData.forEach(pointData => {
+                        const key = `${pointData.cellRow},${pointData.cellCol}`;
+                        cellToBoxNumber.set(key, boxNum);
+                    });
 
                     // Calculate center point to minimize total distance (using centroid as approximation)
                     let sumX = 0, sumY = 0;
@@ -1083,7 +1092,7 @@
                         points: groupPoints,
                         center: { x: centerX, y: centerY },
                         universeNum: universeNum,
-                        groupInUniverse: Math.floor(i / groupSize) + 1
+                        groupInUniverse: boxNum
                     });
                 }
             });
@@ -1349,22 +1358,26 @@
                     ctx.lineWidth = Math.max(0.5, scale * 0.5);
                     ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
 
-                    // Draw cell text only if enabled
-                    if (universeGrid.showCellText && scale > 0.3) {
-                        ctx.fillStyle = '#000';
-                        ctx.font = `${Math.max(8, scale * 9)}px Arial`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'top';
-                        ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+                     // Draw cell text only if enabled
+                     if (universeGrid.showCellText && scale > 0.3) {
+                         ctx.fillStyle = '#000';
+                         ctx.font = `${Math.max(8, scale * 9)}px Arial`;
+                         ctx.textAlign = 'center';
+                         ctx.textBaseline = 'top';
+                         ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
 
-                        ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+                         ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
+                         ctx.textBaseline = 'middle';
+                         ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
 
-                        ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                        ctx.textBaseline = 'bottom';
-                        ctx.fillText(`B${cellUniverse.cellInUniverseRow + 1}`, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
-                    }
+                         ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                         ctx.textBaseline = 'bottom';
+                         // Check if this cell has a box number (from cable groups)
+                         const cellKey = `${cellRow},${cellCol}`;
+                         const boxNum = cellToBoxNumber.get(cellKey);
+                         const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
+                         ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                     }
                 }
             }
 
@@ -1600,6 +1613,11 @@
                     console.error('totalCells element not found');
                 }
                 
+                // Calculate cable groups if we have points (needed for box numbers in cells)
+                if (pointCloudLoaded && pointCloudData.length > 0) {
+                    calculateCableGroups();
+                }
+                
                 // Draw visual preview with cells
                 const colors = generateUniverseColors(totalUniverses);
                 console.log('Generated colors for', totalUniverses, 'universes');
@@ -1612,11 +1630,11 @@
         }
         
         // Generate cell label
-        function generateCellLabel(rowInUniverse, colInUniverse, universeNum) {
+        function generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum = null) {
             const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
             const universeLabel = `U${universeNum}`;
-            const bNum = rowInUniverse;  // B1, B2, etc. for each row
-            const bLabel = `B${bNum}`;
+            // If boxNum is provided (from cable group), use it; otherwise just "B"
+            const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
             return `${colLabel}\n${universeLabel}-${bLabel}\n`;
         }
         
@@ -1734,12 +1752,13 @@
                 const universesH = parseInt(document.getElementById('universes_h').value);
                 const universesV = parseInt(document.getElementById('universes_v').value);
                 
-                // Generate data using actual universe grid structure (respects custom boundaries)
-                const grid = generateMapData();
-                const colors = generateUniverseColors(universesH * universesV);
+                // Ensure cable groups are calculated (uses same logic as visual display)
+                if (pointCloudLoaded && pointCloudData.length > 0) {
+                    calculateCableGroups();
+                }
                 
                 // Map points to cells using EXACT same logic as visual rendering
-                const cellsWithPoints = new Map(); // key: "row,col", value: { left: bool }
+                const cellsWithPoints = new Map(); // key: "row,col", value: { left: bool, boxNum: number }
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
                     const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
@@ -1748,7 +1767,7 @@
                     const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
                     
-                    pointCloudData.forEach(point => {
+                    pointCloudData.forEach((point, idx) => {
                         // Same logic as drawPointCloud
                         const relativeX = point.x - pointCloudBounds.minX;
                         const relativeY = point.y - pointCloudBounds.minY;
@@ -1768,20 +1787,25 @@
                         const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
                         const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
                         
-                        // Add 1 to account for header row/col
+                        // Add 1 to account for header row/col in Excel
                         const excelRow = cellRow + 1;
                         const excelCol = cellCol + 1;
                         
-                        if (excelRow > 0 && excelRow < grid.length && excelCol > 0 && excelCol < grid[0].length) {
+                        // Get box number from the cellToBoxNumber map (populated by calculateCableGroups)
+                        const cellKey = `${cellRow},${cellCol}`;
+                        const boxNum = cellToBoxNumber.get(cellKey);
+                        
+                        if (boxNum !== undefined) {
                             // Determine if this is an even or odd CSV row (for staggered positioning)
                             const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
                             const isOffsetLeft = csvRowIndex % 2 === 0;
                             
                             const key = `${excelRow},${excelCol}`;
-                            cellsWithPoints.set(key, { left: isOffsetLeft });
+                            cellsWithPoints.set(key, { left: isOffsetLeft, boxNum: boxNum });
                         }
                     });
-                    console.log('Mapped', cellsWithPoints.size, 'points to cells');
+                    
+                    console.log('Mapped', cellsWithPoints.size, 'points to cells using cable groups');
                 }
                 
                 // Create workbook with cell styles option
@@ -1808,14 +1832,22 @@
                         const pointKey = `${R},${C}`;
                         if (cellsWithPoints.has(pointKey) && R > 0 && C > 0) {
                             const pointInfo = cellsWithPoints.get(pointKey);
-                            // Add dot on first line with the number, left or right based on stagger pattern
                             const lines = cellValue.split('\n');
-                            if (lines.length > 0) {
+                            
+                            if (lines.length >= 2) {
+                                // Add dot on first line with the number, left or right based on stagger pattern
                                 if (pointInfo.left) {
                                     lines[0] = '● ' + lines[0]; // Dot before number
                                 } else {
                                     lines[0] = lines[0] + ' ●'; // Dot after number
                                 }
+                                
+                                // Update the B number to show the box/group number
+                                if (pointInfo.boxNum) {
+                                    // Replace the B number in the second line (e.g., "U3-B5" becomes "U3-B2")
+                                    lines[1] = lines[1].replace(/B\d+/, `B${pointInfo.boxNum}`);
+                                }
+                                
                                 cellValue = lines.join('\n');
                             }
                         }
