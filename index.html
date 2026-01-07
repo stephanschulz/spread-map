@@ -1498,11 +1498,12 @@
             ctx.restore();
         }
         
-        // Draw crosshair with 50px gap around mouse cursor
-        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight) {
+        // Draw crosshair with 50px gap around mouse cursor and labels at 100px
+        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight, cellRow, cellCol) {
             if (mouseX < 0 || mouseY < 0) return;
             
             const gap = 50; // Gap around mouse cursor
+            const labelDistance = 100; // Distance from mouse for labels
             
             ctx.save();
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; // 50% transparent black
@@ -1565,6 +1566,42 @@
                 ctx.lineTo(0, mouseY + distToLeft);
             }
             ctx.stroke();
+            
+            // Draw row and column labels if we have valid cell coordinates
+            if (cellRow !== null && cellCol !== null && cellRow >= 0 && cellCol >= 0) {
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                const rowLabel = `R${cellRow + 1}`;
+                const colLabel = `C${cellCol + 1}`;
+                
+                // Draw label background and text helper
+                const drawLabel = (text, x, y) => {
+                    const padding = 4;
+                    const metrics = ctx.measureText(text);
+                    const textWidth = metrics.width;
+                    const textHeight = 14;
+                    
+                    // Background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x - textWidth/2 - padding, y - textHeight/2 - padding, textWidth + padding*2, textHeight + padding*2);
+                    
+                    // Text
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(text, x, y);
+                };
+                
+                // Column label on vertical line (above gap)
+                if (mouseY - labelDistance > 0) {
+                    drawLabel(colLabel, mouseX, mouseY - labelDistance);
+                }
+                
+                // Row label on horizontal line (left of gap)
+                if (mouseX - labelDistance > 0) {
+                    drawLabel(rowLabel, mouseX - labelDistance, mouseY);
+                }
+            }
             
             ctx.restore();
         }
@@ -1836,7 +1873,17 @@
             // Draw crosshair if enabled
             const showCrosshair = document.getElementById('showCrosshair')?.checked;
             if (showCrosshair && currentMouseX >= 0 && currentMouseY >= 0) {
-                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height);
+                // Calculate which cell the mouse is over
+                const gridX = (currentMouseX - offsetX) / scale;
+                const gridY = (currentMouseY - offsetY) / scale;
+                const cellCol = Math.floor(gridX / baseCellSize);
+                const cellRow = Math.floor(gridY / baseCellSize);
+                
+                // Only pass valid cell coordinates (within grid bounds)
+                const validCellCol = (cellCol >= 0 && cellCol < totalCols) ? cellCol : null;
+                const validCellRow = (cellRow >= 0 && cellRow < totalRows) ? cellRow : null;
+                
+                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height, validCellRow, validCellCol);
             }
             
             // Update zoom label
