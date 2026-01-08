@@ -90,14 +90,66 @@
             border-radius: 3px;
         }
         
+        .gui-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 3px;
+        }
+        
+        .gui-header:hover .toggle-btn {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
         h1 {
             color: #fff;
-            margin-bottom: 3px;
+            margin-bottom: 0;
             font-size: 16px;
             display: flex;
             align-items: center;
             gap: 6px;
             font-weight: 300;
+        }
+        
+        .toggle-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: 3px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .gui-content {
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+            overflow: hidden;
+        }
+        
+        .container.collapsed .gui-content {
+            max-height: 0 !important;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .container.collapsed {
+            overflow: hidden;
+        }
+        
+        .container.collapsed .subtitle {
+            display: none;
         }
         
         .subtitle {
@@ -320,10 +372,14 @@
 <body>
     <canvas id="gridCanvas"></canvas>
     
-    <div class="container">
-        <h1>🌌 Spread-Map</h1>
+    <div class="container" id="guiContainer">
+        <div class="gui-header" id="guiHeader">
+            <h1>🌌 Spread-Map</h1>
+            <button type="button" class="toggle-btn" id="guiToggle" title="Toggle GUI">▼</button>
+        </div>
         <p class="subtitle">Generate custom spreadsheet maps</p>
         
+        <div class="gui-content" id="guiContent">
         <form id="mapForm">
             <div class="section-title">Universe Dimensions</div>
             <div class="form-group">
@@ -465,6 +521,7 @@
                 </a>
             </div>
         </form>
+        </div><!-- end gui-content -->
     </div>
     
     <script>
@@ -2211,6 +2268,51 @@
                     
                 }
                 
+                // Calculate which cells contain green boxes
+                const cellsWithBoxes = new Map(); // key: "excelRow,excelCol", value: { universeNum, groupNum }
+                if (cableGroups.length > 0) {
+                    const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                    const baseCellSize = 60;
+                    const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+                    
+                    cableGroups.forEach(group => {
+                        const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
+                        let gridPixelX, gridPixelY;
+                        
+                        if (customBoxPositions.has(boxKey)) {
+                            // Use custom position
+                            const customPos = customBoxPositions.get(boxKey);
+                            gridPixelX = customPos.x;
+                            gridPixelY = customPos.y;
+                        } else {
+                            // Calculate from center point
+                            const relativeX = group.center.x - pointCloudBounds.minX;
+                            const relativeY = group.center.y - pointCloudBounds.minY;
+                            const gPixelX = relativeX * baseCellSize * pointScale;
+                            const gPixelY = relativeY * baseCellSize * pointScale;
+                            const gPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gPixelY;
+                            gridPixelX = gPixelX + pointOffsetX;
+                            gridPixelY = gPixelYFlipped + pointOffsetY;
+                        }
+                        
+                        // Convert to cell indices
+                        const cellCol = Math.floor(gridPixelX / baseCellSize);
+                        const cellRow = Math.floor(gridPixelY / baseCellSize);
+                        
+                        // Excel uses 1-based indexing and has header row/col
+                        const excelRow = cellRow + 1;
+                        const excelCol = cellCol + 1;
+                        
+                        const key = `${excelRow},${excelCol}`;
+                        cellsWithBoxes.set(key, { 
+                            universeNum: group.universeNum, 
+                            groupNum: group.groupInUniverse 
+                        });
+                    });
+                }
+                
                 // Generate the grid data
                 const grid = generateMapData();
                 
@@ -2295,6 +2397,15 @@
                             }
                         }
                         
+                        // Check if this cell contains a green box (cable group center)
+                        const boxCellKey = `${R},${C}`;
+                        if (cellsWithBoxes.has(boxCellKey) && R > 0 && C > 0) {
+                            const boxInfo = cellsWithBoxes.get(boxCellKey);
+                            // Add box marker to cell content
+                            // ■ represents the green box, followed by its ID
+                            cellValue = `■ BOX\nU${boxInfo.universeNum}-${boxInfo.groupNum}\n${cellValue}`;
+                        }
+                        
                         const cell = {
                             v: cellValue,
                             t: 's', // string type
@@ -2344,6 +2455,21 @@
                                         };
                                     }
                                 }
+                            }
+                            
+                            // Override styling for cells containing green boxes
+                            if (cellsWithBoxes.has(boxCellKey)) {
+                                cell.s.fill = {
+                                    patternType: 'solid',
+                                    fgColor: { rgb: '22C55E' } // Green to match the visual boxes
+                                };
+                                cell.s.font = { sz: 9, name: 'Arial', bold: true, color: { rgb: 'FFFFFF' } };
+                                cell.s.border = {
+                                    top: { style: 'thick', color: { rgb: '000000' } },
+                                    bottom: { style: 'thick', color: { rgb: '000000' } },
+                                    left: { style: 'thick', color: { rgb: '000000' } },
+                                    right: { style: 'thick', color: { rgb: '000000' } }
+                                };
                             }
                         }
                         
@@ -2526,6 +2652,31 @@
         document.getElementById('mapAlpha').addEventListener('input', function() {
             document.getElementById('mapAlphaValue').textContent = this.value + '%';
         });
+        
+        // GUI toggle functionality
+        const guiContainer = document.getElementById('guiContainer');
+        const guiToggle = document.getElementById('guiToggle');
+        const guiHeader = document.getElementById('guiHeader');
+        
+        function toggleGui() {
+            guiContainer.classList.toggle('collapsed');
+            guiToggle.textContent = guiContainer.classList.contains('collapsed') ? '▶' : '▼';
+            // Save state
+            localStorage.setItem('guiCollapsed', guiContainer.classList.contains('collapsed'));
+        }
+        
+        guiToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleGui();
+        });
+        
+        guiHeader.addEventListener('click', toggleGui);
+        
+        // Restore GUI collapsed state
+        if (localStorage.getItem('guiCollapsed') === 'true') {
+            guiContainer.classList.add('collapsed');
+            guiToggle.textContent = '▶';
+        }
         
         // Row/column headers checkbox
         document.getElementById('showRowColHeaders').addEventListener('change', function() {
