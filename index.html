@@ -2166,6 +2166,13 @@
                     console.log('Mapped', cellsWithPoints.size, 'points to cells using cable groups');
                 }
                 
+                // Generate the grid data
+                const grid = generateMapData();
+                
+                // Generate colors for universes
+                const totalUniverses = universesH * universesV;
+                const colors = generateUniverseColors(totalUniverses);
+                
                 // Create workbook with cell styles option
                 const wb = XLSX.utils.book_new();
                 wb.Props = {
@@ -3192,36 +3199,89 @@
             
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
             
-            // Target grid pixel position (center of cell)
-            const targetGridPixelX = (cellCol + 0.5) * baseCellSize;
+            // Determine the stagger pattern by analyzing existing points in the same row
+            // Find points in the same grid row to determine if this row is left or right staggered
+            let isLeftStagger = true; // Default
+            let foundStaggerPattern = false;
+            
+            // Look for existing non-created points to determine stagger pattern
+            for (const point of pointCloudData) {
+                if (point.isCreated) continue; // Skip created points
+                
+                // Calculate this point's grid row
+                const relativeY = point.y - pointCloudBounds.minY;
+                const gridPixelY = relativeY * baseCellSize * pointScale;
+                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                const gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY;
+                const pointGridRow = Math.floor(gridPixelYWithOffset / baseCellSize);
+                
+                if (pointGridRow === cellRow) {
+                    // Found a point in the same row - check its X position within the cell
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    const pointGridCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                    
+                    // Position within cell (0-1 range)
+                    const posInCell = (gridPixelXWithOffset / baseCellSize) - pointGridCol;
+                    
+                    // If position is < 0.5, it's left-staggered; if >= 0.5, it's right-staggered
+                    isLeftStagger = posInCell < 0.5;
+                    foundStaggerPattern = true;
+                    console.log('createPointForCell: Found stagger pattern from point in same row:', {
+                        pointGridRow, pointGridCol, posInCell, isLeftStagger
+                    });
+                    break;
+                }
+            }
+            
+            // If no point found in same row, look at adjacent rows to extrapolate
+            if (!foundStaggerPattern) {
+                for (const point of pointCloudData) {
+                    if (point.isCreated) continue;
+                    
+                    const relativeY = point.y - pointCloudBounds.minY;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                    const gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY;
+                    const pointGridRow = Math.floor(gridPixelYWithOffset / baseCellSize);
+                    
+                    // Get this point's stagger
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    const pointGridCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                    const posInCell = (gridPixelXWithOffset / baseCellSize) - pointGridCol;
+                    const pointIsLeftStagger = posInCell < 0.5;
+                    
+                    // Calculate row difference - stagger alternates each row
+                    const rowDiff = Math.abs(cellRow - pointGridRow);
+                    if (rowDiff % 2 === 0) {
+                        // Same stagger pattern
+                        isLeftStagger = pointIsLeftStagger;
+                    } else {
+                        // Opposite stagger pattern
+                        isLeftStagger = !pointIsLeftStagger;
+                    }
+                    foundStaggerPattern = true;
+                    console.log('createPointForCell: Extrapolated stagger from row', pointGridRow, 'to row', cellRow, ':', {
+                        rowDiff, pointIsLeftStagger, isLeftStagger
+                    });
+                    break;
+                }
+            }
+            
+            // Calculate target X position with stagger
+            // Left stagger: point is left of center (xOffset ~= 0.25)
+            // Right stagger: point is right of center (xOffset ~= 0.75)
+            const xOffset = isLeftStagger ? 0.25 : 0.75;
+            const targetGridPixelX = (cellCol + xOffset) * baseCellSize;
             const targetGridPixelY = (cellRow + 0.5) * baseCellSize;
             
             // Reverse the transformation to get CSV coordinates
-            // Forward transform (in drawPointCloud):
-            //   relativeX = point.x - minX
-            //   gridPixelX = relativeX * baseCellSize * pointScale
-            //   gridPixelXWithOffset = gridPixelX + pointOffsetX
-            //
-            // Reverse:
-            //   gridPixelX = targetGridPixelX - pointOffsetX
-            //   relativeX = gridPixelX / (baseCellSize * pointScale)
-            //   csvX = relativeX + minX
-            
             const gridPixelX = targetGridPixelX - pointOffsetX;
             const relativeX = gridPixelX / (baseCellSize * pointScale);
             const csvX = relativeX + pointCloudBounds.minX;
-            
-            // For Y, also reverse the flip:
-            //   relativeY = point.y - minY
-            //   gridPixelY = relativeY * baseCellSize * pointScale
-            //   gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY
-            //   gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY
-            //
-            // Reverse:
-            //   gridPixelYFlipped = targetGridPixelY - pointOffsetY
-            //   gridPixelY = (csvHeight * baseCellSize * pointScale) - gridPixelYFlipped
-            //   relativeY = gridPixelY / (baseCellSize * pointScale)
-            //   csvY = relativeY + minY
             
             const gridPixelYFlipped = targetGridPixelY - pointOffsetY;
             const gridPixelY = (csvHeight * baseCellSize * pointScale) - gridPixelYFlipped;
@@ -3230,17 +3290,17 @@
             
             console.log('createPointForCell:', {
                 cellRow, cellCol, cellKey,
+                isLeftStagger, xOffset,
                 targetGridPixel: { x: targetGridPixelX, y: targetGridPixelY },
                 csvCoords: { x: csvX.toFixed(2), y: csvY.toFixed(2) },
                 transform: { scale: pointScale, offsetX: pointOffsetX, offsetY: pointOffsetY }
             });
             
             // Add the new point to pointCloudData in CSV coordinate format
-            // This way it will transform with all other points when scale/offset changes
             const newPoint = {
                 x: csvX,
                 y: csvY,
-                isCreated: true,  // Mark as manually created (for removal later if needed)
+                isCreated: true,
                 cellKey: cellKey
             };
             
