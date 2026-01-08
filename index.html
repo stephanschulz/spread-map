@@ -501,7 +501,14 @@
             </div>
             
             <div class="divider"></div>
-            
+
+            <div class="input-wrapper" style="width: 100%; margin-bottom: 10px;">
+                <label>
+                    <input type="checkbox" id="exportPDF" checked>
+                    Also export PDF
+                </label>
+            </div>
+
             <button type="submit">
                 ⬇️ Generate & Download Excel
             </button>
@@ -2586,9 +2593,11 @@
                 
                 // Generate file and download with cellStyles option
                 XLSX.writeFile(wb, 'spread-map.xlsx', { cellStyles: true, bookType: 'xlsx' });
-                
-                // Also generate PDF of the canvas
-                generatePDF();
+
+                // Also generate PDF if checkbox is checked
+                if (document.getElementById('exportPDF').checked) {
+                    generatePDF();
+                }
                 
                 loading.classList.remove('show');
                 submitBtn.disabled = false;
@@ -3061,7 +3070,12 @@
             saveSettings();
             updatePreview();
         });
-        
+
+        // Export PDF checkbox
+        document.getElementById('exportPDF').addEventListener('change', function() {
+            saveSettings();
+        });
+
         // Reset point scale button
         document.getElementById('resetPointScale').addEventListener('click', function() {
             if (pointCloudPitch.y > 0) {
@@ -3092,7 +3106,8 @@
                 pointScale: document.getElementById('pointScale').value,
                 pointSize: document.getElementById('pointSize').value,
                 pointOffsetX: document.getElementById('pointOffsetX').value,
-                pointOffsetY: document.getElementById('pointOffsetY').value
+                pointOffsetY: document.getElementById('pointOffsetY').value,
+                exportPDF: document.getElementById('exportPDF').checked
             };
             localStorage.setItem('spreadMapSettings', JSON.stringify(settings));
         }
@@ -3118,7 +3133,8 @@
                     if (settings.pointSize) document.getElementById('pointSize').value = settings.pointSize;
                     if (settings.pointOffsetX !== undefined) document.getElementById('pointOffsetX').value = settings.pointOffsetX;
                     if (settings.pointOffsetY !== undefined) document.getElementById('pointOffsetY').value = settings.pointOffsetY;
-                    
+                    if (settings.exportPDF !== undefined) document.getElementById('exportPDF').checked = settings.exportPDF;
+
                     // Update slider displays
                     document.getElementById('mapAlphaValue').textContent = (settings.mapAlpha || 100) + '%';
                     document.getElementById('pointScaleValue').textContent = parseFloat(settings.pointScale || 1).toFixed(2) + 'x';
