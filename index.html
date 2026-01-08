@@ -374,7 +374,7 @@
     
     <div class="container" id="guiContainer">
         <div class="gui-header" id="guiHeader">
-            <h1>🌌 Spread-Map</h1>
+        <h1>🌌 Spread-Map</h1>
             <button type="button" class="toggle-btn" id="guiToggle" title="Toggle GUI">▼</button>
         </div>
         <p class="subtitle">Generate custom spreadsheet maps</p>
@@ -1192,7 +1192,7 @@
                     }
                     return b.cellCol - a.cellCol; // Right columns first within same row
                 });
-                
+
                 // Auto-assign box numbers to unassigned points
                 let nextBoxNum = 1;
                 // Find the highest manual box number to continue from
@@ -1221,17 +1221,17 @@
                 // Create cable groups from all groups (manual and auto)
                 manualGroups.forEach((groupPointsData, boxNum) => {
                     const groupPoints = groupPointsData.map(p => p.point);
-                    
+
                     // Calculate center point (green dot position) using CSV coordinates
                     let sumX = 0, sumY = 0;
                     groupPoints.forEach(point => {
                         sumX += point.x;
                         sumY += point.y;
                     });
-                    
+
                     const centerX = sumX / groupPoints.length;
                     const centerY = sumY / groupPoints.length;
-                    
+
                     cableGroups.push({
                         points: groupPoints,
                         center: { x: centerX, y: centerY },
@@ -1407,7 +1407,7 @@
                     boxScreenY = gridOffsetY + (customPos.y * gridScale);
                 } else {
                     // Use calculated center position
-                    const centerScreen = pointToScreen(group.center);
+                const centerScreen = pointToScreen(group.center);
                     boxScreenX = centerScreen.x;
                     boxScreenY = centerScreen.y;
                 }
@@ -1702,23 +1702,23 @@
                     // Calculate cell position
                     const x = cellCol * baseCellSize;
                     const y = cellRow * baseCellSize;
-                    const cellWidth = baseCellSize;
-                    const cellHeight = baseCellSize;
+                            const cellWidth = baseCellSize;
+                            const cellHeight = baseCellSize;
 
-                    // Transform to screen coordinates
-                    const screenX = offsetX + (x * scale);
-                    const screenY = offsetY + (y * scale);
-                    const screenWidth = cellWidth * scale;
-                    const screenHeight = cellHeight * scale;
+                            // Transform to screen coordinates
+                            const screenX = offsetX + (x * scale);
+                            const screenY = offsetY + (y * scale);
+                            const screenWidth = cellWidth * scale;
+                            const screenHeight = cellHeight * scale;
 
-                    // Fill cell with universe color
-                    ctx.fillStyle = '#' + hexColor;
-                    ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+                            // Fill cell with universe color
+                            ctx.fillStyle = '#' + hexColor;
+                            ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
 
-                    // Draw cell border
-                    ctx.strokeStyle = '#555';
-                    ctx.lineWidth = Math.max(0.5, scale * 0.5);
-                    ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+                            // Draw cell border
+                            ctx.strokeStyle = '#555';
+                            ctx.lineWidth = Math.max(0.5, scale * 0.5);
+                            ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
                     
                     // Draw cell ID in top-left corner (for debugging)
                     if (scale > 0.2) {
@@ -1729,8 +1729,8 @@
                         ctx.fillText(`${cellRow + 1},${cellCol + 1}`, screenX + 2, screenY + 2);
                     }
 
-                     // Draw cell text only if enabled
-                     if (universeGrid.showCellText && scale > 0.3) {
+                            // Draw cell text only if enabled
+                            if (universeGrid.showCellText && scale > 0.3) {
                          const cellKey = `${cellRow},${cellCol}`;
                          const customData = cellCustomData.get(cellKey);
                          const boxNum = cellToBoxNumber.get(cellKey);
@@ -1769,32 +1769,32 @@
                              }
                              if (customData.note) {
                                  ctx.font = `${Math.max(6, scale * 7)}px Arial`;
-                                 ctx.fillText(`?${customData.note}`, screenX + screenWidth / 2, yOffset);
+                                 ctx.fillText(customData.note, screenX + screenWidth / 2, yOffset);
                              }
                          } else {
                              // Default format
-                             ctx.fillStyle = '#000';
-                             ctx.font = `${Math.max(8, scale * 9)}px Arial`;
-                             ctx.textAlign = 'center';
-                             ctx.textBaseline = 'top';
+                                ctx.fillStyle = '#000';
+                                ctx.font = `${Math.max(8, scale * 9)}px Arial`;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'top';
                              ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
 
-                             ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
-                             ctx.textBaseline = 'middle';
-                             ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+                                ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
 
-                             ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                             ctx.textBaseline = 'bottom';
+                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                ctx.textBaseline = 'bottom';
                              const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
                              ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
                          }
-                     }
-                }
-            }
+                            }
+                        }
+                    }
 
             // Draw universe boundaries
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = Math.max(2, scale * 3);
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = Math.max(2, scale * 3);
 
             // Draw boundaries between different universes
             for (let cellRow = 0; cellRow < totalRows; cellRow++) {
@@ -1811,10 +1811,10 @@
                         const rightX = offsetX + ((x + baseCellSize) * scale);
                         const topY = offsetY + (y * scale);
                         const bottomY = offsetY + ((y + baseCellSize) * scale);
-                        ctx.beginPath();
-                        ctx.moveTo(rightX, topY);
-                        ctx.lineTo(rightX, bottomY);
-                        ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(rightX, topY);
+                    ctx.lineTo(rightX, bottomY);
+                    ctx.stroke();
                     }
 
                     // Check bottom edge
@@ -1823,10 +1823,10 @@
                         const leftX = offsetX + (x * scale);
                         const rightX = offsetX + ((x + baseCellSize) * scale);
                         const bottomY = offsetY + ((y + baseCellSize) * scale);
-                        ctx.beginPath();
-                        ctx.moveTo(leftX, bottomY);
-                        ctx.lineTo(rightX, bottomY);
-                        ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(leftX, bottomY);
+                    ctx.lineTo(rightX, bottomY);
+                    ctx.stroke();
                     }
                 }
             }
@@ -2079,15 +2079,15 @@
                     lines.push('B');
                 }
                 if (customData.note) {
-                    lines.push(`?${customData.note}`);
+                    lines.push(customData.note);
                 }
                 return lines.join('\n') + '\n';
             } else {
                 // Default format
-                const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
-                const universeLabel = `U${universeNum}`;
+            const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
+            const universeLabel = `U${universeNum}`;
                 const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
-                return `${colLabel}\n${universeLabel}-${bLabel}\n`;
+            return `${colLabel}\n${universeLabel}-${bLabel}\n`;
             }
         }
         
@@ -2257,7 +2257,7 @@
                             // For created points, default to left (even row)
                             let isOffsetLeft = true;
                             if (!point.isCreated && pointCloudPitch && pointCloudPitch.y > 0) {
-                                const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
+                            const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
                                 isOffsetLeft = csvRowIndex % 2 === 0;
                             }
                             
@@ -2350,12 +2350,12 @@
                             
                             if (customData) {
                                 // Custom format - add dot to first line and update box if needed
-                                const lines = cellValue.split('\n');
-                                if (lines.length > 0) {
+                            const lines = cellValue.split('\n');
+                            if (lines.length > 0) {
                                     // Add dot to first line
-                                    if (pointInfo.left) {
+                                if (pointInfo.left) {
                                         lines[0] = '● ' + lines[0];
-                                    } else {
+                                } else {
                                         lines[0] = lines[0] + ' ●';
                                     }
                                     
@@ -2374,8 +2374,8 @@
                                         }
                                     }
                                     
-                                    cellValue = lines.join('\n');
-                                }
+                                cellValue = lines.join('\n');
+                            }
                             } else {
                                 // Default format
                                 const lines = cellValue.split('\n');
@@ -2401,9 +2401,8 @@
                         const boxCellKey = `${R},${C}`;
                         if (cellsWithBoxes.has(boxCellKey) && R > 0 && C > 0) {
                             const boxInfo = cellsWithBoxes.get(boxCellKey);
-                            // Add box marker to cell content
-                            // ■ represents the green box, followed by its ID
-                            cellValue = `■ BOX\nU${boxInfo.universeNum}-${boxInfo.groupNum}\n${cellValue}`;
+                            // Add box label to cell content
+                            cellValue = `Box-${boxInfo.groupNum}\n${cellValue}`;
                         }
                         
                         const cell = {
@@ -2597,7 +2596,7 @@
                                 const worksheet = data.worksheet;
                                 const csvData = XLSX.utils.sheet_to_csv(worksheet);
                                 parseCSV(csvData);
-                                updatePreview();
+                        updatePreview();
                                 console.log('Point cloud Excel loaded successfully');
                             } else {
                                 throw new Error('Unknown Excel file format');
@@ -2624,7 +2623,7 @@
                 if (isExcel) {
                     reader.readAsArrayBuffer(file);
                 } else {
-                    reader.readAsText(file);
+                reader.readAsText(file);
                 }
             }
         });
@@ -2995,7 +2994,7 @@
                 canvas.style.cursor = 'move';
                 return;
             }
-            
+
             const boundary = detectBoundaryAtPosition(mouseX, mouseY);
 
             if (boundary) {
@@ -3153,11 +3152,11 @@
                 if (box) {
                     canvas.style.cursor = 'move';
                 } else {
-                    const boundary = detectBoundaryAtPosition(mouseX, mouseY);
-                    if (boundary) {
-                        canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
-                    } else {
-                        canvas.style.cursor = 'grab';
+                const boundary = detectBoundaryAtPosition(mouseX, mouseY);
+                if (boundary) {
+                    canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
+                } else {
+                    canvas.style.cursor = 'grab';
                     }
                 }
             }
