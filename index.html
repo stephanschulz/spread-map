@@ -505,6 +505,11 @@
         let draggingBoundary = null;
         let dragStartX = 0;
         let dragStartY = 0;
+        
+        // Custom box positions (for dragged green rectangles)
+        // Key: "universeNum-groupInUniverse", Value: { x, y } in grid pixel space
+        let customBoxPositions = new Map();
+        let draggingBox = null; // { groupIndex, startX, startY }
 
         // Initialize universe grid with uniform dimensions
         function initializeUniverseGrid(cols, rows, universesH, universesV) {
@@ -1334,10 +1339,23 @@
 
             // Draw each cable group
             cableGroups.forEach((group, groupIndex) => {
-                // Get center point screen coordinates
-                const centerScreen = pointToScreen(group.center);
+                // Check for custom box position
+                const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
+                let boxScreenX, boxScreenY;
+                
+                if (customBoxPositions.has(boxKey)) {
+                    // Use custom position (stored in grid pixel space)
+                    const customPos = customBoxPositions.get(boxKey);
+                    boxScreenX = gridOffsetX + (customPos.x * gridScale);
+                    boxScreenY = gridOffsetY + (customPos.y * gridScale);
+                } else {
+                    // Use calculated center position
+                    const centerScreen = pointToScreen(group.center);
+                    boxScreenX = centerScreen.x;
+                    boxScreenY = centerScreen.y;
+                }
 
-                // Draw lines from each point to center
+                // Draw lines from each point to box position
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'; // Black for cables
                 ctx.lineWidth = Math.max(1, gridScale * 1.5);
 
@@ -1346,27 +1364,41 @@
 
                     ctx.beginPath();
                     ctx.moveTo(pointScreen.x, pointScreen.y);
-                    ctx.lineTo(centerScreen.x, centerScreen.y);
+                    ctx.lineTo(boxScreenX, boxScreenY);
                     ctx.stroke();
                 });
 
-                // Draw center point marker
-                const centerMarkerSize = Math.max(8, gridScale * 10);
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Red for center
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                // Draw center point marker (green rectangle with black outline)
+                const markerWidth = Math.max(30, gridScale * 40);
+                const markerHeight = Math.max(16, gridScale * 20);
+                const markerX = boxScreenX - markerWidth / 2;
+                const markerY = boxScreenY - markerHeight / 2;
+                
+                // Store marker bounds for hit detection
+                group.markerBounds = {
+                    x: markerX,
+                    y: markerY,
+                    width: markerWidth,
+                    height: markerHeight,
+                    screenX: boxScreenX,
+                    screenY: boxScreenY
+                };
+                
+                // Green fill
+                ctx.fillStyle = 'rgba(34, 197, 94, 0.9)'; // Green
+                ctx.fillRect(markerX, markerY, markerWidth, markerHeight);
+                
+                // Black outline
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
                 ctx.lineWidth = Math.max(2, gridScale * 2);
+                ctx.strokeRect(markerX, markerY, markerWidth, markerHeight);
 
-                ctx.beginPath();
-                ctx.arc(centerScreen.x, centerScreen.y, centerMarkerSize, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.stroke();
-
-                // Draw group number label
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                // Draw group number label (white text)
+                ctx.fillStyle = 'rgba(255, 255, 255, 1)';
                 ctx.font = `bold ${Math.max(10, gridScale * 12)}px Arial`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(`U${group.universeNum}-${group.groupInUniverse}`, centerScreen.x, centerScreen.y);
+                ctx.fillText(`U${group.universeNum}-${group.groupInUniverse}`, boxScreenX, boxScreenY);
             });
 
             ctx.restore();
@@ -2775,7 +2807,22 @@
             return null;
         }
 
-        // Mouse drag to pan OR drag boundaries
+        // Detect if mouse is over a box marker
+        function detectBoxAtPosition(mouseX, mouseY) {
+            for (let i = 0; i < cableGroups.length; i++) {
+                const group = cableGroups[i];
+                if (group.markerBounds) {
+                    const b = group.markerBounds;
+                    if (mouseX >= b.x && mouseX <= b.x + b.width &&
+                        mouseY >= b.y && mouseY <= b.y + b.height) {
+                        return { groupIndex: i, group: group };
+                    }
+                }
+            }
+            return null;
+        }
+        
+        // Mouse drag to pan OR drag boundaries OR drag boxes
         const canvas = document.getElementById('gridCanvas');
         canvas.addEventListener('mousedown', function(e) {
             const rect = canvas.getBoundingClientRect();
@@ -2785,6 +2832,19 @@
             const mouseX = (e.clientX - rect.left) * cssToCanvasX;
             const mouseY = (e.clientY - rect.top) * cssToCanvasY;
 
+            // Check for box click first
+            const box = detectBoxAtPosition(mouseX, mouseY);
+            if (box) {
+                draggingBox = {
+                    groupIndex: box.groupIndex,
+                    group: box.group,
+                    startMouseX: mouseX,
+                    startMouseY: mouseY
+                };
+                canvas.style.cursor = 'move';
+                return;
+            }
+            
             const boundary = detectBoundaryAtPosition(mouseX, mouseY);
 
             if (boundary) {
@@ -2813,8 +2873,41 @@
             
             // Redraw if crosshair is enabled (for smooth crosshair tracking)
             const showCrosshair = document.getElementById('showCrosshair')?.checked;
-            if (showCrosshair && !isDragging && !draggingBoundary) {
+            if (showCrosshair && !isDragging && !draggingBoundary && !draggingBox) {
                 updatePreview();
+            }
+            
+            // Handle box dragging
+            if (draggingBox) {
+                const baseCellSize = 60;
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
+                const gridPixelWidth = totalCols * baseCellSize;
+                const gridPixelHeight = totalRows * baseCellSize;
+                const availableWidth = canvas.width * 0.9;
+                const availableHeight = canvas.height * 0.9;
+                const scaleX = availableWidth / gridPixelWidth;
+                const scaleY = availableHeight / gridPixelHeight;
+                const baseScale = Math.min(scaleX, scaleY);
+                const scale = baseScale * zoom;
+                
+                const gridWidth = gridPixelWidth * scale;
+                const gridHeight = gridPixelHeight * scale;
+                const baseOffsetX = (canvas.width - gridWidth) / 2;
+                const baseOffsetY = (canvas.height - gridHeight) / 2;
+                const offsetX = baseOffsetX + panX;
+                const offsetY = baseOffsetY + panY;
+                
+                // Convert mouse position to grid pixel space
+                const gridPixelX = (mouseX - offsetX) / scale;
+                const gridPixelY = (mouseY - offsetY) / scale;
+                
+                // Store custom position
+                const boxKey = `${draggingBox.group.universeNum}-${draggingBox.group.groupInUniverse}`;
+                customBoxPositions.set(boxKey, { x: gridPixelX, y: gridPixelY });
+                
+                updatePreview();
+                return;
             }
 
             if (draggingBoundary) {
@@ -2905,23 +2998,30 @@
                 updatePreview();
             } else {
                 // Update cursor based on position
-                const boundary = detectBoundaryAtPosition(mouseX, mouseY);
-                if (boundary) {
-                    canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
+                const box = detectBoxAtPosition(mouseX, mouseY);
+                if (box) {
+                    canvas.style.cursor = 'move';
                 } else {
-                    canvas.style.cursor = 'grab';
+                    const boundary = detectBoundaryAtPosition(mouseX, mouseY);
+                    if (boundary) {
+                        canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
+                    } else {
+                        canvas.style.cursor = 'grab';
+                    }
                 }
             }
         });
 
         canvas.addEventListener('mouseup', function() {
             draggingBoundary = null;
+            draggingBox = null;
             isDragging = false;
             canvas.style.cursor = 'grab';
         });
 
         canvas.addEventListener('mouseleave', function() {
             draggingBoundary = null;
+            draggingBox = null;
             isDragging = false;
             canvas.style.cursor = 'grab';
             
