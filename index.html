@@ -837,27 +837,22 @@
                 // Set point scale to 1 since we're importing from the same coordinate system
                 document.getElementById('pointScale').value = 1.0;
                 document.getElementById('pointScaleValue').textContent = '1.0x';
-                
-                // Reset offsets
-                document.getElementById('pointOffsetX').value = 0;
-                document.getElementById('pointOffsetY').value = 0;
-                document.getElementById('pointOffsetXValue').textContent = '0';
-                document.getElementById('pointOffsetYValue').textContent = '0';
-                
+
+                // Keep current X/Y offset values unchanged - user can adjust as needed
+
                 // Calculate cable groups (will respect the imported cellToBoxNumber assignments)
                 calculateCableGroups();
-                
+
                 console.log('Imported', pointCloudData.length, 'points');
             } else {
                 pointCloudLoaded = false;
                 pointCloudData = [];
                 console.log('No points found in imported map');
             }
-            
+
             // Update preview
             updatePreview();
-            // Note: Don't save settings here because import resets offsets to 0,
-            // which would break subsequent CSV loads that need default offsets (17, 30)
+            saveSettings();
         }
 
         // Parse exported map structure from Excel file
