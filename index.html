@@ -8,6 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <title>Spread-Map Generator</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -2499,6 +2500,9 @@
                 // Generate file and download with cellStyles option
                 XLSX.writeFile(wb, 'spread-map.xlsx', { cellStyles: true, bookType: 'xlsx' });
                 
+                // Also generate PDF of the canvas
+                generatePDF();
+                
                 loading.classList.remove('show');
                 submitBtn.disabled = false;
                 
@@ -2508,6 +2512,288 @@
                 errorBox.classList.add('show');
                 loading.classList.remove('show');
                 submitBtn.disabled = false;
+            }
+        }
+        
+        // Generate PDF from the full map (not zoomed view)
+        function generatePDF() {
+            try {
+                const { jsPDF } = window.jspdf;
+                
+                // Calculate full map dimensions
+                const baseCellSize = 60;
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
+                const gridPixelWidth = totalCols * baseCellSize;
+                const gridPixelHeight = totalRows * baseCellSize;
+                
+                // Add space for edge labels
+                const labelMargin = 30; // Space for row/column labels
+                const canvasWidth = gridPixelWidth + (2 * labelMargin);
+                const canvasHeight = gridPixelHeight + (2 * labelMargin);
+                
+                // Create a temporary canvas for the full map
+                const tempCanvas = document.createElement('canvas');
+                const scale = 2; // High resolution for quality
+                tempCanvas.width = canvasWidth * scale;
+                tempCanvas.height = canvasHeight * scale;
+                const ctx = tempCanvas.getContext('2d');
+                
+                // Scale for high resolution
+                ctx.scale(scale, scale);
+                
+                // Fill background
+                ctx.fillStyle = '#2c3e50';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                
+                // Draw column labels (top and bottom)
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (let col = 0; col < totalCols; col++) {
+                    const x = labelMargin + col * baseCellSize + baseCellSize / 2;
+                    // Top labels
+                    ctx.fillText(`C${col + 1}`, x, labelMargin / 2);
+                    // Bottom labels
+                    ctx.fillText(`C${col + 1}`, x, canvasHeight - labelMargin / 2);
+                }
+                
+                // Draw row labels (left and right)
+                for (let row = 0; row < totalRows; row++) {
+                    const y = labelMargin + row * baseCellSize + baseCellSize / 2;
+                    // Left labels
+                    ctx.fillText(`R${row + 1}`, labelMargin / 2, y);
+                    // Right labels
+                    ctx.fillText(`R${row + 1}`, canvasWidth - labelMargin / 2, y);
+                }
+                
+                // Generate colors
+                const universesH = parseInt(document.getElementById('universes_h').value);
+                const universesV = parseInt(document.getElementById('universes_v').value);
+                const totalUniverses = universesH * universesV;
+                const colors = generateUniverseColors(totalUniverses);
+                
+                // Draw cells at full size (no zoom, no pan) - offset by labelMargin
+                for (let cellRow = 0; cellRow < totalRows; cellRow++) {
+                    for (let cellCol = 0; cellCol < totalCols; cellCol++) {
+                        const cellUniverse = getCellUniverse(cellCol, cellRow);
+                        if (!cellUniverse) continue;
+                        
+                        const universeNum = cellUniverse.universeNum;
+                        const hexColor = colors[universeNum] || 'CCCCCC';
+                        
+                        const x = labelMargin + cellCol * baseCellSize;
+                        const y = labelMargin + cellRow * baseCellSize;
+                        
+                        // Fill cell
+                        ctx.fillStyle = '#' + hexColor;
+                        ctx.fillRect(x, y, baseCellSize, baseCellSize);
+                        
+                        // Draw border
+                        ctx.strokeStyle = '#555';
+                        ctx.lineWidth = 0.5;
+                        ctx.strokeRect(x, y, baseCellSize, baseCellSize);
+                        
+                        // Draw cell ID
+                        ctx.fillStyle = 'rgba(0, 0, 128, 0.7)';
+                        ctx.font = '6px monospace';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(`${cellRow + 1},${cellCol + 1}`, x + 2, y + 2);
+                        
+                        // Draw cell content
+                        const cellKey = `${cellRow},${cellCol}`;
+                        const customData = cellCustomData.get(cellKey);
+                        const boxNum = cellToBoxNumber.get(cellKey);
+                        
+                        ctx.fillStyle = '#000';
+                        ctx.font = '8px Arial';
+                        ctx.textAlign = 'center';
+                        
+                        if (customData) {
+                            let yOffset = y + 12;
+                            if (customData.index) {
+                                ctx.textBaseline = 'top';
+                                ctx.fillText(customData.index, x + baseCellSize / 2, yOffset);
+                                yOffset += 10;
+                            }
+                            if (customData.universe) {
+                                ctx.font = 'bold 8px Arial';
+                                ctx.fillText(`U${customData.universe}`, x + baseCellSize / 2, yOffset);
+                                yOffset += 10;
+                            }
+                            if (customData.box) {
+                                ctx.font = '8px Arial';
+                                ctx.fillText(`B${customData.box}`, x + baseCellSize / 2, yOffset);
+                            } else if (boxNum !== undefined) {
+                                ctx.font = '8px Arial';
+                                ctx.fillText(`B${boxNum}`, x + baseCellSize / 2, yOffset);
+                            }
+                        } else {
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, x + baseCellSize / 2, y + 12);
+                            ctx.font = 'bold 8px Arial';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(`U${universeNum}`, x + baseCellSize / 2, y + baseCellSize / 2);
+                            ctx.font = '8px Arial';
+                            ctx.textBaseline = 'bottom';
+                            const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
+                            ctx.fillText(bLabel, x + baseCellSize / 2, y + baseCellSize - 5);
+                        }
+                    }
+                }
+                
+                // Draw universe boundaries - offset by labelMargin
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                for (let cellRow = 0; cellRow < totalRows; cellRow++) {
+                    for (let cellCol = 0; cellCol < totalCols; cellCol++) {
+                        const cellUniverse = getCellUniverse(cellCol, cellRow);
+                        if (!cellUniverse) continue;
+                        
+                        const x = labelMargin + cellCol * baseCellSize;
+                        const y = labelMargin + cellRow * baseCellSize;
+                        
+                        const rightNeighbor = getCellUniverse(cellCol + 1, cellRow);
+                        if (!rightNeighbor || rightNeighbor.universeNum !== cellUniverse.universeNum) {
+                            ctx.beginPath();
+                            ctx.moveTo(x + baseCellSize, y);
+                            ctx.lineTo(x + baseCellSize, y + baseCellSize);
+                            ctx.stroke();
+                        }
+                        
+                        const bottomNeighbor = getCellUniverse(cellCol, cellRow + 1);
+                        if (!bottomNeighbor || bottomNeighbor.universeNum !== cellUniverse.universeNum) {
+                            ctx.beginPath();
+                            ctx.moveTo(x, y + baseCellSize);
+                            ctx.lineTo(x + baseCellSize, y + baseCellSize);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                // Draw points and cable groups if loaded - offset by labelMargin
+                if (pointCloudLoaded && pointCloudData.length > 0) {
+                    const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
+                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                    const pointSize = parseFloat(document.getElementById('pointSize')?.value || 7);
+                    const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+                    
+                    // Helper to convert point to grid position (with labelMargin offset)
+                    function pointToGrid(point) {
+                        const relativeX = point.x - pointCloudBounds.minX;
+                        const relativeY = point.y - pointCloudBounds.minY;
+                        const gridPixelX = relativeX * baseCellSize * pointScale + pointOffsetX + labelMargin;
+                        const gridPixelY = relativeY * baseCellSize * pointScale;
+                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY + pointOffsetY + labelMargin;
+                        return { x: gridPixelX, y: gridPixelYFlipped };
+                    }
+                    
+                    // Draw cable group lines
+                    cableGroups.forEach(group => {
+                        const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
+                        let boxX, boxY;
+                        
+                        if (customBoxPositions.has(boxKey)) {
+                            // Custom position is in grid pixel space - add labelMargin
+                            boxX = customBoxPositions.get(boxKey).x + labelMargin;
+                            boxY = customBoxPositions.get(boxKey).y + labelMargin;
+                        } else {
+                            const centerPos = pointToGrid(group.center);
+                            boxX = centerPos.x;
+                            boxY = centerPos.y;
+                        }
+                        
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+                        ctx.lineWidth = 1.5;
+                        
+                        group.points.forEach(point => {
+                            const pos = pointToGrid(point);
+                            ctx.beginPath();
+                            ctx.moveTo(pos.x, pos.y);
+                            ctx.lineTo(boxX, boxY);
+                            ctx.stroke();
+                        });
+                        
+                        // Draw box
+                        const markerWidth = 40;
+                        const markerHeight = 20;
+                        ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
+                        ctx.fillRect(boxX - markerWidth/2, boxY - markerHeight/2, markerWidth, markerHeight);
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(boxX - markerWidth/2, boxY - markerHeight/2, markerWidth, markerHeight);
+                        
+                        ctx.fillStyle = 'white';
+                        ctx.font = 'bold 10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`U${group.universeNum}-${group.groupInUniverse}`, boxX, boxY);
+                    });
+                    
+                    // Draw points
+                    pointCloudData.forEach(point => {
+                        const pos = pointToGrid(point);
+                        // Cell calculation needs to account for labelMargin offset
+                        const cellCol = Math.floor((pos.x - labelMargin) / baseCellSize);
+                        const cellRow = Math.floor((pos.y - labelMargin) / baseCellSize);
+                        const cellKey = `${cellRow},${cellCol}`;
+                        const customData = cellCustomData.get(cellKey);
+                        const hasBoxNumber = cellToBoxNumber.has(cellKey);
+                        
+                        if (customData && customData.box === '' && !hasBoxNumber) return;
+                        
+                        ctx.beginPath();
+                        ctx.arc(pos.x, pos.y, pointSize, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                        ctx.fill();
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    });
+                }
+                
+                // Determine PDF orientation based on full canvas (with labels)
+                const isLandscape = canvasWidth > canvasHeight;
+                const orientation = isLandscape ? 'landscape' : 'portrait';
+                
+                // Create PDF
+                const pdf = new jsPDF({
+                    orientation: orientation,
+                    unit: 'mm',
+                    format: 'a3'
+                });
+                
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const pdfMargin = 10;
+                const availableWidth = pageWidth - (2 * pdfMargin);
+                const availableHeight = pageHeight - (2 * pdfMargin);
+                
+                const scaleX = availableWidth / canvasWidth;
+                const scaleY = availableHeight / canvasHeight;
+                const pdfScale = Math.min(scaleX, scaleY);
+                
+                const imgWidth = canvasWidth * pdfScale;
+                const imgHeight = canvasHeight * pdfScale;
+                const offsetX = (pageWidth - imgWidth) / 2;
+                const offsetY = (pageHeight - imgHeight) / 2;
+                
+                // Convert canvas to image
+                const imgData = tempCanvas.toDataURL('image/png', 1.0);
+                pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgWidth, imgHeight);
+                
+                // Add title
+                pdf.setFontSize(10);
+                pdf.setTextColor(100);
+                pdf.text('Spread-Map Export', pdfMargin, pdfMargin - 2);
+                
+                pdf.save('spread-map.pdf');
+                
+            } catch (error) {
+                console.error('PDF generation error:', error);
             }
         }
         
