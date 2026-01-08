@@ -1516,11 +1516,12 @@
             ctx.restore();
         }
         
-        // Draw crosshair with 50px gap around mouse cursor
-        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight) {
+        // Draw crosshair with 50px gap around mouse cursor and labels at 100px
+        function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight, cellRow, cellCol) {
             if (mouseX < 0 || mouseY < 0) return;
             
             const gap = 50; // Gap around mouse cursor
+            const labelDistance = 100; // Distance from mouse for labels
             
             ctx.save();
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; // 50% transparent black
@@ -1584,6 +1585,42 @@
             }
             ctx.stroke();
             
+            // Draw row and column labels if we have valid cell coordinates
+            if (cellRow !== null && cellCol !== null && cellRow >= 0 && cellCol >= 0) {
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                const rowLabel = `R${cellRow + 1}`;
+                const colLabel = `C${cellCol + 1}`;
+                
+                // Draw label background and text helper
+                const drawLabel = (text, x, y) => {
+                    const padding = 4;
+                    const metrics = ctx.measureText(text);
+                    const textWidth = metrics.width;
+                    const textHeight = 14;
+                    
+                    // Background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x - textWidth/2 - padding, y - textHeight/2 - padding, textWidth + padding*2, textHeight + padding*2);
+                    
+                    // Text
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(text, x, y);
+                };
+                
+                // Column label on vertical line (above gap)
+                if (mouseY - labelDistance > 0) {
+                    drawLabel(colLabel, mouseX, mouseY - labelDistance);
+                }
+                
+                // Row label on horizontal line (left of gap)
+                if (mouseX - labelDistance > 0) {
+                    drawLabel(rowLabel, mouseX - labelDistance, mouseY);
+                }
+            }
+            
             ctx.restore();
         }
 
@@ -1625,6 +1662,15 @@
                     ctx.strokeStyle = '#555';
                     ctx.lineWidth = Math.max(0.5, scale * 0.5);
                     ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+                    
+                    // Draw cell ID in top-left corner (for debugging)
+                    if (scale > 0.2) {
+                        ctx.fillStyle = 'rgba(0, 0, 128, 0.7)';
+                        ctx.font = `${Math.max(5, scale * 6)}px monospace`;
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'top';
+                        ctx.fillText(`${cellRow},${cellCol}`, screenX + 2, screenY + 2);
+                    }
 
                      // Draw cell text only if enabled
                      if (universeGrid.showCellText && scale > 0.3) {
@@ -1854,7 +1900,17 @@
             // Draw crosshair if enabled
             const showCrosshair = document.getElementById('showCrosshair')?.checked;
             if (showCrosshair && currentMouseX >= 0 && currentMouseY >= 0) {
-                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height);
+                // Calculate which cell the mouse is over
+                const gridX = (currentMouseX - offsetX) / scale;
+                const gridY = (currentMouseY - offsetY) / scale;
+                const cellCol = Math.floor(gridX / baseCellSize);
+                const cellRow = Math.floor(gridY / baseCellSize);
+                
+                // Only pass valid cell coordinates (within grid bounds)
+                const validCellCol = (cellCol >= 0 && cellCol < totalCols) ? cellCol : null;
+                const validCellRow = (cellRow >= 0 && cellRow < totalRows) ? cellRow : null;
+                
+                drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height, validCellRow, validCellCol);
             }
             
             // Update zoom label
@@ -2622,8 +2678,11 @@
 
             const canvas = e.target;
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            // Scale mouse coordinates to match canvas internal resolution
+            const cssToCanvasX = canvas.width / rect.width;
+            const cssToCanvasY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * cssToCanvasX;
+            const mouseY = (e.clientY - rect.top) * cssToCanvasY;
 
             // Calculate current zoom parameters
             const oldZoom = zoom;
@@ -2766,8 +2825,11 @@
         const canvas = document.getElementById('gridCanvas');
         canvas.addEventListener('mousedown', function(e) {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            // Scale mouse coordinates to match canvas internal resolution
+            const cssToCanvasX = canvas.width / rect.width;
+            const cssToCanvasY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * cssToCanvasX;
+            const mouseY = (e.clientY - rect.top) * cssToCanvasY;
 
             const boundary = detectBoundaryAtPosition(mouseX, mouseY);
 
@@ -2785,8 +2847,11 @@
 
         canvas.addEventListener('mousemove', function(e) {
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            // Scale mouse coordinates to match canvas internal resolution
+            const cssToCanvasX = canvas.width / rect.width;
+            const cssToCanvasY = canvas.height / rect.height;
+            const mouseX = (e.clientX - rect.left) * cssToCanvasX;
+            const mouseY = (e.clientY - rect.top) * cssToCanvasY;
             
             // Update global mouse position for crosshair
             currentMouseX = mouseX;
@@ -2985,7 +3050,7 @@
             return { index, universe, box, note };
         }
         
-        function createEditDialog(x, y, cellData) {
+        function createEditDialog(x, y, cellData, cellKey) {
             // Remove existing dialog if any
             if (editDialog) {
                 editDialog.remove();
@@ -3012,6 +3077,17 @@
             form.style.display = 'flex';
             form.style.flexDirection = 'column';
             form.style.gap = '8px';
+            
+            // Title showing cell ID
+            const title = document.createElement('div');
+            title.style.textAlign = 'center';
+            title.style.fontWeight = 'bold';
+            title.style.marginBottom = '8px';
+            title.style.padding = '4px';
+            title.style.background = 'rgba(102, 126, 234, 0.3)';
+            title.style.borderRadius = '4px';
+            title.textContent = `Cell: ${cellKey || 'unknown'}`;
+            form.appendChild(title);
             
             // Index field (#)
             const indexGroup = document.createElement('div');
@@ -3442,6 +3518,27 @@
             const cellCol = Math.floor(gridX / baseCellSize);
             const cellRow = Math.floor(gridY / baseCellSize);
             
+            const cellID = `${cellRow},${cellCol}`;
+            console.log(`%c DETECTED CELL: ${cellID} `, 'background: #0066ff; color: white; font-size: 14px; padding: 4px;');
+            console.log('getCellAtPosition details:', {
+                cellID: cellID,
+                mouseX: mouseX.toFixed(0), mouseY: mouseY.toFixed(0),
+                canvasSize: { w: canvas.width, h: canvas.height },
+                offset: { x: offsetX.toFixed(0), y: offsetY.toFixed(0) },
+                scale: scale.toFixed(4),
+                gridPos: { x: gridX.toFixed(1), y: gridY.toFixed(1) },
+                posInCell: { 
+                    x: ((gridX % baseCellSize) / baseCellSize * 100).toFixed(0) + '%',
+                    y: ((gridY % baseCellSize) / baseCellSize * 100).toFixed(0) + '%'
+                },
+                cellBounds: { 
+                    left: (offsetX + cellCol * baseCellSize * scale).toFixed(0),
+                    right: (offsetX + (cellCol + 1) * baseCellSize * scale).toFixed(0),
+                    top: (offsetY + cellRow * baseCellSize * scale).toFixed(0),
+                    bottom: (offsetY + (cellRow + 1) * baseCellSize * scale).toFixed(0)
+                }
+            });
+            
             if (cellCol >= 0 && cellCol < totalCols && cellRow >= 0 && cellRow < totalRows) {
                 const cellUniverse = getCellUniverse(cellCol, cellRow);
                 if (cellUniverse) {
@@ -3538,8 +3635,23 @@
             e.stopPropagation();
             
             const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+            // Scale mouse coordinates to match canvas internal resolution
+            const cssToCanvasX = canvas.width / rect.width;
+            const cssToCanvasY = canvas.height / rect.height;
+            const rawMouseX = e.clientX - rect.left;
+            const rawMouseY = e.clientY - rect.top;
+            const mouseX = rawMouseX * cssToCanvasX;
+            const mouseY = rawMouseY * cssToCanvasY;
+            
+            console.log('dblclick raw:', {
+                clientX: e.clientX, clientY: e.clientY,
+                rectLeft: rect.left.toFixed(0), rectTop: rect.top.toFixed(0),
+                rectWidth: rect.width.toFixed(0), rectHeight: rect.height.toFixed(0),
+                canvasWidth: canvas.width, canvasHeight: canvas.height,
+                cssToCanvas: { x: cssToCanvasX.toFixed(3), y: cssToCanvasY.toFixed(3) },
+                rawMouse: { x: rawMouseX.toFixed(0), y: rawMouseY.toFixed(0) },
+                scaledMouse: { x: mouseX.toFixed(0), y: mouseY.toFixed(0) }
+            });
             
             const cell = getCellAtPosition(mouseX, mouseY);
             if (cell) {
@@ -3578,12 +3690,24 @@
                     pointCellKey: pointInfo ? pointInfo.cellKey : 'none'
                 });
                 
-                // Use the point's cell key if found, otherwise use the clicked cell's key
-                const cellKey = pointInfo ? pointInfo.cellKey : `${cell.cellRow},${cell.cellCol}`;
+                // Use the clicked cell's key (NOT the point's key - we want to edit the cell we clicked on)
+                const clickedCellKey = `${cell.cellRow},${cell.cellCol}`;
+                const pointCellKey = pointInfo ? pointInfo.cellKey : null;
+                
+                // IMPORTANT: Use the CLICKED cell's key, not the point's key
+                // The point may be associated with a different cell due to offset/scale
+                const cellKey = clickedCellKey;
+                
+                console.log('%c CELL KEY DECISION ', 'background: #ff6600; color: white; font-size: 12px;', {
+                    clickedCellKey: clickedCellKey,
+                    pointCellKey: pointCellKey,
+                    usingCellKey: cellKey,
+                    note: pointCellKey && pointCellKey !== clickedCellKey ? 'MISMATCH: point in different cell!' : 'OK'
+                });
                 
                 // Store the actual cell key for use in finishEditing
                 editingCell.actualCellKey = cellKey;
-                editingCell.hasPoint = pointInfo !== null;
+                editingCell.hasPoint = pointInfo !== null && pointInfo.cellKey === clickedCellKey;
                 
                 let cellData = cellCustomData.get(cellKey);
                 
@@ -3624,7 +3748,7 @@
                 const dialogX = rect.left + cellScreenX + (baseCellSize * currentScale) / 2 - 100;
                 const dialogY = rect.top + cellScreenY + (baseCellSize * currentScale) / 2 - 100;
                 
-                createEditDialog(dialogX, dialogY, cellData);
+                createEditDialog(dialogX, dialogY, cellData, cellKey);
             }
         });
     </script>
