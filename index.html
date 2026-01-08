@@ -478,12 +478,12 @@
                     <input type="range" id="pointSize" min="1" max="20" step="1" value="20" style="width: 100%;">
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Offset X: <span id="pointOffsetXValue">0</span></label>
-                    <input type="range" id="pointOffsetX" min="-500" max="500" step="1" value="0" style="width: 100%;">
+                    <label style="display: block;">Point Offset X: <span id="pointOffsetXValue">17</span></label>
+                    <input type="range" id="pointOffsetX" min="-500" max="500" step="1" value="17" style="width: 100%;">
                 </div>
                 <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">0</span></label>
-                    <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="0" style="width: 100%;">
+                    <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">30</span></label>
+                    <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="30" style="width: 100%;">
                 </div>
             </div>
 
@@ -690,7 +690,7 @@
             }
         }
 
-        // Import exported map - reconstruct grid and points
+        // Import exported map - reconstruct grid and points from cell content
         function importExportedMap(mapData) {
             console.log('Importing exported map:', mapData);
             
@@ -709,13 +709,35 @@
             universeGrid.universes = mapData.universes;
             universeGrid.showCellText = true; // Show cell text since this is an imported map
             
-            // Import custom cell data if available
+            // Import custom cell data from cell content
+            cellCustomData.clear();
             if (mapData.customCellData) {
-                cellCustomData.clear();
                 mapData.customCellData.forEach((value, key) => {
                     cellCustomData.set(key, value);
                 });
                 console.log('Imported', cellCustomData.size, 'cells with custom data');
+            }
+            
+            // Import cell-to-box assignments from B numbers in cells
+            cellToBoxNumber.clear();
+            if (mapData.cellBoxAssignments) {
+                mapData.cellBoxAssignments.forEach((boxNum, cellKey) => {
+                    cellToBoxNumber.set(cellKey, boxNum);
+                });
+                console.log('Imported', cellToBoxNumber.size, 'cell-to-box assignments');
+            }
+            
+            // Import custom box positions from cells with "Box-N" text
+            customBoxPositions.clear();
+            if (mapData.boxCells) {
+                const baseCellSize = 60;
+                mapData.boxCells.forEach((cellPos, boxKey) => {
+                    // Convert cell position to grid pixel position (center of cell)
+                    const gridPixelX = cellPos.col * baseCellSize + baseCellSize / 2;
+                    const gridPixelY = cellPos.row * baseCellSize + baseCellSize / 2;
+                    customBoxPositions.set(boxKey, { x: gridPixelX, y: gridPixelY });
+                });
+                console.log('Imported', customBoxPositions.size, 'box positions');
             }
             
             console.log('Universe grid rebuilt:', universeGrid);
@@ -815,7 +837,7 @@
                 document.getElementById('pointOffsetXValue').textContent = '0';
                 document.getElementById('pointOffsetYValue').textContent = '0';
                 
-                // Calculate cable groups
+                // Calculate cable groups (will respect the imported cellToBoxNumber assignments)
                 calculateCableGroups();
                 
                 console.log('Imported', pointCloudData.length, 'points');
@@ -846,6 +868,8 @@
             // Map to store universe info: universeNum -> {cells: [{row, col, hasPoint, pointLeft}], minRow, maxRow, minCol, maxCol}
             const universeMap = new Map();
             const customCellData = new Map(); // key: "row,col", value: {index, universe, box, note}
+            const boxCells = new Map(); // key: "universeNum-boxNum", value: {row, col} - cells with "Box-N" text
+            const cellBoxAssignments = new Map(); // key: "row,col", value: boxNum - B number assignments
             
             // Parse all data cells (skip header row and column)
             for (let R = 1; R <= range.e.r; R++) {
@@ -864,17 +888,44 @@
                             customCellData.set(cellKey, parsedData);
                         }
                         
-                        // Look for universe number (e.g., "U3-B2")
+                        // Look for universe number (e.g., "U3" or "U3-B2")
                         let universeNum = null;
                         let hasPoint = cellText.includes('●');
                         let pointLeft = false;
+                        let boxNum = null;
+                        let isBoxCell = false;
                         
                         for (const line of lines) {
+                            // Check for "Box-N" text (green box marker cell)
+                            const boxMatch = line.match(/^Box-(\d+)$/);
+                            if (boxMatch) {
+                                isBoxCell = true;
+                                boxNum = parseInt(boxMatch[1]);
+                            }
+                            
+                            // Check for universe number
                             const universeMatch = line.match(/U(\d+)/);
                             if (universeMatch) {
                                 universeNum = parseInt(universeMatch[1]);
-                                break;
                             }
+                            
+                            // Check for B number assignment (e.g., "B5" or just the number after B)
+                            const bMatch = line.match(/^B(\d+)$/);
+                            if (bMatch) {
+                                boxNum = parseInt(bMatch[1]);
+                            }
+                        }
+                        
+                        // Store box cell position (where green box should be placed)
+                        if (isBoxCell && universeNum !== null && boxNum !== null) {
+                            const boxKey = `${universeNum}-${boxNum}`;
+                            boxCells.set(boxKey, { row: R - 1, col: C - 1 }); // 0-based
+                        }
+                        
+                        // Store cell-to-box assignment
+                        if (boxNum !== null && universeNum !== null) {
+                            const cellKey = `${R - 1},${C - 1}`;
+                            cellBoxAssignments.set(cellKey, boxNum);
                         }
                         
                         // Check if point is on left or right
@@ -894,7 +945,7 @@
                             }
                             
                             const uniData = universeMap.get(universeNum);
-                            uniData.cells.push({ row: R, col: C, hasPoint, pointLeft });
+                            uniData.cells.push({ row: R, col: C, hasPoint, pointLeft, boxNum });
                             uniData.minRow = Math.min(uniData.minRow, R);
                             uniData.maxRow = Math.max(uniData.maxRow, R);
                             uniData.minCol = Math.min(uniData.minCol, C);
@@ -903,6 +954,8 @@
                     }
                 }
             }
+            
+            console.log('Found', boxCells.size, 'box positions and', cellBoxAssignments.size, 'cell-to-box assignments');
             
             console.log('Found', universeMap.size, 'universes');
             
@@ -981,7 +1034,9 @@
                 points,
                 totalCols,
                 totalRows,
-                customCellData
+                customCellData,
+                boxCells,           // Map of "universeNum-boxNum" -> {row, col} for green box positions
+                cellBoxAssignments  // Map of "row,col" -> boxNum for cell-to-box assignments
             };
         }
 
@@ -1069,8 +1124,8 @@
 
             // Get point transformation settings
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
             const baseCellSize = 60;
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
@@ -1682,7 +1737,7 @@
             ctx.restore();
         }
 
-        function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors) {
+        function drawDynamicGrid(ctx, offsetX, offsetY, scale, colors, mapAlpha = 1.0) {
             const baseCellSize = 60;
 
             // Calculate total grid dimensions
@@ -1712,6 +1767,15 @@
                             const screenWidth = cellWidth * scale;
                             const screenHeight = cellHeight * scale;
 
+                            // Determine if cell has a B-number assigned
+                            const cellKey = `${cellRow},${cellCol}`;
+                            const customData = cellCustomData.get(cellKey);
+                            const boxNum = cellToBoxNumber.get(cellKey);
+                            const hasBoxNumber = (customData && customData.box) || boxNum !== undefined;
+                            
+                            // Cells without B-number are 50% more transparent
+                            ctx.globalAlpha = hasBoxNumber ? mapAlpha : mapAlpha * 0.5;
+
                             // Fill cell with universe color
                             ctx.fillStyle = '#' + hexColor;
                             ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
@@ -1732,9 +1796,7 @@
 
                             // Draw cell text only if enabled
                             if (universeGrid.showCellText && scale > 0.3) {
-                         const cellKey = `${cellRow},${cellCol}`;
-                         const customData = cellCustomData.get(cellKey);
-                         const boxNum = cellToBoxNumber.get(cellKey);
+                         // Note: cellKey, customData, boxNum already defined above for alpha calculation
                          
                          if (customData) {
                              // Draw custom formatted cell content (without & prefix)
@@ -1923,8 +1985,7 @@
             if (mapAlpha > 0) {
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
-                ctx.globalAlpha = mapAlpha;
-                drawDynamicGrid(ctx, offsetX, offsetY, scale, colors);
+                drawDynamicGrid(ctx, offsetX, offsetY, scale, colors, mapAlpha);
                 ctx.globalAlpha = 1.0; // Reset alpha for other elements
             }
             
@@ -1932,8 +1993,8 @@
             const showCables = document.getElementById('showCableGroups')?.checked;
             if (showCables && pointCloudLoaded && cableGroups.length > 0) {
                 const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                 drawCableGroups(ctx, offsetX, offsetY, scale, pointScale, pointOffsetX, pointOffsetY);
             }
 
@@ -1942,8 +2003,8 @@
             if (showPoints && pointCloudLoaded && pointCloudData.length > 0) {
                 const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
                 const pointSize = parseFloat(document.getElementById('pointSize')?.value || 20);
-                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                 drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, pointOffsetX, pointOffsetY);
             }
             
@@ -2219,8 +2280,8 @@
                 const cellsWithPoints = new Map(); // key: "row,col", value: { left: bool, boxNum: number }
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const baseCellSize = 60; // Same as rendering
                     const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
@@ -2273,8 +2334,8 @@
                 const cellsWithBoxes = new Map(); // key: "excelRow,excelCol", value: { universeNum, groupNum }
                 if (cableGroups.length > 0) {
                     const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const baseCellSize = 60;
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
                     
@@ -2676,8 +2737,8 @@
                 // Draw points and cable groups if loaded - offset by labelMargin
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+                    const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+                    const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const pointSize = parseFloat(document.getElementById('pointSize')?.value || 7);
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
                     
@@ -2873,7 +2934,7 @@
                             console.log('Detected format:', format);
                             
                             if (format === 'exported-map') {
-                                // Import exported map
+                                // Import exported map - all state is reconstructed from cell content
                                 const mapData = parseExportedMap(data.worksheet);
                                 importExportedMap(mapData);
                                 console.log('Exported map loaded successfully');
@@ -3036,8 +3097,8 @@
                     document.getElementById('mapAlphaValue').textContent = (settings.mapAlpha || 100) + '%';
                     document.getElementById('pointScaleValue').textContent = parseFloat(settings.pointScale || 1).toFixed(2) + 'x';
                     document.getElementById('pointSizeValue').textContent = (settings.pointSize || 20) + 'px';
-                    document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX || 0;
-                    document.getElementById('pointOffsetYValue').textContent = settings.pointOffsetY || 0;
+                    document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX || 17;
+                    document.getElementById('pointOffsetYValue').textContent = settings.pointOffsetY || 30;
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
@@ -3762,8 +3823,8 @@
         function createPointForCell(cellRow, cellCol, cellKey) {
             const baseCellSize = 60;
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
             
             // Check if point cloud is loaded (need bounds for coordinate conversion)
             if (!pointCloudLoaded || !pointCloudBounds) {
@@ -4014,8 +4075,8 @@
             }
             
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
-            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
-            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
+            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
             const baseCellSize = 60;
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
