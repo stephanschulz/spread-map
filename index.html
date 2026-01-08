@@ -1086,17 +1086,7 @@
                 totalAssignedPoints += points.length;
             });
 
-            console.log('Points distributed across', pointsByUniverse.size, 'universes');
-            console.log('Total points assigned:', totalAssignedPoints, 'out of', pointCloudData.length);
-            if (totalAssignedPoints < pointCloudData.length) {
-                console.warn('Warning:', pointCloudData.length - totalAssignedPoints, 'points fell outside grid boundaries');
-            }
 
-            // Log manual assignments for debugging
-            console.log('calculateCableGroups: manualAssignments has', manualAssignments.size, 'entries');
-            manualAssignments.forEach((val, key) => {
-                console.log(`  manualAssignment: ${key} -> ${val}`);
-            });
             
             // For each universe, group points by B number (manual or automatic)
             pointsByUniverse.forEach((universePoints, universeNum) => {
@@ -1110,10 +1100,6 @@
                     const manualBoxNum = manualAssignments.get(key);
                     const customData = cellCustomData.get(key);
                     
-                    // Debug log for each point
-                    if (customData) {
-                        console.log(`calculateCableGroups point: key=${key}, manualBoxNum=${manualBoxNum}, customData.box='${customData.box}'`);
-                    }
                     
                     // Check if there's a manual box assignment first (takes priority)
                     if (manualBoxNum !== undefined) {
@@ -1193,7 +1179,6 @@
                 });
             });
 
-            console.log('Calculated', cableGroups.length, 'cable groups of up to', groupSize, 'points each across', pointsByUniverse.size, 'universes');
         }
         
         // Load point cloud data from CSV file
@@ -1236,12 +1221,6 @@
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
             
-            console.log('Point cloud rendering:', {
-                csvBounds: pointCloudBounds,
-                csvSize: { width: csvWidth, height: csvHeight },
-                gridTransform: { offsetX: gridOffsetX, offsetY: gridOffsetY, scale: gridScale },
-                pointAdjustments: { scale: pointScale, offsetX: pointOffsetX, offsetY: pointOffsetY }
-            });
             
             ctx.save();
             
@@ -1275,10 +1254,6 @@
                 const customData = cellCustomData.get(cellKey);
                 const hasBoxNumber = cellToBoxNumber.has(cellKey);
                 
-                // Debug log for first few points
-                if (idx < 5) {
-                    console.log(`drawPointCloud point ${idx}: cellKey=${cellKey}, customData.box=${customData?.box}, hasBoxNumber=${hasBoxNumber}`);
-                }
                 
                 // Don't draw if B is explicitly empty (in custom data) AND there's no box number assigned
                 // If there's a box number, always draw (even if customData.box was previously empty)
@@ -1311,14 +1286,8 @@
                 
                 drawnCount++;
                 
-                // Debug: log first few points
-                if (idx < 3) {
-                    const marker = point.isCreated ? 'CREATED' : 'CSV';
-                    console.log(`Point ${idx}: ${marker}(${point.x.toFixed(2)}, ${point.y.toFixed(2)}) -> GridPx(${gridPixelXWithOffset.toFixed(0)}, ${gridPixelYFlippedWithOffset.toFixed(0)}) -> Screen(${px.toFixed(0)}, ${py.toFixed(0)})`);
-                }
             });
             
-            console.log('Drew', drawnCount, 'points,', visibleCount, 'visible on screen');
             
             // Draw a reference cross at the point cloud origin
             const originX = gridOffsetX + (pointOffsetX * gridScale);
@@ -1402,7 +1371,6 @@
 
             ctx.restore();
 
-            console.log('Drew', cableGroups.length, 'cable groups');
         }
 
         // Helper function to find which universe a cell belongs to
@@ -1669,7 +1637,7 @@
                         ctx.font = `${Math.max(5, scale * 6)}px monospace`;
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'top';
-                        ctx.fillText(`${cellRow},${cellCol}`, screenX + 2, screenY + 2);
+                        ctx.fillText(`${cellRow + 1},${cellCol + 1}`, screenX + 2, screenY + 2);
                     }
 
                      // Draw cell text only if enabled
@@ -1876,7 +1844,6 @@
                 const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
                 const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
                 const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
-                console.log('Drawing cable groups:', cableGroups.length);
                 drawCableGroups(ctx, offsetX, offsetY, scale, pointScale, pointOffsetX, pointOffsetY);
             }
 
@@ -1887,7 +1854,6 @@
                 const pointSize = parseFloat(document.getElementById('pointSize')?.value || 20);
                 const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 0);
                 const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 0);
-                console.log('Drawing points:', pointCloudData.length, 'scale:', pointScale, 'size:', pointSize);
                 drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, pointOffsetX, pointOffsetY);
             }
             
@@ -1923,14 +1889,12 @@
         // Update preview
         function updatePreview() {
             try {
-                console.log('updatePreview called');
 
                 const cols = parseInt(document.getElementById('cols').value) || 20;
                 const rows = parseInt(document.getElementById('rows').value) || 10;
                 const universesH = parseInt(document.getElementById('universes_h').value) || 6;
                 const universesV = parseInt(document.getElementById('universes_v').value) || 5;
 
-                console.log('Grid config:', { cols, rows, universesH, universesV });
 
                 // Initialize universe grid if not already initialized or if dimensions changed
                 if (universeGrid.universes.length === 0 ||
@@ -1963,28 +1927,24 @@
                 
                 if (elem1) {
                     elem1.textContent = totalUniverses;
-                    console.log('Updated totalUniverses:', totalUniverses);
                 } else {
                     console.error('totalUniverses element not found');
                 }
                 
                 if (elem2) {
                     elem2.textContent = `${totalRows + 1} × ${totalCols + 1}`;
-                    console.log('Updated gridSize');
                 } else {
                     console.error('gridSize element not found');
                 }
                 
                 if (elem3) {
                     elem3.textContent = cellsPerUniverse.toLocaleString();
-                    console.log('Updated cellsPerUniverse:', cellsPerUniverse);
                 } else {
                     console.error('cellsPerUniverse element not found');
                 }
                 
                 if (elem4) {
                     elem4.textContent = totalCells.toLocaleString();
-                    console.log('Updated totalCells:', totalCells);
                 } else {
                     console.error('totalCells element not found');
                 }
@@ -1996,9 +1956,7 @@
                 
                 // Draw visual preview with cells
                 const colors = generateUniverseColors(totalUniverses);
-                console.log('Generated colors for', totalUniverses, 'universes');
                 drawGridPreview(universesH, universesV, colors, cols, rows);
-                console.log('Draw complete');
                 
             } catch (error) {
                 console.error('Preview update error:', error);
@@ -2219,7 +2177,6 @@
                         }
                     });
                     
-                    console.log('Mapped', cellsWithPoints.size, 'points to cells using cable groups');
                 }
                 
                 // Generate the grid data
@@ -2449,7 +2406,6 @@
             // Always recalculate cable groups based on current grid layout
             if (pointCloudLoaded && pointCloudData.length > 0) {
                 calculateCableGroups();
-                console.log('Cable groups recalculated');
             }
 
             updatePreview();
@@ -2584,7 +2540,6 @@
                 pointOffsetY: document.getElementById('pointOffsetY').value
             };
             localStorage.setItem('spreadMapSettings', JSON.stringify(settings));
-            console.log('Settings saved:', settings);
         }
         
         // Load settings from localStorage
@@ -2593,7 +2548,6 @@
                 const saved = localStorage.getItem('spreadMapSettings');
                 if (saved) {
                     const settings = JSON.parse(saved);
-                    console.log('Settings loaded:', settings);
                     
                     // Restore values
                     if (settings.cols) document.getElementById('cols').value = settings.cols;
@@ -3086,7 +3040,15 @@
             title.style.padding = '4px';
             title.style.background = 'rgba(102, 126, 234, 0.3)';
             title.style.borderRadius = '4px';
-            title.textContent = `Cell: ${cellKey || 'unknown'}`;
+            // Convert 0-based cellKey to 1-based for display
+            let displayKey = 'unknown';
+            if (cellKey) {
+                const parts = cellKey.split(',');
+                if (parts.length === 2) {
+                    displayKey = `${parseInt(parts[0]) + 1},${parseInt(parts[1]) + 1}`;
+                }
+            }
+            title.textContent = `Cell: ${displayKey}`;
             form.appendChild(title);
             
             // Index field (#)
@@ -3304,9 +3266,6 @@
                     // If position is < 0.5, it's left-staggered; if >= 0.5, it's right-staggered
                     isLeftStagger = posInCell < 0.5;
                     foundStaggerPattern = true;
-                    console.log('createPointForCell: Found stagger pattern from point in same row:', {
-                        pointGridRow, pointGridCol, posInCell, isLeftStagger
-                    });
                     break;
                 }
             }
@@ -3340,9 +3299,6 @@
                         isLeftStagger = !pointIsLeftStagger;
                     }
                     foundStaggerPattern = true;
-                    console.log('createPointForCell: Extrapolated stagger from row', pointGridRow, 'to row', cellRow, ':', {
-                        rowDiff, pointIsLeftStagger, isLeftStagger
-                    });
                     break;
                 }
             }
@@ -3364,13 +3320,6 @@
             const relativeY = gridPixelY / (baseCellSize * pointScale);
             const csvY = relativeY + pointCloudBounds.minY;
             
-            console.log('createPointForCell:', {
-                cellRow, cellCol, cellKey,
-                isLeftStagger, xOffset,
-                targetGridPixel: { x: targetGridPixelX, y: targetGridPixelY },
-                csvCoords: { x: csvX.toFixed(2), y: csvY.toFixed(2) },
-                transform: { scale: pointScale, offsetX: pointOffsetX, offsetY: pointOffsetY }
-            });
             
             // Add the new point to pointCloudData in CSV coordinate format
             const newPoint = {
@@ -3383,7 +3332,6 @@
             pointCloudData.push(newPoint);
             createdPoints.add(cellKey);
             
-            console.log('Created new point:', newPoint, 'Total points:', pointCloudData.length);
         }
         
         // Remove a manually created point for a cell
@@ -3395,7 +3343,6 @@
             if (index !== -1) {
                 pointCloudData.splice(index, 1);
                 createdPoints.delete(cellKey);
-                console.log('Removed created point for cell:', cellKey, 'Total points:', pointCloudData.length);
             }
         }
         
@@ -3415,17 +3362,6 @@
             // Use the actual cell key (based on point position) if available
             const cellKey = editingCell.actualCellKey || `${editingCell.cellRow},${editingCell.cellCol}`;
             
-            console.log('finishEditing:', {
-                clickedCell: `${editingCell.cellRow},${editingCell.cellCol}`,
-                actualCellKey: editingCell.actualCellKey,
-                usedCellKey: cellKey,
-                hasPoint: editingCell.hasPoint
-            });
-            
-            // Check if this cell has a point - if not, warn about B number
-            if (!editingCell.hasPoint && boxInput.value.trim()) {
-                console.warn('Cell has no point - B number will not create a black dot');
-            }
             
             // Get values
             const index = indexInput.value.trim();
@@ -3518,26 +3454,6 @@
             const cellCol = Math.floor(gridX / baseCellSize);
             const cellRow = Math.floor(gridY / baseCellSize);
             
-            const cellID = `${cellRow},${cellCol}`;
-            console.log(`%c DETECTED CELL: ${cellID} `, 'background: #0066ff; color: white; font-size: 14px; padding: 4px;');
-            console.log('getCellAtPosition details:', {
-                cellID: cellID,
-                mouseX: mouseX.toFixed(0), mouseY: mouseY.toFixed(0),
-                canvasSize: { w: canvas.width, h: canvas.height },
-                offset: { x: offsetX.toFixed(0), y: offsetY.toFixed(0) },
-                scale: scale.toFixed(4),
-                gridPos: { x: gridX.toFixed(1), y: gridY.toFixed(1) },
-                posInCell: { 
-                    x: ((gridX % baseCellSize) / baseCellSize * 100).toFixed(0) + '%',
-                    y: ((gridY % baseCellSize) / baseCellSize * 100).toFixed(0) + '%'
-                },
-                cellBounds: { 
-                    left: (offsetX + cellCol * baseCellSize * scale).toFixed(0),
-                    right: (offsetX + (cellCol + 1) * baseCellSize * scale).toFixed(0),
-                    top: (offsetY + cellRow * baseCellSize * scale).toFixed(0),
-                    bottom: (offsetY + (cellRow + 1) * baseCellSize * scale).toFixed(0)
-                }
-            });
             
             if (cellCol >= 0 && cellCol < totalCols && cellRow >= 0 && cellRow < totalRows) {
                 const cellUniverse = getCellUniverse(cellCol, cellRow);
@@ -3558,7 +3474,6 @@
         // Returns { pointIndex, cellKey } or null if no point near the click
         function findPointAtScreenPosition(screenX, screenY, gridOffsetX, gridOffsetY, gridScale) {
             if (!pointCloudLoaded || pointCloudData.length === 0) {
-                console.log('findPointAtScreenPosition: No point cloud loaded');
                 return null;
             }
             
@@ -3611,22 +3526,17 @@
             }
             
             if (closestPoint) {
-                console.log(`findPointAtScreenPosition: Found point ${closestPoint.pointIndex} at screen (${closestPoint.screenX.toFixed(0)}, ${closestPoint.screenY.toFixed(0)}), distance: ${closestPoint.distance.toFixed(0)}px, cellKey: ${closestPoint.cellKey}`);
                 return {
                     pointIndex: closestPoint.pointIndex,
                     cellKey: closestPoint.cellKey
                 };
             }
             
-            console.log(`findPointAtScreenPosition: No point found within ${maxDistance.toFixed(0)}px of click at (${screenX.toFixed(0)}, ${screenY.toFixed(0)})`);
             return null;
         }
         
-        // Legacy function - kept for compatibility but now uses screen-based search
+        // Legacy function - kept for compatibility
         function findPointInCell(cellRow, cellCol) {
-            console.log(`findPointInCell: Delegating to screen-based search for cell (${cellRow}, ${cellCol})`);
-            // This will be called without screen coordinates, so return null
-            // The actual search happens in the double-click handler
             return null;
         }
         
@@ -3643,15 +3553,6 @@
             const mouseX = rawMouseX * cssToCanvasX;
             const mouseY = rawMouseY * cssToCanvasY;
             
-            console.log('dblclick raw:', {
-                clientX: e.clientX, clientY: e.clientY,
-                rectLeft: rect.left.toFixed(0), rectTop: rect.top.toFixed(0),
-                rectWidth: rect.width.toFixed(0), rectHeight: rect.height.toFixed(0),
-                canvasWidth: canvas.width, canvasHeight: canvas.height,
-                cssToCanvas: { x: cssToCanvasX.toFixed(3), y: cssToCanvasY.toFixed(3) },
-                rawMouse: { x: rawMouseX.toFixed(0), y: rawMouseY.toFixed(0) },
-                scaledMouse: { x: mouseX.toFixed(0), y: mouseY.toFixed(0) }
-            });
             
             const cell = getCellAtPosition(mouseX, mouseY);
             if (cell) {
@@ -3680,30 +3581,9 @@
                 // Find point using screen coordinates (accounts for zoom, pan, and point transform)
                 const pointInfo = findPointAtScreenPosition(mouseX, mouseY, gridOffsetX, gridOffsetY, currentScale);
                 
-                console.log('Double-click on cell:', {
-                    screenPos: { x: mouseX.toFixed(0), y: mouseY.toFixed(0) },
-                    visualCellRow: cell.cellRow,
-                    visualCellCol: cell.cellCol,
-                    universeNum: cell.universeNum,
-                    gridTransform: { offsetX: gridOffsetX.toFixed(0), offsetY: gridOffsetY.toFixed(0), scale: currentScale.toFixed(3) },
-                    pointFound: pointInfo !== null,
-                    pointCellKey: pointInfo ? pointInfo.cellKey : 'none'
-                });
-                
                 // Use the clicked cell's key (NOT the point's key - we want to edit the cell we clicked on)
                 const clickedCellKey = `${cell.cellRow},${cell.cellCol}`;
-                const pointCellKey = pointInfo ? pointInfo.cellKey : null;
-                
-                // IMPORTANT: Use the CLICKED cell's key, not the point's key
-                // The point may be associated with a different cell due to offset/scale
                 const cellKey = clickedCellKey;
-                
-                console.log('%c CELL KEY DECISION ', 'background: #ff6600; color: white; font-size: 12px;', {
-                    clickedCellKey: clickedCellKey,
-                    pointCellKey: pointCellKey,
-                    usingCellKey: cellKey,
-                    note: pointCellKey && pointCellKey !== clickedCellKey ? 'MISMATCH: point in different cell!' : 'OK'
-                });
                 
                 // Store the actual cell key for use in finishEditing
                 editingCell.actualCellKey = cellKey;
