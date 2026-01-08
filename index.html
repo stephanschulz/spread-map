@@ -783,23 +783,30 @@
                 mapData.points.forEach(point => {
                     // Convert grid position to pixel coordinates
                     // Each cell is baseCellSize pixels
-                    
+
                     // Flip Y coordinate: Excel row 0 (after header) should be at bottom of our grid
                     const flippedGridRow = totalRows - 1 - point.gridRow;
                     const pixelY = flippedGridRow * baseCellSize + baseCellSize / 2;
-                    
+
                     // Apply stagger offset based on left/right indicator
                     // leftStagger = true means even row (no X offset)
                     // leftStagger = false means odd row (X offset by 0.5 cells)
                     const xOffset = point.leftStagger ? 0 : 0.5;
                     const pixelX = (point.gridCol + xOffset) * baseCellSize + baseCellSize / 2;
-                    
-                    pointCloudData.push({ x: pixelX / baseCellSize, y: pixelY / baseCellSize });
-                    
-                    minX = Math.min(minX, pixelX / baseCellSize);
-                    maxX = Math.max(maxX, pixelX / baseCellSize);
-                    minY = Math.min(minY, pixelY / baseCellSize);
-                    maxY = Math.max(maxY, pixelY / baseCellSize);
+
+                    // Include imported box number and universe for direct assignment in calculateCableGroups
+                    const pointData = {
+                        x: pixelX / baseCellSize,
+                        y: pixelY / baseCellSize,
+                        importedBoxNum: point.boxNum,       // Preserve B number from import
+                        importedUniverseNum: point.universeNum  // Preserve universe from import
+                    };
+                    pointCloudData.push(pointData);
+
+                    minX = Math.min(minX, pointData.x);
+                    maxX = Math.max(maxX, pointData.x);
+                    minY = Math.min(minY, pointData.y);
+                    maxY = Math.max(maxY, pointData.y);
                 });
                 
                 pointCloudBounds = { minX, maxX, minY, maxY };
@@ -849,7 +856,8 @@
             
             // Update preview
             updatePreview();
-            saveSettings();
+            // Note: Don't save settings here because import resets offsets to 0,
+            // which would break subsequent CSV loads that need default offsets (17, 30)
         }
 
         // Parse exported map structure from Excel file
@@ -1019,7 +1027,9 @@
                         points.push({
                             gridRow: cell.row - 1,  // -1 to account for header row
                             gridCol: cell.col - 1,  // -1 to account for header column
-                            leftStagger: cell.pointLeft
+                            leftStagger: cell.pointLeft,
+                            boxNum: cell.boxNum,    // Include B number for direct assignment
+                            universeNum: num        // Include universe for box key creation
                         });
                     }
                 });
@@ -1111,6 +1121,10 @@
             }
 
             // Calculate cable groups
+            console.log('CSV loaded, offset values before calculateCableGroups:', {
+                offsetX: document.getElementById('pointOffsetX')?.value,
+                offsetY: document.getElementById('pointOffsetY')?.value
+            });
             calculateCableGroups();
         }
 
@@ -1212,15 +1226,23 @@
                 const pointsWithManualBox = [];
                 const pointsWithoutBox = [];
                 const pointsExplicitlyNoBox = []; // Points with explicitly empty B field
-                
+
                 universePoints.forEach(pointData => {
                     const key = `${pointData.cellRow},${pointData.cellCol}`;
                     const manualBoxNum = manualAssignments.get(key);
                     const customData = cellCustomData.get(key);
-                    
-                    
-                    // Check if there's a manual box assignment first (takes priority)
-                    if (manualBoxNum !== undefined) {
+
+                    // Check for imported box number directly on the point (from XLSX import)
+                    // This takes priority because it's a direct assignment that doesn't depend on cell position calculation
+                    // For CSV-loaded points, this will be undefined (safe to access)
+                    const importedBoxNum = pointData.point ? pointData.point.importedBoxNum : undefined;
+
+                    // Priority: 1) imported box num from point, 2) manual cell-based assignment, 3) auto-assign
+                    if (importedBoxNum !== undefined && importedBoxNum !== null) {
+                        pointsWithManualBox.push({ ...pointData, boxNum: importedBoxNum });
+                        // Store the assignment for this calculated cell position
+                        cellToBoxNumber.set(key, importedBoxNum);
+                    } else if (manualBoxNum !== undefined) {
                         pointsWithManualBox.push({ ...pointData, boxNum: manualBoxNum });
                         // Restore the manual assignment
                         cellToBoxNumber.set(key, manualBoxNum);
@@ -2314,18 +2336,17 @@
                         const cellKey = `${cellRow},${cellCol}`;
                         const boxNum = cellToBoxNumber.get(cellKey);
                         
-                        if (boxNum !== undefined) {
-                            // Determine if this is an even or odd CSV row (for staggered positioning)
-                            // For created points, default to left (even row)
-                            let isOffsetLeft = true;
-                            if (!point.isCreated && pointCloudPitch && pointCloudPitch.y > 0) {
+                        // Determine if this is an even or odd CSV row (for staggered positioning)
+                        // For created points, default to left (even row)
+                        let isOffsetLeft = true;
+                        if (!point.isCreated && pointCloudPitch && pointCloudPitch.y > 0) {
                             const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
-                                isOffsetLeft = csvRowIndex % 2 === 0;
-                            }
-                            
-                            const key = `${excelRow},${excelCol}`;
-                            cellsWithPoints.set(key, { left: isOffsetLeft, boxNum: boxNum });
+                            isOffsetLeft = csvRowIndex % 2 === 0;
                         }
+
+                        const key = `${excelRow},${excelCol}`;
+                        // Include all points, even those without B number (boxNum will be undefined)
+                        cellsWithPoints.set(key, { left: isOffsetLeft, boxNum: boxNum });
                     });
                     
                 }
@@ -2504,11 +2525,21 @@
                                 if (match) {
                                     const universeNum = parseInt(match[1]);
                                     if (colors[universeNum]) {
-                                        // Check if this cell has a point - if not, make it very transparent
+                                        // Check if this cell has a point and/or B assignment
                                         const pointKey = `${R},${C}`;
-                                        const hasPoint = cellsWithPoints.has(pointKey);
-                                        const opacity = hasPoint ? 0.8 : 0.15; // Full opacity for points, very transparent for empty cells
-                                        
+                                        const pointInfo = cellsWithPoints.get(pointKey);
+                                        const hasPoint = !!pointInfo;
+                                        const hasBoxNum = pointInfo && pointInfo.boxNum !== undefined;
+
+                                        // Different opacity levels:
+                                        // - Point with B number: 0.8 (full)
+                                        // - Point without B number: 0.5 (medium)
+                                        // - No point: 0.15 (very transparent)
+                                        let opacity = 0.15;
+                                        if (hasPoint) {
+                                            opacity = hasBoxNum ? 0.8 : 0.5;
+                                        }
+
                                         const transparentColor = applyTransparency(colors[universeNum], opacity);
                                         cell.s.fill = {
                                             patternType: 'solid',
@@ -3090,15 +3121,15 @@
                     if (settings.showCrosshair !== undefined) document.getElementById('showCrosshair').checked = settings.showCrosshair;
                     if (settings.pointScale) document.getElementById('pointScale').value = settings.pointScale;
                     if (settings.pointSize) document.getElementById('pointSize').value = settings.pointSize;
-                    if (settings.pointOffsetX) document.getElementById('pointOffsetX').value = settings.pointOffsetX;
-                    if (settings.pointOffsetY) document.getElementById('pointOffsetY').value = settings.pointOffsetY;
+                    if (settings.pointOffsetX !== undefined) document.getElementById('pointOffsetX').value = settings.pointOffsetX;
+                    if (settings.pointOffsetY !== undefined) document.getElementById('pointOffsetY').value = settings.pointOffsetY;
                     
                     // Update slider displays
                     document.getElementById('mapAlphaValue').textContent = (settings.mapAlpha || 100) + '%';
                     document.getElementById('pointScaleValue').textContent = parseFloat(settings.pointScale || 1).toFixed(2) + 'x';
                     document.getElementById('pointSizeValue').textContent = (settings.pointSize || 20) + 'px';
-                    document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX || 17;
-                    document.getElementById('pointOffsetYValue').textContent = settings.pointOffsetY || 30;
+                    document.getElementById('pointOffsetXValue').textContent = settings.pointOffsetX !== undefined ? settings.pointOffsetX : 17;
+                    document.getElementById('pointOffsetYValue').textContent = settings.pointOffsetY !== undefined ? settings.pointOffsetY : 30;
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
