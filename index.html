@@ -1258,13 +1258,14 @@
             cellToBoxNumber.clear(); // Clear for recalculation
             const groupSize = 20;
 
-            // Get point transformation settings
+            // Get point transformation settings - protect against null bounds on empty maps
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
             const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
             const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
             const baseCellSize = 60;
-            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
-            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+
+            const csvWidth = pointCloudBounds ? (pointCloudBounds.maxX - pointCloudBounds.minX) : 0;
+            const csvHeight = pointCloudBounds ? (pointCloudBounds.maxY - pointCloudBounds.minY) : 0;
 
             // Assign each point to a universe based on its cell position (variable grid)
             const pointsByUniverse = new Map();
@@ -1289,6 +1290,7 @@
                 }
 
                 // For non-imported points, calculate cell position from coordinates
+                if (!pointCloudBounds) return;
                 const relativeX = point.x - pointCloudBounds.minX;
                 const relativeY = point.y - pointCloudBounds.minY;
 
@@ -1409,28 +1411,45 @@
                 });
 
                 // Auto-assign box numbers to unassigned points
+                // NEW: SEED & FILL STRATEGY
+                // 1. First, any manual assignments in this universe "seed" a cable group ID.
+                // 2. We then try to fill these "seeded" groups to 'groupSize' (20) with unassigned points.
+                // 3. Only after seeded groups are full do we create brand new IDs.
+
+                let seededGroupIDs = Array.from(manualGroups.keys()).sort((a, b) => a - b);
+                let unassignedPoints = [...pointsWithoutBox];
+
+                // Fill seeded groups
+                seededGroupIDs.forEach(boxNum => {
+                    let group = manualGroups.get(boxNum);
+                    let spaceLeft = groupSize - group.length;
+                    if (spaceLeft > 0 && unassignedPoints.length > 0) {
+                        let toAdd = unassignedPoints.splice(0, spaceLeft);
+                        toAdd.forEach(p => {
+                            const key = `${p.cellRow},${p.cellCol}`;
+                            cellToBoxNumber.set(key, boxNum);
+                            group.push(p);
+                        });
+                    }
+                });
+
+                // Create new groups for leftover points
                 let nextBoxNum = 1;
-                // Find the highest manual box number to continue from
-                if (manualGroups.size > 0) {
-                    nextBoxNum = Math.max(...Array.from(manualGroups.keys())) + 1;
-                }
+                while (unassignedPoints.length > 0) {
+                    // Find next available boxNum globally (not used by ANY manual group in this universe)
+                    while (manualGroups.has(nextBoxNum)) {
+                        nextBoxNum++;
+                    }
 
-                for (let i = 0; i < pointsWithoutBox.length; i += groupSize) {
-                    const groupPointsData = pointsWithoutBox.slice(i, i + groupSize);
+                    const groupPointsData = unassignedPoints.splice(0, groupSize);
                     const boxNum = nextBoxNum;
-                    nextBoxNum++;
 
-                    // Map each cell in this group to its box number
-                    groupPointsData.forEach(pointData => {
-                        const key = `${pointData.cellRow},${pointData.cellCol}`;
+                    manualGroups.set(boxNum, groupPointsData);
+                    groupPointsData.forEach(p => {
+                        const key = `${p.cellRow},${p.cellCol}`;
                         cellToBoxNumber.set(key, boxNum);
                     });
-
-                    // Add to manual groups for processing
-                    if (!manualGroups.has(boxNum)) {
-                        manualGroups.set(boxNum, []);
-                    }
-                    manualGroups.get(boxNum).push(...groupPointsData);
+                    nextBoxNum++;
                 }
 
                 // Create cable groups from all groups (manual and auto)
@@ -1445,13 +1464,26 @@
                     if (hasImportedPoints) {
                         // Calculate center from cell positions
                         let sumCol = 0, sumRow = 0;
+                        let count = 0;
                         groupPoints.forEach(point => {
-                            sumCol += point.cellCol + 0.5; // Cell center
-                            sumRow += point.cellRow + 0.5;
+                            // Support both imported points (cellCol) and mapped CSV points if available
+                            const r = point.cellRow !== undefined ? point.cellRow : (point.isImported ? undefined : -1);
+                            const c = point.cellCol !== undefined ? point.cellCol : (point.isImported ? undefined : -1);
+
+                            if (r !== undefined && c !== undefined && r !== -1) {
+                                sumCol += c + 0.5;
+                                sumRow += r + 0.5;
+                                count++;
+                            }
                         });
-                        // Store as cell-based coordinates (will be converted in pointToScreen)
-                        centerX = sumCol / groupPoints.length;
-                        centerY = sumRow / groupPoints.length;
+
+                        if (count > 0) {
+                            centerX = sumCol / count;
+                            centerY = sumRow / count;
+                        } else {
+                            // Fallback if somehow no points had cell coordinates
+                            centerX = 0; centerY = 0;
+                        }
                     } else {
                         // CSV points: use original x,y coordinates
                         let sumX = 0, sumY = 0;
@@ -1510,9 +1542,9 @@
             // Base cell size from the pre-rendered grid
             const baseCellSize = 60;
 
-            // Calculate CSV data range
-            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
-            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+            // Calculate CSV data range - protect against null bounds
+            const csvWidth = pointCloudBounds ? (pointCloudBounds.maxX - pointCloudBounds.minX) : 0;
+            const csvHeight = pointCloudBounds ? (pointCloudBounds.maxY - pointCloudBounds.minY) : 0;
 
 
             ctx.save();
@@ -1614,8 +1646,8 @@
         // Draw cable group lines - lines from each point to the group center
         function drawCableGroups(ctx, gridOffsetX, gridOffsetY, gridScale, pointScale, pointOffsetX, pointOffsetY) {
             const baseCellSize = 60;
-            const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
-            const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+            const csvWidth = pointCloudBounds ? (pointCloudBounds.maxX - pointCloudBounds.minX) : 0;
+            const csvHeight = pointCloudBounds ? (pointCloudBounds.maxY - pointCloudBounds.minY) : 0;
 
             ctx.save();
 
@@ -2332,6 +2364,23 @@
                     console.error('totalCells element not found');
                 }
 
+                // Update Version Display
+                const versionDisplay = document.getElementById('appVersion');
+                if (!versionDisplay) {
+                    const vDiv = document.createElement('div');
+                    vDiv.id = 'appVersion';
+                    vDiv.style.position = 'absolute';
+                    vDiv.style.bottom = '10px';
+                    vDiv.style.right = '10px';
+                    vDiv.style.color = 'rgba(255,255,255,0.3)';
+                    vDiv.style.fontFamily = 'monospace';
+                    vDiv.style.fontSize = '12px';
+                    vDiv.textContent = 'v.2025.01.09.6';
+                    document.body.appendChild(vDiv);
+                } else {
+                    versionDisplay.textContent = 'v.2025.01.09.6';
+                }
+
                 // Calculate cable groups if we have points (needed for box numbers in cells)
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     calculateCableGroups();
@@ -2519,8 +2568,8 @@
                     const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
                     const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const baseCellSize = 60; // Same as rendering
-                    const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
-                    const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+                    const csvWidth = pointCloudBounds ? (pointCloudBounds.maxX - pointCloudBounds.minX) : 0;
+                    const csvHeight = pointCloudBounds ? (pointCloudBounds.maxY - pointCloudBounds.minY) : 0;
 
                     pointCloudData.forEach((point, idx) => {
                         let cellCol, cellRow;
@@ -2581,7 +2630,7 @@
                     const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
                     const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const baseCellSize = 60;
-                    const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+                    const csvHeight = pointCloudBounds ? (pointCloudBounds.maxY - pointCloudBounds.minY) : 0;
 
                     console.log('EXPORT - Building cellsWithBoxes, customBoxPositions count:', customBoxPositions.size);
                     cableGroups.forEach(group => {
@@ -4142,9 +4191,11 @@
 
         // Create a new point for a cell
         function createPointForCell(cellRow, cellCol, cellKey, universeNum) {
-            // Check if we are in "Imported Mode" (have imported points)
+            // Check if we are in "Imported Mode" (have imported points OR imported map structure)
             // If so, create a point using direct grid coordinates for stability
-            const hasImportedPoints = pointCloudData.some(p => p.isImported);
+            const hasImportedPoints = pointCloudData.some(p => p.isImported) ||
+                (customBoxPositions && customBoxPositions.size > 0) ||
+                (cellCustomData && cellCustomData.size > 0);
 
             if (hasImportedPoints) {
                 // Create a "Grid Mode" point
@@ -4267,6 +4318,8 @@
                 y: csvY,
                 isCreated: true,
                 cellKey: cellKey,
+                cellRow: cellRow, // REQUIRED for green box center calculation
+                cellCol: cellCol, // REQUIRED for green box center calculation
                 importedUniverseNum: universeNum // Explicitly assign universe to ensure correct grouping
             };
 
@@ -4277,20 +4330,35 @@
 
         // Remove ANY point associated with a cell (whether manually created or imported)
         function removePointForCell(cellKey) {
-            // Find and remove ALL points with this cellKey
-            // We check both explicitly created points AND imported points that match the cellKey
-
-            // Parse row/col from cellKey for checking imported points
             const [r, c] = cellKey.split(',').map(Number);
 
-            // Check how many we're removing for debugging
+            // Need current settings for CSV coordinate reverse-lookup (if CSV points exist)
+            const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+            const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+            const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
+            const baseCellSize = 60;
+            const csvHeight = pointCloudBounds ? (pointCloudBounds.maxY - pointCloudBounds.minY) : 0;
+
             const initialCount = pointCloudData.length;
 
             pointCloudData = pointCloudData.filter(p => {
+                let pr, pc;
+                if (p.isImported || p.isCreated) {
+                    pr = p.cellRow;
+                    pc = p.cellCol;
+                } else if (pointCloudBounds) {
+                    // CSV mapping calculation to determine this point's current cell
+                    const relativeX = p.x - pointCloudBounds.minX;
+                    const relativeY = p.y - pointCloudBounds.minY;
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                    pc = Math.floor((gridPixelX + pointOffsetX) / baseCellSize);
+                    pr = Math.floor((gridPixelYFlipped + pointOffsetY) / baseCellSize);
+                }
+
                 // Keep point if it DOESN'T match our criteria
-                const isMatch = (p.cellKey === cellKey) ||
-                    (p.isImported && p.cellRow === r && p.cellCol === c) ||
-                    (p.isCreated && p.cellKey === cellKey);
+                const isMatch = (p.cellKey === cellKey) || (pr === r && pc === c);
                 return !isMatch;
             });
 
@@ -4332,7 +4400,8 @@
 
                 // Update box number mapping if box is set
                 if (box) {
-                    const boxNum = parseInt(box);
+                    // Remove B/b prefix and whitespace
+                    const boxNum = parseInt(box.toString().replace(/^[Bb]\s*/, '').trim());
                     if (!isNaN(boxNum) && boxNum > 0) {
                         cellToBoxNumber.set(cellKey, boxNum);
 
@@ -4342,8 +4411,9 @@
                             createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey, editingCell.universeNum);
                         }
                     } else {
-                        // Invalid box number, clear it
+                        // Invalid box number, clear association and remove point
                         cellToBoxNumber.delete(cellKey);
+                        removePointForCell(cellKey);
                     }
                 } else {
                     // B is explicitly empty - clear box assignment and don't auto-assign
