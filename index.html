@@ -1477,7 +1477,7 @@
         // Load point cloud data from CSV file
         async function loadPointCloud() {
             try {
-                const response = await fetch('layout.csv');
+                const response = await fetch('layout-test.csv');
                 const csvText = await response.text();
                 parseCSV(csvText);
                 updatePreview(); // Redraw with points
@@ -4101,9 +4101,30 @@
         // Track manually created points (not from CSV)
         let createdPoints = new Set(); // Set of cellKeys that have manually created points
 
-        // Create a new point for a cell based on grid structure
-        // Store in CSV coordinate format so it transforms with scale/offset like original points
-        function createPointForCell(cellRow, cellCol, cellKey) {
+        // Create a new point for a cell
+        function createPointForCell(cellRow, cellCol, cellKey, universeNum) {
+            // Check if we are in "Imported Mode" (have imported points)
+            // If so, create a point using direct grid coordinates for stability
+            const hasImportedPoints = pointCloudData.some(p => p.isImported);
+
+            if (hasImportedPoints) {
+                // Create a "Grid Mode" point
+                const newPoint = {
+                    isImported: true, // Treat as imported so it uses direct cell rendering
+                    isCreated: true,  // Mark as created so we know it's not from original file
+                    cellKey: cellKey,
+                    cellRow: cellRow,
+                    cellCol: cellCol,
+                    x: cellCol, // Placeholder
+                    y: cellRow, // Placeholder
+                    leftStagger: true, // Default
+                    importedUniverseNum: universeNum // Explicitly assign universe to ensure correct grouping
+                };
+                pointCloudData.push(newPoint);
+                createdPoints.add(cellKey);
+                return;
+            }
+
             const baseCellSize = 60;
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
             const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
@@ -4214,14 +4235,28 @@
 
         }
 
-        // Remove a manually created point for a cell
-        function removeCreatedPointForCell(cellKey) {
-            if (!createdPoints.has(cellKey)) return;
+        // Remove ANY point associated with a cell (whether manually created or imported)
+        function removePointForCell(cellKey) {
+            // Find and remove ALL points with this cellKey
+            // We check both explicitly created points AND imported points that match the cellKey
 
-            // Find and remove the point with this cellKey
-            const index = pointCloudData.findIndex(p => p.isCreated && p.cellKey === cellKey);
-            if (index !== -1) {
-                pointCloudData.splice(index, 1);
+            // Parse row/col from cellKey for checking imported points
+            const [r, c] = cellKey.split(',').map(Number);
+
+            // Check how many we're removing for debugging
+            const initialCount = pointCloudData.length;
+
+            pointCloudData = pointCloudData.filter(p => {
+                // Keep point if it DOESN'T match our criteria
+                const isMatch = (p.cellKey === cellKey) ||
+                    (p.isImported && p.cellRow === r && p.cellCol === c) ||
+                    (p.isCreated && p.cellKey === cellKey);
+                return !isMatch;
+            });
+
+            const removedCount = initialCount - pointCloudData.length;
+            if (removedCount > 0) {
+                console.log(`Removed ${removedCount} points for cell ${cellKey}`);
                 createdPoints.delete(cellKey);
             }
         }
@@ -4263,7 +4298,8 @@
 
                         // If this cell had no point and a B number was added, CREATE a new point
                         if (!editingCell.hasPoint) {
-                            createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey);
+                            // Pass the universe number from the editing cell context to ensure correct grouping
+                            createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey, editingCell.universeNum);
                         }
                     } else {
                         // Invalid box number, clear it
@@ -4274,7 +4310,7 @@
                     cellToBoxNumber.delete(cellKey);
 
                     // If the cell had a point that was CREATED (not from CSV), remove it
-                    removeCreatedPointForCell(cellKey);
+                    removePointForCell(cellKey);
                 }
             } else {
                 // Clear all custom data if all fields are empty
@@ -4282,7 +4318,7 @@
                 cellToBoxNumber.delete(cellKey);
 
                 // Remove any created point
-                removeCreatedPointForCell(cellKey);
+                removePointForCell(cellKey);
             }
 
             // Recalculate cable groups to update green dot positions and groupings
