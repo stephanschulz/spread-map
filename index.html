@@ -1477,7 +1477,7 @@
         // Load point cloud data from CSV file
         async function loadPointCloud() {
             try {
-                const response = await fetch('layout-test.csv');
+                const response = await fetch('layout.csv');
                 const csvText = await response.text();
                 parseCSV(csvText);
                 updatePreview(); // Redraw with points
@@ -2005,39 +2005,66 @@
 
                         if (customData) {
                             // Draw custom formatted cell content (without & prefix)
+                            // Use same vertical distribution as default format for consistency
                             ctx.fillStyle = '#000';
-                            ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                            ctx.textAlign = 'center';
 
-                            let yOffset = screenY + 5 * scale;
-                            const lineHeight = Math.max(10, scale * 11);
-
+                            // 1. Draw Index (Top)
                             if (customData.index) {
+                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                ctx.textAlign = 'center';
                                 ctx.textBaseline = 'top';
-                                ctx.fillText(customData.index, screenX + screenWidth / 2, yOffset);
-                                yOffset += lineHeight;
+                                ctx.fillText(customData.index, screenX + screenWidth / 2, screenY + 5 * scale);
                             }
+
+                            // 2. Draw Universe (Middle)
                             if (customData.universe) {
                                 ctx.font = `bold ${Math.max(7, scale * 8)}px Arial`;
-                                ctx.fillText(`U${customData.universe}`, screenX + screenWidth / 2, yOffset);
-                                yOffset += lineHeight;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(`U${customData.universe}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
                             }
+
+                            // 3. Draw Box (Bottom)
+                            let bLabel = '';
                             if (customData.box) {
-                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                ctx.fillText(`B${customData.box}`, screenX + screenWidth / 2, yOffset);
-                                yOffset += lineHeight;
+                                bLabel = `B${customData.box}`;
                             } else if (boxNum !== undefined) {
-                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                ctx.fillText(`B${boxNum}`, screenX + screenWidth / 2, yOffset);
-                                yOffset += lineHeight;
+                                bLabel = `B${boxNum}`;
                             } else {
-                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                ctx.textBaseline = 'bottom';
-                                ctx.fillText('B', screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                                bLabel = 'B';
                             }
+
+                            if (bLabel) {
+                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'bottom';
+                                ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
+                            }
+
+                            // 4. Draw Notes (accumulate below Box if room, or squeeze?)
+                            // NOTES are problematic with Top/Middle/Bottom alignment.
+                            // If notes exist, the default "Middle" might overlap.
+                            // However, the user request is "filling the cell vertical axis the same way".
+                            // So we should prioritize the Index/U/B positions.
+                            // We'll put notes below the box for now or skip them if they don't fit?
+                            // Actually, notes were drawn "stacked" before.
+                            // If we use T/M/B, where do notes go?
+                            // Default format DOES NOT support notes.
+                            // So if there are notes, maybe we should stick to stacked?
+                            // OR, put notes slightly above bottom?
+                            // Let's assume most cells don't have long notes, and just put them below Middle or above Bottom?
+
+                            // Re-evaluating: The user specifically complained about "space between lines changing".
+                            // This implies they WANT the T/M/B "stretched" look.
+                            // I will place notes below the B label if possible, or just ignore for main alignment.
+                            // Let's place notes strictly at the bottom-most edge or overlapping?
+                            // Actually, let's keep it simple: Index Top, Universe Middle, Box Bottom.
+                            // Notes: if present, maybe draw smaller below Universe?
                             if (customData.note) {
                                 ctx.font = `${Math.max(6, scale * 7)}px Arial`;
-                                ctx.fillText(customData.note, screenX + screenWidth / 2, yOffset);
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'top';
+                                ctx.fillText(customData.note, screenX + screenWidth / 2, screenY + screenHeight / 2 + 8 * scale);
                             }
                         } else {
                             // Default format
@@ -2340,8 +2367,8 @@
                 } else {
                     bLabel = 'B';
                 }
-                // Use combined format: index\nU#-B#\n (matching default format)
-                let result = `${indexLabel}\n${universeLabel}-${bLabel}\n`;
+                // Use 3-line format: index\nU#\nB#
+                let result = `${indexLabel}\n${universeLabel}\n${bLabel}\n`;
 
                 // Append note if it exists and is a genuine user note (not just cell content patterns)
                 if (customData.note) {
@@ -2358,7 +2385,7 @@
                 const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
                 const universeLabel = `U${universeNum}`;
                 const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
-                return `${colLabel}\n${universeLabel}-${bLabel}\n`;
+                return `${colLabel}\n${universeLabel}\n${bLabel}\n`;
             }
         }
 
@@ -2688,9 +2715,16 @@
                                     lines[0] = lines[0] + ' ●';
                                 }
 
-                                // Update the B number in combined U#-B# format
+                                // Update the B number
                                 if (pointInfo.boxNum) {
-                                    lines[1] = lines[1].replace(/B\d*/, `B${pointInfo.boxNum}`);
+                                    // Check for 3-line format (Index, U, B)
+                                    if (lines.length > 2 && lines[2].trim().startsWith('B')) {
+                                        lines[2] = `B${pointInfo.boxNum}`;
+                                    }
+                                    // Fallback for 2-line format (Index, U-B)
+                                    else if (lines.length > 1) {
+                                        lines[1] = lines[1].replace(/B\d*/, `B${pointInfo.boxNum}`);
+                                    }
                                 }
 
                                 cellValue = lines.join('\n');
