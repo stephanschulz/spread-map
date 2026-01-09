@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(open index.html)"
+      "Bash(open index.html)",
+      "Bash(open:*)",
+      "Bash(osascript:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

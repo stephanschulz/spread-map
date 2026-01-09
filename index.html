@@ -734,17 +734,24 @@
                 console.log('Imported', cellToBoxNumber.size, 'cell-to-box assignments');
             }
             
-            // Import custom box positions from cells with "Box-N" text
+            // Import box positions from the "Box-N" cells in the XLSX
+            // This ensures green boxes appear in exactly the same positions as in the exported file
             customBoxPositions.clear();
-            if (mapData.boxCells) {
+            if (mapData.boxCells && mapData.boxCells.size > 0) {
                 const baseCellSize = 60;
-                mapData.boxCells.forEach((cellPos, boxKey) => {
-                    // Convert cell position to grid pixel position (center of cell)
-                    const gridPixelX = cellPos.col * baseCellSize + baseCellSize / 2;
-                    const gridPixelY = cellPos.row * baseCellSize + baseCellSize / 2;
+                mapData.boxCells.forEach((pos, boxKey) => {
+                    // Convert cell position to grid pixel position (cell center)
+                    const gridPixelX = (pos.col + 0.5) * baseCellSize;
+                    const gridPixelY = (pos.row + 0.5) * baseCellSize;
                     customBoxPositions.set(boxKey, { x: gridPixelX, y: gridPixelY });
                 });
-                console.log('Imported', customBoxPositions.size, 'box positions');
+                console.log('Imported', customBoxPositions.size, 'box positions from Box-N cells');
+                // Debug: log all imported box positions
+                customBoxPositions.forEach((pos, key) => {
+                    console.log(`  Box position ${key}: row=${Math.floor(pos.y/60)}, col=${Math.floor(pos.x/60)}`);
+                });
+            } else {
+                console.log('No box positions found in XLSX, will calculate from group centers');
             }
             
             console.log('Universe grid rebuilt:', universeGrid);
@@ -752,71 +759,46 @@
             // Convert point positions to point cloud data
             pointCloudData = [];
             const baseCellSize = 60;
-            
+
             if (mapData.points.length > 0) {
-                // Calculate cell positions and convert to coordinates
-                let minX = Infinity, maxX = -Infinity;
-                let minY = Infinity, maxY = -Infinity;
-                
-                // Need to flip Y because Excel row 1 is at top, but our coordinate system has Y increasing upward
                 const totalRows = mapData.totalRows;
-                
-                // Group points by Y position to detect stagger pattern
-                const pointsByY = new Map();
+                const totalCols = mapData.totalCols;
+
+                console.log('Import - grid dimensions:', totalCols, 'cols x', totalRows, 'rows');
+
                 mapData.points.forEach(point => {
-                    const flippedGridRow = totalRows - 1 - point.gridRow;
-                    if (!pointsByY.has(flippedGridRow)) {
-                        pointsByY.set(flippedGridRow, []);
-                    }
-                    pointsByY.get(flippedGridRow).push(point);
-                });
-                
-                // Detect if there's a consistent stagger pattern and what the offset should be
-                let detectedStaggerOffset = 0;
-                const yRows = Array.from(pointsByY.keys()).sort((a, b) => a - b);
-                
-                // Check if alternate rows have left/right stagger pattern
-                if (yRows.length >= 2) {
-                    // Sample first row to determine base pattern
-                    const firstRowPoints = pointsByY.get(yRows[0]);
-                    const hasLeftStagger = firstRowPoints.some(p => p.leftStagger);
-                    
-                    // Set stagger offset (in cell fraction) based on pattern
-                    // Left stagger (even rows) = no offset, Right stagger (odd rows) = 0.5 cell offset
-                    detectedStaggerOffset = hasLeftStagger ? 0 : 0.5;
-                    console.log('Detected stagger offset:', detectedStaggerOffset, 'hasLeftStagger:', hasLeftStagger);
-                }
-                
-                mapData.points.forEach(point => {
-                    // Convert grid position to pixel coordinates
-                    // Each cell is baseCellSize pixels
+                    // Store imported points with their cell positions directly
+                    // The render code will detect isImported and place them at cell positions
+                    // bypassing the CSV-to-grid transformation entirely
 
-                    // Flip Y coordinate: Excel row 0 (after header) should be at bottom of our grid
-                    const flippedGridRow = totalRows - 1 - point.gridRow;
-                    const pixelY = flippedGridRow * baseCellSize + baseCellSize / 2;
+                    // Small stagger offset for visual variety (keeps points within cells)
+                    const xStagger = point.leftStagger ? -0.15 : 0.15;
 
-                    // Apply stagger offset based on left/right indicator
-                    // leftStagger = true means even row (no X offset)
-                    // leftStagger = false means odd row (X offset by 0.5 cells)
-                    const xOffset = point.leftStagger ? 0 : 0.5;
-                    const pixelX = (point.gridCol + xOffset) * baseCellSize + baseCellSize / 2;
-
-                    // Include imported box number and universe for direct assignment in calculateCableGroups
                     const pointData = {
-                        x: pixelX / baseCellSize,
-                        y: pixelY / baseCellSize,
-                        importedBoxNum: point.boxNum,       // Preserve B number from import
-                        importedUniverseNum: point.universeNum  // Preserve universe from import
+                        // These x,y are placeholder values - not used for imported points during render
+                        x: point.gridCol,
+                        y: point.gridRow,
+                        // Mark as imported with direct cell positions
+                        isImported: true,
+                        cellRow: point.gridRow,      // 0-indexed row in grid
+                        cellCol: point.gridCol,      // 0-indexed column in grid
+                        xStagger: xStagger,          // Small offset for stagger pattern
+                        importedBoxNum: point.boxNum,
+                        importedUniverseNum: point.universeNum
                     };
                     pointCloudData.push(pointData);
-
-                    minX = Math.min(minX, pointData.x);
-                    maxX = Math.max(maxX, pointData.x);
-                    minY = Math.min(minY, pointData.y);
-                    maxY = Math.max(maxY, pointData.y);
                 });
-                
-                pointCloudBounds = { minX, maxX, minY, maxY };
+
+                // Set bounds based on actual point positions for compatibility
+                // but these won't be used for imported point rendering
+                pointCloudBounds = {
+                    minX: 0,
+                    maxX: totalCols,
+                    minY: 0,
+                    maxY: totalRows
+                };
+
+                console.log('Import - points stored with direct cell positions, bounds:', pointCloudBounds);
                 
                 // Detect pitch from imported points
                 const uniqueY = [...new Set(pointCloudData.map(p => p.y))].sort((a, b) => a - b);
@@ -841,16 +823,66 @@
                 
                 pointCloudLoaded = true;
                 
-                // Set point scale to 1 since we're importing from the same coordinate system
+                // Set point scale to 1 since imported points are in cell/grid coordinates
                 document.getElementById('pointScale').value = 1.0;
                 document.getElementById('pointScaleValue').textContent = '1.0x';
 
-                // Keep current X/Y offset values unchanged - user can adjust as needed
+                // Don't reset scale/offset - imported points use direct cell positions
+                // so they render correctly regardless of scale/offset settings
+                // This keeps scale/offset available for any remaining CSV points
 
                 // Calculate cable groups (will respect the imported cellToBoxNumber assignments)
                 calculateCableGroups();
 
-                console.log('Imported', pointCloudData.length, 'points');
+                // Log green box counts after import for debugging
+                const boxCountsByUniverse = new Map();
+                cableGroups.forEach(g => {
+                    const count = boxCountsByUniverse.get(g.universeNum) || 0;
+                    boxCountsByUniverse.set(g.universeNum, count + 1);
+                });
+                console.log('IMPORT - Green boxes per universe:', Object.fromEntries(boxCountsByUniverse));
+                console.log('IMPORT - Total cableGroups:', cableGroups.length);
+                console.log('IMPORT - customBoxPositions count:', customBoxPositions.size);
+                // Debug: check if cable group keys match customBoxPositions keys
+                cableGroups.forEach(group => {
+                    const groupKey = `${group.universeNum}-${group.groupInUniverse}`;
+                    const hasCustomPos = customBoxPositions.has(groupKey);
+                    console.log(`  Cable group ${groupKey}: hasCustomPos=${hasCustomPos}, points=${group.points.length}`);
+                });
+                const pointsWithImportedBox = pointCloudData.filter(p => p.importedBoxNum !== undefined && p.importedBoxNum !== null).length;
+                console.log('Imported', pointCloudData.length, 'points,', pointsWithImportedBox, 'have imported B numbers');
+
+                // Debug: count cells with B numbers vs cells with dots
+                const cellsWithDots = mapData.points.length;
+                const cellsWithBNumbers = mapData.cellBoxAssignments ? mapData.cellBoxAssignments.size : 0;
+                console.log('IMPORT DEBUG - Cells with dots (●):', cellsWithDots, '| Cells with B numbers:', cellsWithBNumbers);
+                if (cellsWithBNumbers > cellsWithDots) {
+                    console.warn('WARNING: Some cells have B numbers but no dots - they won\'t have connection lines!');
+                }
+
+                // Debug U1 specifically - show direct cell positions from imported points
+                const u1Group = cableGroups.find(g => g.universeNum === 1);
+                if (u1Group) {
+                    // For imported points, just show their direct cellRow/cellCol
+                    const u1CellPositions = u1Group.points.map(p => ({
+                        cellRow: p.cellRow,
+                        cellCol: p.cellCol,
+                        isImported: p.isImported
+                    }));
+                    console.log('IMPORT - U1 group:', {
+                        boxNum: u1Group.groupInUniverse,
+                        numPoints: u1Group.points.length,
+                        center: u1Group.center
+                    });
+                    // Log all U1 cell positions for direct comparison with EXPORT
+                    console.log('IMPORT - U1 cell positions (direct from import):', u1CellPositions);
+                }
+                // Also log U1 points from pointCloudData
+                const u1Points = pointCloudData.filter(p => p.importedUniverseNum === 1 && p.importedBoxNum === 1);
+                console.log('IMPORT - U1-B1 points from pointCloudData:', u1Points.length, 'points');
+                if (u1Points.length > 0) {
+                    console.log('IMPORT - U1-B1 cell positions:', u1Points.map(p => ({cellRow: p.cellRow, cellCol: p.cellCol})));
+                }
             } else {
                 pointCloudLoaded = false;
                 pointCloudData = [];
@@ -900,35 +932,42 @@
                         
                         // Look for universe number (e.g., "U3" or "U3-B2")
                         let universeNum = null;
-                        let hasPoint = cellText.includes('●');
+                        // Check for dot marker (● or bullet character variations)
+                        let hasPoint = cellText.includes('●') || cellText.includes('•') || cellText.includes('·');
                         let pointLeft = false;
-                        let boxNum = null;
+                        let boxNum = null;       // B# assignment for this cell
+                        let boxCellNum = null;   // Box-N marker (green box position)
                         let isBoxCell = false;
-                        
+
                         for (const line of lines) {
                             // Check for "Box-N" text (green box marker cell)
-                            const boxMatch = line.match(/^Box-(\d+)$/);
-                            if (boxMatch) {
+                            const boxCellMatch = line.match(/^Box-(\d+)$/);
+                            if (boxCellMatch) {
                                 isBoxCell = true;
-                                boxNum = parseInt(boxMatch[1]);
+                                boxCellNum = parseInt(boxCellMatch[1]);
                             }
-                            
+
                             // Check for universe number
                             const universeMatch = line.match(/U(\d+)/);
                             if (universeMatch) {
                                 universeNum = parseInt(universeMatch[1]);
                             }
-                            
-                            // Check for B number assignment (e.g., "B5" or just the number after B)
-                            const bMatch = line.match(/^B(\d+)$/);
-                            if (bMatch) {
-                                boxNum = parseInt(bMatch[1]);
+
+                            // Check for B number assignment (e.g., "B5" standalone or "U1-B5" combined)
+                            // Don't match "Box-N" lines (already handled above)
+                            // Only set boxNum if not already found (prevents notes from overwriting)
+                            if (!boxCellMatch && boxNum === null) {
+                                const bMatch = line.match(/B(\d+)/);
+                                if (bMatch) {
+                                    boxNum = parseInt(bMatch[1]);
+                                }
                             }
                         }
-                        
+
                         // Store box cell position (where green box should be placed)
-                        if (isBoxCell && universeNum !== null && boxNum !== null) {
-                            const boxKey = `${universeNum}-${boxNum}`;
+                        // Use boxCellNum (from Box-N) for the key, not boxNum (from B# assignment)
+                        if (isBoxCell && universeNum !== null && boxCellNum !== null) {
+                            const boxKey = `${universeNum}-${boxCellNum}`;
                             boxCells.set(boxKey, { row: R - 1, col: C - 1 }); // 0-based
                         }
                         
@@ -938,9 +977,10 @@
                             cellBoxAssignments.set(cellKey, boxNum);
                         }
                         
-                        // Check if point is on left or right
+                        // Check if point is on left or right (handle different bullet chars)
                         if (hasPoint && lines.length > 0) {
-                            pointLeft = lines[0].trim().startsWith('●');
+                            const firstLine = lines[0].trim();
+                            pointLeft = firstLine.startsWith('●') || firstLine.startsWith('•') || firstLine.startsWith('·');
                         }
                         
                         if (universeNum) {
@@ -1037,8 +1077,22 @@
                 });
             });
             
-            console.log('Extracted', points.length, 'points');
-            
+            const pointsWithBoxNum = points.filter(p => p.boxNum !== null && p.boxNum !== undefined).length;
+            console.log('Extracted', points.length, 'points,', pointsWithBoxNum, 'have B numbers');
+
+            // Debug U1 points - show original Excel positions
+            const u1ParsedPoints = points.filter(p => p.universeNum === 1);
+            if (u1ParsedPoints.length > 0) {
+                console.log('PARSE - U1 points from Excel:', u1ParsedPoints.length, 'points');
+                console.log('PARSE - U1 grid positions (gridRow, gridCol):', u1ParsedPoints.map(p => ({
+                    gridRow: p.gridRow,
+                    gridCol: p.gridCol,
+                    boxNum: p.boxNum,
+                    leftStagger: p.leftStagger
+                })));
+                console.log('PARSE - totalRows:', totalRows, 'totalCols:', totalCols);
+            }
+
             return {
                 universesH,
                 universesV,
@@ -1128,6 +1182,15 @@
                 offsetY: document.getElementById('pointOffsetY')?.value
             });
             calculateCableGroups();
+
+            // Log green box counts after CSV load for debugging
+            const boxCountsByUniverse = new Map();
+            cableGroups.forEach(g => {
+                const count = boxCountsByUniverse.get(g.universeNum) || 0;
+                boxCountsByUniverse.set(g.universeNum, count + 1);
+            });
+            console.log('CSV LOAD - Green boxes per universe:', Object.fromEntries(boxCountsByUniverse));
+            console.log('CSV LOAD - Total cableGroups:', cableGroups.length);
         }
 
         // Calculate cable groups - group by universe, 20 points per group, starting from top-right
@@ -1150,7 +1213,25 @@
             const pointsByUniverse = new Map();
 
             pointCloudData.forEach((point, idx) => {
-                // All points (including created ones) now use x,y coordinates
+                // For imported points with universe assignment, use it directly
+                // This avoids coordinate system mismatches between original CSV and imported cell-based coords
+                if (point.importedUniverseNum !== undefined && point.importedUniverseNum !== null) {
+                    const universeNum = point.importedUniverseNum;
+                    if (!pointsByUniverse.has(universeNum)) {
+                        pointsByUniverse.set(universeNum, []);
+                    }
+                    // For imported points, use the stored cell positions
+                    pointsByUniverse.get(universeNum).push({
+                        point: point,
+                        cellRow: point.cellRow,  // Use actual cell position for B number assignment
+                        cellCol: point.cellCol,
+                        originalIndex: idx,
+                        isImported: true
+                    });
+                    return; // Skip normal calculation for imported points
+                }
+
+                // For non-imported points, calculate cell position from coordinates
                 const relativeX = point.x - pointCloudBounds.minX;
                 const relativeY = point.y - pointCloudBounds.minY;
 
@@ -1166,20 +1247,17 @@
                 const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
 
                 // Calculate universe from cell position using variable grid
-                // Use same logic as drawDynamicGrid - calculate position independently per universe
                 let universeCol = -1;
                 let universeRow = -1;
 
                 // Find which universe this cell belongs to
                 for (let uRow = 0; uRow < universeGrid.universesV && universeRow < 0; uRow++) {
                     for (let uCol = 0; uCol < universeGrid.universesH && universeCol < 0; uCol++) {
-                        // Calculate X position by summing widths in the SAME ROW
                         let currentX = 0;
                         for (let c = 0; c < uCol; c++) {
                             currentX += getUniverseCols(uRow, c);
                         }
 
-                        // Calculate Y position by summing heights in the SAME COLUMN
                         let currentY = 0;
                         for (let r = 0; r < uRow; r++) {
                             currentY += getUniverseRows(r, uCol);
@@ -1200,7 +1278,6 @@
                 if (universeCol >= 0 && universeRow >= 0) {
                     const universeNum = (universeRow * universeGrid.universesH) + universeCol + 1;
 
-                    // Store point with its position info
                     if (!pointsByUniverse.has(universeNum)) {
                         pointsByUniverse.set(universeNum, []);
                     }
@@ -1209,7 +1286,8 @@
                         point: point,
                         cellRow: cellRow,
                         cellCol: cellCol,
-                        originalIndex: idx
+                        originalIndex: idx,
+                        isImported: false
                     });
                 }
             });
@@ -1302,19 +1380,35 @@
                 manualGroups.forEach((groupPointsData, boxNum) => {
                     const groupPoints = groupPointsData.map(p => p.point);
 
-                    // Calculate center point (green dot position) using CSV coordinates
-                    let sumX = 0, sumY = 0;
-                    groupPoints.forEach(point => {
-                        sumX += point.x;
-                        sumY += point.y;
-                    });
+                    // Calculate center point (green dot position)
+                    // For imported points, use cell positions; for CSV points, use x,y coordinates
+                    let centerX, centerY;
+                    const hasImportedPoints = groupPoints.some(p => p.isImported);
 
-                    const centerX = sumX / groupPoints.length;
-                    const centerY = sumY / groupPoints.length;
+                    if (hasImportedPoints) {
+                        // Calculate center from cell positions
+                        let sumCol = 0, sumRow = 0;
+                        groupPoints.forEach(point => {
+                            sumCol += point.cellCol + 0.5; // Cell center
+                            sumRow += point.cellRow + 0.5;
+                        });
+                        // Store as cell-based coordinates (will be converted in pointToScreen)
+                        centerX = sumCol / groupPoints.length;
+                        centerY = sumRow / groupPoints.length;
+                    } else {
+                        // CSV points: use original x,y coordinates
+                        let sumX = 0, sumY = 0;
+                        groupPoints.forEach(point => {
+                            sumX += point.x;
+                            sumY += point.y;
+                        });
+                        centerX = sumX / groupPoints.length;
+                        centerY = sumY / groupPoints.length;
+                    }
 
                     cableGroups.push({
                         points: groupPoints,
-                        center: { x: centerX, y: centerY },
+                        center: { x: centerX, y: centerY, isImported: hasImportedPoints },
                         universeNum: universeNum,
                         groupInUniverse: boxNum
                     });
@@ -1371,41 +1465,55 @@
             
             // Draw each point
             pointCloudData.forEach((point, idx) => {
-                // All points (including created ones) now use x,y coordinates
-                const relativeX = point.x - pointCloudBounds.minX;
-                const relativeY = point.y - pointCloudBounds.minY;
-                
-                // Convert to "grid pixel space" (as if in the high-res rendered image)
-                // Scale to match cell size, apply point scale adjustment
-                const gridPixelX = relativeX * baseCellSize * pointScale;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
-                
-                // Flip Y coordinate
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                
-                // Apply offsets in grid space (before scale so they zoom with the map)
-                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
-                
-                // Convert to cell indices
-                const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
+                let cellCol, cellRow;
+
+                if (point.isImported) {
+                    // Imported points: place directly at cell positions (no CSV transformation)
+                    // Cell center is at (col + 0.5) * baseCellSize, (row + 0.5) * baseCellSize
+                    cellCol = point.cellCol;
+                    cellRow = point.cellRow;
+                    const xStagger = point.xStagger || 0;
+                    gridPixelXWithOffset = (cellCol + 0.5 + xStagger) * baseCellSize;
+                    gridPixelYFlippedWithOffset = (cellRow + 0.5) * baseCellSize;
+                } else {
+                    // CSV points: use original transformation with scale and offset
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const relativeY = point.y - pointCloudBounds.minY;
+
+                    // Convert to "grid pixel space" (as if in the high-res rendered image)
+                    // Scale to match cell size, apply point scale adjustment
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
+
+                    // Flip Y coordinate
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                    // Apply offsets in grid space (before scale so they zoom with the map)
+                    gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+
+                    // Convert to cell indices
+                    cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                    cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                }
+
                 const cellKey = `${cellRow},${cellCol}`;
-                
+
                 // Check if this cell has explicitly empty B - if so, skip drawing the point
                 const customData = cellCustomData.get(cellKey);
                 const hasBoxNumber = cellToBoxNumber.has(cellKey);
-                
-                
+
+
                 // Don't draw if B is explicitly empty (in custom data) AND there's no box number assigned
                 // If there's a box number, always draw (even if customData.box was previously empty)
                 if (customData && customData.box === '' && !hasBoxNumber) {
                     // Cell has explicitly empty B and no box number - don't draw the point
                     return;
                 }
-                
+
                 // If there's a box number, the point should be drawn (will be connected to green dot)
-                
+
                 // Apply grid's transformation (same as the spread-map image)
                 // This makes points zoom/pan with the map
                 const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
@@ -1456,17 +1564,33 @@
 
             // Helper function to convert point coordinates to screen coordinates
             function pointToScreen(point) {
-                // All points (including created ones) now use x,y coordinates
-                const relativeX = point.x - pointCloudBounds.minX;
-                const relativeY = point.y - pointCloudBounds.minY;
+                let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
 
-                const gridPixelX = relativeX * baseCellSize * pointScale;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
+                if (point.isImported) {
+                    // Imported points/centers: place directly at cell positions
+                    if (point.cellCol !== undefined && point.cellRow !== undefined) {
+                        // Individual point with explicit cell position
+                        const xStagger = point.xStagger || 0;
+                        gridPixelXWithOffset = (point.cellCol + 0.5 + xStagger) * baseCellSize;
+                        gridPixelYFlippedWithOffset = (point.cellRow + 0.5) * baseCellSize;
+                    } else {
+                        // Center point: x,y are already cell-based coordinates
+                        gridPixelXWithOffset = point.x * baseCellSize;
+                        gridPixelYFlippedWithOffset = point.y * baseCellSize;
+                    }
+                } else {
+                    // CSV points: use original transformation with scale and offset
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const relativeY = point.y - pointCloudBounds.minY;
 
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
 
-                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                    gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                }
 
                 const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
                 const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
@@ -2148,26 +2272,30 @@
             }
             
             if (customData) {
-                // Use custom data without & prefix in cell content
-                const lines = [];
-                if (customData.index) {
-                    lines.push(customData.index);
-                }
-                if (customData.universe) {
-                    lines.push(`U${customData.universe}`);
-                }
+                // Use custom data with combined U-B format (same as default)
+                const indexLabel = customData.index || `${colInUniverse + 1}`;
+                const universeLabel = customData.universe ? `U${customData.universe}` : `U${universeNum}`;
+                let bLabel;
                 if (customData.box) {
-                    lines.push(`B${customData.box}`);
-                } else if (boxNum !== null) {
-                    // Fallback to calculated box number
-                    lines.push(`B${boxNum}`);
+                    bLabel = `B${customData.box}`;
+                } else if (boxNum !== null && boxNum !== undefined) {
+                    bLabel = `B${boxNum}`;
                 } else {
-                    lines.push('B');
+                    bLabel = 'B';
                 }
+                // Use combined format: index\nU#-B#\n (matching default format)
+                let result = `${indexLabel}\n${universeLabel}-${bLabel}\n`;
+
+                // Append note if it exists and is a genuine user note (not just cell content patterns)
                 if (customData.note) {
-                    lines.push(customData.note);
+                    // Filter out notes that are just cell content patterns
+                    // These patterns indicate the note is just accumulated cell data, not a real user note
+                    const isJustCellPattern = /^(U\d+\n?B\d*|B\d*|U\d+-B\d*|\d+\s*●?|●\s*\d+)$/i.test(customData.note.trim());
+                    if (!isJustCellPattern && customData.note.trim() !== '') {
+                        result += customData.note + '\n';
+                    }
                 }
-                return lines.join('\n') + '\n';
+                return result;
             } else {
                 // Default format
             const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
@@ -2311,40 +2439,49 @@
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
                     
                     pointCloudData.forEach((point, idx) => {
-                        // All points (including created ones) now use x,y coordinates
-                        const relativeX = point.x - pointCloudBounds.minX;
-                        const relativeY = point.y - pointCloudBounds.minY;
-                        
-                        // Convert to grid pixel space
-                        const gridPixelX = relativeX * baseCellSize * pointScale;
-                        const gridPixelY = relativeY * baseCellSize * pointScale;
-                        
-                        // Flip Y coordinate
-                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                        
-                        // Apply offsets (in grid space)
-                        const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                        const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
-                        
-                        // Convert to cell indices (each cell is baseCellSize pixels)
-                        const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                        const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
-                        
+                        let cellCol, cellRow;
+                        let isOffsetLeft = true;
+
+                        if (point.isImported) {
+                            // Imported points: use stored cell positions directly (no transformation)
+                            cellCol = point.cellCol;
+                            cellRow = point.cellRow;
+                            // Use stored stagger info
+                            isOffsetLeft = (point.xStagger || 0) < 0;  // Negative stagger = left
+                        } else {
+                            // CSV points: transform coordinates to cell positions
+                            const relativeX = point.x - pointCloudBounds.minX;
+                            const relativeY = point.y - pointCloudBounds.minY;
+
+                            // Convert to grid pixel space
+                            const gridPixelX = relativeX * baseCellSize * pointScale;
+                            const gridPixelY = relativeY * baseCellSize * pointScale;
+
+                            // Flip Y coordinate
+                            const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                            // Apply offsets (in grid space)
+                            const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                            const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+
+                            // Convert to cell indices (each cell is baseCellSize pixels)
+                            cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                            cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+
+                            // Determine stagger from CSV row
+                            if (!point.isCreated && pointCloudPitch && pointCloudPitch.y > 0) {
+                                const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
+                                isOffsetLeft = csvRowIndex % 2 !== 0;  // Odd rows = left
+                            }
+                        }
+
                         // Add 1 to account for header row/col in Excel
                         const excelRow = cellRow + 1;
                         const excelCol = cellCol + 1;
-                        
+
                         // Get box number from the cellToBoxNumber map (populated by calculateCableGroups)
                         const cellKey = `${cellRow},${cellCol}`;
                         const boxNum = cellToBoxNumber.get(cellKey);
-                        
-                        // Determine if this is an even or odd CSV row (for staggered positioning)
-                        // For created points, default to left (even row)
-                        let isOffsetLeft = true;
-                        if (!point.isCreated && pointCloudPitch && pointCloudPitch.y > 0) {
-                            const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
-                            isOffsetLeft = csvRowIndex % 2 === 0;
-                        }
 
                         const key = `${excelRow},${excelCol}`;
                         // Include all points, even those without B number (boxNum will be undefined)
@@ -2362,42 +2499,93 @@
                     const baseCellSize = 60;
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
                     
+                    console.log('EXPORT - Building cellsWithBoxes, customBoxPositions count:', customBoxPositions.size);
                     cableGroups.forEach(group => {
                         const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
-                        let gridPixelX, gridPixelY;
-                        
+                        let cellCol, cellRow;
+                        let posSource = 'calculated';
+
                         if (customBoxPositions.has(boxKey)) {
-                            // Use custom position
+                            // Use custom position (stored in grid pixel space)
                             const customPos = customBoxPositions.get(boxKey);
-                            gridPixelX = customPos.x;
-                            gridPixelY = customPos.y;
+                            cellCol = Math.floor(customPos.x / baseCellSize);
+                            cellRow = Math.floor(customPos.y / baseCellSize);
+                            posSource = 'custom';
+                        } else if (group.center.isImported) {
+                            // Imported group: center x,y are already in cell coordinates
+                            cellCol = Math.floor(group.center.x);
+                            cellRow = Math.floor(group.center.y);
                         } else {
-                            // Calculate from center point
+                            // CSV group: transform center coordinates to cell positions
                             const relativeX = group.center.x - pointCloudBounds.minX;
                             const relativeY = group.center.y - pointCloudBounds.minY;
                             const gPixelX = relativeX * baseCellSize * pointScale;
                             const gPixelY = relativeY * baseCellSize * pointScale;
                             const gPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gPixelY;
-                            gridPixelX = gPixelX + pointOffsetX;
-                            gridPixelY = gPixelYFlipped + pointOffsetY;
+                            const gridPixelX = gPixelX + pointOffsetX;
+                            const gridPixelY = gPixelYFlipped + pointOffsetY;
+                            cellCol = Math.floor(gridPixelX / baseCellSize);
+                            cellRow = Math.floor(gridPixelY / baseCellSize);
                         }
-                        
-                        // Convert to cell indices
-                        const cellCol = Math.floor(gridPixelX / baseCellSize);
-                        const cellRow = Math.floor(gridPixelY / baseCellSize);
-                        
+
                         // Excel uses 1-based indexing and has header row/col
                         const excelRow = cellRow + 1;
                         const excelCol = cellCol + 1;
-                        
+
                         const key = `${excelRow},${excelCol}`;
-                        cellsWithBoxes.set(key, { 
-                            universeNum: group.universeNum, 
-                            groupNum: group.groupInUniverse 
+                        cellsWithBoxes.set(key, {
+                            universeNum: group.universeNum,
+                            groupNum: group.groupInUniverse
                         });
+                        // Log first few box positions
+                        if (group.universeNum <= 3 && group.groupInUniverse <= 2) {
+                            console.log(`EXPORT - Box ${boxKey} at cell (${cellRow},${cellCol}) [source: ${posSource}]`);
+                        }
                     });
+
+                    // Log green box counts per universe for debugging
+                    const boxCountsByUniverse = new Map();
+                    cableGroups.forEach(g => {
+                        const count = boxCountsByUniverse.get(g.universeNum) || 0;
+                        boxCountsByUniverse.set(g.universeNum, count + 1);
+                    });
+                    console.log('EXPORT - Green boxes per universe:', Object.fromEntries(boxCountsByUniverse));
+                    console.log('EXPORT - Total cableGroups:', cableGroups.length);
+                    console.log('EXPORT - customBoxPositions count:', customBoxPositions.size);
+
+                    // Debug U1 specifically - show cell positions for comparison with import
+                    const u1Group = cableGroups.find(g => g.universeNum === 1);
+                    if (u1Group) {
+                        // Get cell positions for U1 points
+                        const u1CellPositions = u1Group.points.map(p => {
+                            if (p.isImported) {
+                                // Imported points: use stored cell positions
+                                return { cellRow: p.cellRow, cellCol: p.cellCol };
+                            } else {
+                                // CSV points: calculate from coordinates
+                                const relX = p.x - pointCloudBounds.minX;
+                                const relY = p.y - pointCloudBounds.minY;
+                                const gPixelX = relX * baseCellSize * pointScale + pointOffsetX;
+                                const gPixelYFlip = (csvHeight * baseCellSize * pointScale) - (relY * baseCellSize * pointScale) + pointOffsetY;
+                                return {
+                                    cellRow: Math.floor(gPixelYFlip / baseCellSize),
+                                    cellCol: Math.floor(gPixelX / baseCellSize)
+                                };
+                            }
+                        });
+                        console.log('EXPORT - U1 group:', {
+                            boxNum: u1Group.groupInUniverse,
+                            numPoints: u1Group.points.length,
+                            center: u1Group.center,
+                            isImported: u1Group.center.isImported
+                        });
+                        // Log all U1 cell positions for direct comparison with PARSE
+                        console.log('EXPORT - U1 cell positions (cellRow, cellCol):', u1CellPositions);
+                        console.log('EXPORT - pointCloudBounds:', pointCloudBounds);
+                        console.log('EXPORT - scale:', pointScale, 'offsetX:', pointOffsetX, 'offsetY:', pointOffsetY);
+                    }
                 }
-                
+
                 // Generate the grid data
                 const grid = generateMapData();
                 
@@ -2433,52 +2621,22 @@
                         if (cellsWithPoints.has(pointKey) && R > 0 && C > 0) {
                             const pointInfo = cellsWithPoints.get(pointKey);
                             
-                            if (customData) {
-                                // Custom format - add dot to first line and update box if needed
+                            // Both custom and default format now use combined U#-B# on line 2
                             const lines = cellValue.split('\n');
-                            if (lines.length > 0) {
-                                    // Add dot to first line
+                            if (lines.length >= 2) {
+                                // Add dot on first line
                                 if (pointInfo.left) {
-                                        lines[0] = '● ' + lines[0];
+                                    lines[0] = '● ' + lines[0];
                                 } else {
-                                        lines[0] = lines[0] + ' ●';
-                                    }
-                                    
-                                    // Update box number if point has one
-                                    if (pointInfo.boxNum) {
-                                        // Find and update the B line (without & prefix)
-                                        for (let i = 0; i < lines.length; i++) {
-                                            const trimmed = lines[i].trim();
-                                            if (trimmed.startsWith('B') && trimmed.length > 1 && !isNaN(trimmed.substring(1))) {
-                                                lines[i] = `B${pointInfo.boxNum}`;
-                                                break;
-                                            } else if (trimmed === 'B') {
-                                                lines[i] = `B${pointInfo.boxNum}`;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    
-                                cellValue = lines.join('\n');
-                            }
-                            } else {
-                                // Default format
-                                const lines = cellValue.split('\n');
-                                if (lines.length >= 2) {
-                                    // Add dot on first line
-                                    if (pointInfo.left) {
-                                        lines[0] = '● ' + lines[0];
-                                    } else {
-                                        lines[0] = lines[0] + ' ●';
-                                    }
-                                    
-                                    // Update the B number
-                                    if (pointInfo.boxNum) {
-                                        lines[1] = lines[1].replace(/B\d+/, `B${pointInfo.boxNum}`);
-                                    }
-                                    
-                                    cellValue = lines.join('\n');
+                                    lines[0] = lines[0] + ' ●';
                                 }
+
+                                // Update the B number in combined U#-B# format
+                                if (pointInfo.boxNum) {
+                                    lines[1] = lines[1].replace(/B\d*/, `B${pointInfo.boxNum}`);
+                                }
+
+                                cellValue = lines.join('\n');
                             }
                         }
                         
@@ -2954,10 +3112,11 @@
         // Spreadsheet file upload handler (CSV or Excel)
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
+            const fileInput = e.target; // Save reference to reset after processing
             if (file) {
                 const fileName = file.name.toLowerCase();
                 const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-                
+
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     try {
@@ -2965,9 +3124,9 @@
                             // Parse Excel file
                             const data = parseExcelFile(event.target.result);
                             const format = detectFileFormat(data, true);
-                            
+
                             console.log('Detected format:', format);
-                            
+
                             if (format === 'exported-map') {
                                 // Import exported map - all state is reconstructed from cell content
                                 const mapData = parseExportedMap(data.worksheet);
@@ -2987,7 +3146,7 @@
                             // Parse CSV file
                             const csvText = event.target.result;
                             const format = detectFileFormat(csvText, false);
-                            
+
                             if (format === 'point-cloud') {
                                 parseCSV(csvText);
                                 updatePreview();
@@ -3000,8 +3159,11 @@
                         console.error('Failed to parse file:', error);
                         alert('Failed to load file: ' + error.message);
                     }
+
+                    // Reset file input so same file can be selected again
+                    fileInput.value = '';
                 };
-                
+
                 if (isExcel) {
                     reader.readAsArrayBuffer(file);
                 } else {
@@ -3443,8 +3605,11 @@
                 
                 // Store custom position
                 const boxKey = `${draggingBox.group.universeNum}-${draggingBox.group.groupInUniverse}`;
+                const cellCol = Math.floor(gridPixelX / baseCellSize);
+                const cellRow = Math.floor(gridPixelY / baseCellSize);
                 customBoxPositions.set(boxKey, { x: gridPixelX, y: gridPixelY });
-                
+                console.log(`DRAG - Box ${boxKey} moved to cell (${cellRow}, ${cellCol})`);
+
                 updatePreview();
                 return;
             }
@@ -3579,15 +3744,20 @@
         
         // Parse cell content to extract values
         function parseCellContent(cellValue) {
-            const lines = cellValue ? cellValue.split('\n') : [];
+            let lines = cellValue ? cellValue.split('\n') : [];
             let index = '';
             let universe = '';
-            let box = '';
+            let box = null;  // null = not found, '' = explicitly empty, 'N' = has number
             let note = '';
-            
+
+            // Skip "Box-N" lines at the start (green box markers added during export)
+            while (lines.length > 0 && /^Box-\d+$/.test(lines[0].trim())) {
+                lines = lines.slice(1);
+            }
+
             // Check if using new & format
             const hasNewFormat = lines.some(line => line.trim().startsWith('&'));
-            
+
             if (hasNewFormat) {
                 // Parse new format: &value, &Uvalue, &Bvalue, &?value
                 lines.forEach(line => {
@@ -3603,8 +3773,8 @@
                         } else {
                             // First & without prefix is the index
                             if (!index) {
-                                // Remove dot if present
-                                index = content.replace(/●\s*/g, '').replace(/\s*●/g, '').trim();
+                                // Remove dot if present (handle different bullet chars)
+                                index = content.replace(/[●•·]\s*/g, '').replace(/\s*[●•·]/g, '').trim();
                             }
                         }
                     }
@@ -3614,11 +3784,11 @@
                 if (lines.length > 0) {
                     // First line might have index or column number
                     const firstLine = lines[0].trim();
-                    // Remove dot if present
-                    const cleanFirst = firstLine.replace(/●\s*/g, '').replace(/\s*●/g, '').trim();
+                    // Remove dot if present (handle different bullet chars)
+                    const cleanFirst = firstLine.replace(/[●•·]\s*/g, '').replace(/\s*[●•·]/g, '').trim();
                     index = cleanFirst;
                 }
-                
+
                 if (lines.length > 1) {
                     // Second line has universe and box (e.g., "U6-B10" or "U6-B")
                     const secondLine = lines[1].trim();
@@ -3629,17 +3799,28 @@
                     const boxMatch = secondLine.match(/B(\d+)/);
                     if (boxMatch) {
                         box = boxMatch[1];
-                    } else if (secondLine.includes('B') && !boxMatch) {
-                        box = ''; // Just "B" without number
+                    }
+                    // Note: "U1-B" without a number means "needs auto-assignment", not "explicitly no box"
+                    // Don't set box = '' here - leave it undefined so auto-assignment works
+                }
+
+                // Check if B is on its own line (line 3)
+                if (lines.length > 2) {
+                    const thirdLine = lines[2].trim();
+                    const bOnlyMatch = thirdLine.match(/^B(\d+)$/);
+                    if (bOnlyMatch && !box) {
+                        box = bOnlyMatch[1];
+                        // Remaining lines are notes
+                        if (lines.length > 3) {
+                            note = lines.slice(3).join('\n').trim();
+                        }
+                    } else {
+                        // Third line or beyond might have notes
+                        note = lines.slice(2).join('\n').trim();
                     }
                 }
-                
-                if (lines.length > 2) {
-                    // Third line or beyond might have notes
-                    note = lines.slice(2).join('\n').trim();
-                }
             }
-            
+
             return { index, universe, box, note };
         }
         
