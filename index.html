@@ -1374,15 +1374,15 @@
                     // For CSV-loaded points, this will be undefined (safe to access)
                     const importedBoxNum = pointData.point ? pointData.point.importedBoxNum : undefined;
 
-                    // Priority: 1) imported box num from point, 2) manual cell-based assignment, 3) auto-assign
-                    if (importedBoxNum !== undefined && importedBoxNum !== null) {
+                    // Priority: 1) manual cell-based assignment (USER EDIT), 2) imported box num from point, 3) auto-assign
+                    if (manualBoxNum !== undefined) {
+                        pointsWithManualBox.push({ ...pointData, boxNum: manualBoxNum });
+                        // Restore the manual assignment (redundant but safe)
+                        cellToBoxNumber.set(key, manualBoxNum);
+                    } else if (importedBoxNum !== undefined && importedBoxNum !== null) {
                         pointsWithManualBox.push({ ...pointData, boxNum: importedBoxNum });
                         // Store the assignment for this calculated cell position
                         cellToBoxNumber.set(key, importedBoxNum);
-                    } else if (manualBoxNum !== undefined) {
-                        pointsWithManualBox.push({ ...pointData, boxNum: manualBoxNum });
-                        // Restore the manual assignment
-                        cellToBoxNumber.set(key, manualBoxNum);
                     } else if (customData && customData.box === '') {
                         // Explicitly no box (and no manual assignment) - don't assign to any group
                         pointsExplicitlyNoBox.push(pointData);
@@ -3910,7 +3910,12 @@
                         }
                     } else {
                         // Third line or beyond might have notes
-                        note = lines.slice(2).join('\n').trim();
+                        // Fix: Ignore if the line is just "B" (placeholder from export)
+                        if (thirdLine === 'B') {
+                            note = lines.slice(3).join('\n').trim();
+                        } else {
+                            note = lines.slice(2).join('\n').trim();
+                        }
                     }
                 }
             }
@@ -4261,7 +4266,8 @@
                 x: csvX,
                 y: csvY,
                 isCreated: true,
-                cellKey: cellKey
+                cellKey: cellKey,
+                importedUniverseNum: universeNum // Explicitly assign universe to ensure correct grouping
             };
 
             pointCloudData.push(newPoint);
