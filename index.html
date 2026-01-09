@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: #2c3e50;
@@ -23,7 +24,7 @@
             padding: 0;
             overflow: hidden;
         }
-        
+
         #gridCanvas {
             position: fixed;
             top: 0;
@@ -32,18 +33,18 @@
             height: 100%;
             cursor: grab;
         }
-        
+
         #gridCanvas:active {
             cursor: grabbing;
         }
-        
+
         .zoom-controls {
             margin: 6px 0;
             display: flex;
             align-items: center;
             gap: 6px;
         }
-        
+
         .zoom-btn {
             width: 28px;
             height: 28px;
@@ -53,14 +54,14 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .zoom-label {
             flex: 1;
             text-align: center;
             font-size: 11px;
             color: #aaa;
         }
-        
+
         .container {
             position: fixed;
             top: 10px;
@@ -76,21 +77,21 @@
             max-height: calc(100vh - 20px);
             overflow-y: auto;
         }
-        
+
         .container::-webkit-scrollbar {
             width: 6px;
         }
-        
+
         .container::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 3px;
         }
-        
+
         .container::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 3px;
         }
-        
+
         .gui-header {
             display: flex;
             justify-content: space-between;
@@ -99,11 +100,11 @@
             user-select: none;
             margin-bottom: 3px;
         }
-        
+
         .gui-header:hover .toggle-btn {
             background: rgba(255, 255, 255, 0.2);
         }
-        
+
         h1 {
             color: #fff;
             margin-bottom: 0;
@@ -113,7 +114,7 @@
             gap: 6px;
             font-weight: 300;
         }
-        
+
         .toggle-btn {
             width: 24px;
             height: 24px;
@@ -129,40 +130,40 @@
             transition: all 0.2s;
             flex-shrink: 0;
         }
-        
+
         .toggle-btn:hover {
             background: rgba(255, 255, 255, 0.25);
         }
-        
+
         .gui-content {
             transition: max-height 0.3s ease, opacity 0.2s ease;
             overflow: hidden;
         }
-        
+
         .container.collapsed .gui-content {
             max-height: 0 !important;
             opacity: 0;
             pointer-events: none;
         }
-        
+
         .container.collapsed {
             overflow: hidden;
         }
-        
+
         .container.collapsed .subtitle {
             display: none;
         }
-        
+
         .subtitle {
             color: #aaa;
             margin-bottom: 8px;
             font-size: 10px;
         }
-        
+
         .form-group {
             margin-bottom: 8px;
         }
-        
+
         label {
             display: block;
             color: #ccc;
@@ -170,18 +171,18 @@
             margin-bottom: 3px;
             font-size: 10px;
         }
-        
+
         .input-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
         }
-        
+
         .input-wrapper {
             display: flex;
             flex-direction: column;
         }
-        
+
         input[type="number"] {
             width: 100%;
             padding: 5px 6px;
@@ -192,19 +193,19 @@
             background: rgba(255, 255, 255, 0.1);
             color: white;
         }
-        
+
         input[type="number"]:focus {
             outline: none;
             border-color: #667eea;
             background: rgba(255, 255, 255, 0.15);
         }
-        
+
         .help-text {
             font-size: 10px;
             color: #888;
             margin-top: 2px;
         }
-        
+
         .preview-box {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -212,7 +213,7 @@
             padding: 6px 8px;
             margin: 6px 0;
         }
-        
+
         .preview-title {
             font-weight: 400;
             color: #aaa;
@@ -221,35 +222,35 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .preview-info {
             color: #ccc;
             font-size: 10px;
             line-height: 1.5;
         }
-        
+
         .preview-info div {
             margin: 3px 0;
         }
-        
+
         .preview-info strong {
             color: #aaa;
             font-weight: 400;
             display: inline-block;
             min-width: 60px;
         }
-        
+
         .preview-value {
             color: #667eea;
             font-weight: 600;
         }
-        
+
         .divider {
             height: 1px;
             background: rgba(255, 255, 255, 0.1);
             margin: 8px 0;
         }
-        
+
         button {
             width: 100%;
             padding: 8px;
@@ -262,17 +263,17 @@
             background: #667eea;
             color: white;
         }
-        
+
         button:hover {
             background: #5568d3;
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
-        
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
-        
+
         .loading {
             display: none;
             text-align: center;
@@ -280,11 +281,11 @@
             color: #667eea;
             font-size: 11px;
         }
-        
+
         .loading.show {
             display: block;
         }
-        
+
         .spinner {
             border: 2px solid rgba(255, 255, 255, 0.1);
             border-top: 2px solid #667eea;
@@ -294,12 +295,17 @@
             animation: spin 0.8s linear infinite;
             margin: 0 auto 6px;
         }
-        
+
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
-        
+
         .error {
             background: rgba(255, 50, 50, 0.2);
             border: 1px solid rgba(255, 50, 50, 0.5);
@@ -310,29 +316,29 @@
             display: none;
             font-size: 11px;
         }
-        
+
         .error.show {
             display: block;
         }
-        
+
         /* Scrollbar styling for dark theme */
         .container::-webkit-scrollbar {
             width: 6px;
         }
-        
+
         .container::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.05);
         }
-        
+
         .container::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.2);
             border-radius: 3px;
         }
-        
+
         .container::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.3);
         }
-        
+
         .section-title {
             font-size: 10px;
             font-weight: 400;
@@ -341,17 +347,17 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        
+
         .slider-row {
             display: flex;
             align-items: center;
             gap: 4px;
         }
-        
+
         .slider-row input[type="range"] {
             flex: 1;
         }
-        
+
         .reset-btn {
             padding: 4px 8px;
             font-size: 10px;
@@ -363,175 +369,186 @@
             transition: all 0.2s;
             white-space: nowrap;
         }
-        
+
         .reset-btn:hover {
             background: rgba(255, 255, 255, 0.15);
             border-color: rgba(255, 255, 255, 0.3);
         }
     </style>
 </head>
+
 <body>
     <canvas id="gridCanvas"></canvas>
-    
+
     <div class="container" id="guiContainer">
         <div class="gui-header" id="guiHeader">
-        <h1>🌌 Spread-Map</h1>
+            <h1>🌌 Spread-Map</h1>
             <button type="button" class="toggle-btn" id="guiToggle" title="Toggle GUI">▼</button>
         </div>
         <p class="subtitle">Generate custom spreadsheet maps</p>
-        
+
         <div class="gui-content" id="guiContent">
-        <form id="mapForm">
-            <div class="section-title">Universe Dimensions</div>
-            <div class="form-group">
-                <div class="input-row">
-                    <div class="input-wrapper">
-                        <label>Columns</label>
-                        <input type="number" id="cols" name="cols" value="20" min="1" max="50" required>
-                        <div class="help-text">1-20 left to right</div>
-                    </div>
-                    <div class="input-wrapper">
-                        <label>Rows</label>
-                        <input type="number" id="rows" name="rows" value="10" min="1" max="50" required>
-                        <div class="help-text">B1, B2, B3...</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="section-title">Grid Layout</div>
-            <div class="form-group">
-                <div class="input-row">
-                    <div class="input-wrapper">
-                        <label>Horizontal</label>
-                        <input type="number" id="universes_h" name="universes_h" value="6" min="1" max="20" required>
-                        <div class="help-text">universes</div>
-                    </div>
-                    <div class="input-wrapper">
-                        <label>Vertical</label>
-                        <input type="number" id="universes_v" name="universes_v" value="5" min="1" max="20" required>
-                        <div class="help-text">universes</div>
+            <form id="mapForm">
+                <div class="section-title">Universe Dimensions</div>
+                <div class="form-group">
+                    <div class="input-row">
+                        <div class="input-wrapper">
+                            <label>Columns</label>
+                            <input type="number" id="cols" name="cols" value="20" min="1" max="50" required>
+                            <div class="help-text">1-20 left to right</div>
+                        </div>
+                        <div class="input-wrapper">
+                            <label>Rows</label>
+                            <input type="number" id="rows" name="rows" value="10" min="1" max="50" required>
+                            <div class="help-text">B1, B2, B3...</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <button type="button" id="applyGridBtn" style="width: 100%; margin-top: 8px; padding: 6px; background: #667eea; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-weight: 500;">
-                Apply Grid Changes
-            </button>
-            
-            <div class="preview-box" id="previewBox">
-                <div class="preview-title">📊 Stats</div>
-                <div class="preview-info" id="previewInfo">
-                    <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">-</span></div>
-                    <div><strong>Grid:</strong> <span class="preview-value" id="gridSize">-</span></div>
-                    <div><strong>Cells per Universe:</strong> <span class="preview-value" id="cellsPerUniverse">-</span></div>
-                    <div><strong>Total Cells:</strong> <span class="preview-value" id="totalCells">-</span></div>
-                </div>
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="section-title">Display Options</div>
-            <div class="form-group">
-                <div class="input-wrapper" style="width: 100%;">
-                    <label style="display: block;">Spread-Map Alpha: <span id="mapAlphaValue">100%</span></label>
-                    <input type="range" id="mapAlpha" min="0" max="100" step="1" value="100" style="width: 100%;">
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label>
-                        <input type="checkbox" id="showCableGroups" checked>
-                        Show Cable Groups (20)
-                    </label>
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label>
-                        <input type="checkbox" id="showPointCloud" checked>
-                        Show Points
-                    </label>
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label>
-                        <input type="checkbox" id="showRowColHeaders" checked>
-                        Show Row/Column Headers
-                    </label>
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label>
-                        <input type="checkbox" id="showCrosshair">
-                        Show Crosshair
-                    </label>
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 12px;">
-                    <label style="display: block; margin-bottom: 4px;">Load Spreadsheet:</label>
-                    <input type="file" id="csvFileInput" accept=".csv,.xlsx" style="font-size: 11px; width: 100%;">
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Scale: <span id="pointScaleValue">1.0x</span></label>
-                    <div class="slider-row">
-                        <input type="range" id="pointScale" min="0.01" max="10" step="0.01" value="1">
-                        <button type="button" class="reset-btn" id="resetPointScale" title="Reset to auto-detected pitch">↻</button>
-                    </div>
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Size: <span id="pointSizeValue">20px</span></label>
-                    <input type="range" id="pointSize" min="1" max="20" step="1" value="20" style="width: 100%;">
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Offset X: <span id="pointOffsetXValue">17</span></label>
-                    <input type="range" id="pointOffsetX" min="-500" max="500" step="1" value="17" style="width: 100%;">
-                </div>
-                <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
-                    <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">30</span></label>
-                    <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="30" style="width: 100%;">
-                </div>
-            </div>
 
-            <div class="divider"></div>
-            
-            <div class="section-title">View Controls</div>
-            <div class="zoom-controls">
-                <button type="button" class="zoom-btn" id="zoomOut">−</button>
-                <div class="zoom-label" id="zoomLevel">100%</div>
-                <button type="button" class="zoom-btn" id="zoomIn">+</button>
-            </div>
-            <div style="font-size: 10px; color: #888; text-align: center; margin-top: 4px;">
-                Scroll to zoom • Drag to pan<br>
-                Double-click cell to edit B number
-            </div>
-            
-            <div class="divider"></div>
+                <div class="divider"></div>
 
-            <div class="input-wrapper" style="width: 100%; margin-bottom: 10px;">
-                <label>
-                    <input type="checkbox" id="exportPDF" checked>
-                    Also export PDF
-                </label>
-            </div>
+                <div class="section-title">Grid Layout</div>
+                <div class="form-group">
+                    <div class="input-row">
+                        <div class="input-wrapper">
+                            <label>Horizontal</label>
+                            <input type="number" id="universes_h" name="universes_h" value="6" min="1" max="20"
+                                required>
+                            <div class="help-text">universes</div>
+                        </div>
+                        <div class="input-wrapper">
+                            <label>Vertical</label>
+                            <input type="number" id="universes_v" name="universes_v" value="5" min="1" max="20"
+                                required>
+                            <div class="help-text">universes</div>
+                        </div>
+                    </div>
+                </div>
 
-            <button type="submit">
-                ⬇️ Generate & Download Excel
-            </button>
-            
-            <div class="error" id="errorBox"></div>
-            
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <div>Generating Excel file...</div>
-            </div>
-            
-            <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
-                <a href="https://github.com/stephanschulz/spread-map" target="_blank" rel="noopener noreferrer" style="color: #667eea; text-decoration: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 5px;">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
-                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
-                    </svg>
-                    GitHub Repository
-                </a>
-            </div>
-        </form>
+                <button type="button" id="applyGridBtn"
+                    style="width: 100%; margin-top: 8px; padding: 6px; background: #667eea; color: white; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; font-weight: 500;">
+                    Apply Grid Changes
+                </button>
+
+                <div class="preview-box" id="previewBox">
+                    <div class="preview-title">📊 Stats</div>
+                    <div class="preview-info" id="previewInfo">
+                        <div><strong>Universes:</strong> <span class="preview-value" id="totalUniverses">-</span></div>
+                        <div><strong>Grid:</strong> <span class="preview-value" id="gridSize">-</span></div>
+                        <div><strong>Cells per Universe:</strong> <span class="preview-value"
+                                id="cellsPerUniverse">-</span></div>
+                        <div><strong>Total Cells:</strong> <span class="preview-value" id="totalCells">-</span></div>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section-title">Display Options</div>
+                <div class="form-group">
+                    <div class="input-wrapper" style="width: 100%;">
+                        <label style="display: block;">Spread-Map Alpha: <span id="mapAlphaValue">100%</span></label>
+                        <input type="range" id="mapAlpha" min="0" max="100" step="1" value="100" style="width: 100%;">
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label>
+                            <input type="checkbox" id="showCableGroups" checked>
+                            Show Cable Groups (20)
+                        </label>
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label>
+                            <input type="checkbox" id="showPointCloud" checked>
+                            Show Points
+                        </label>
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label>
+                            <input type="checkbox" id="showRowColHeaders" checked>
+                            Show Row/Column Headers
+                        </label>
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label>
+                            <input type="checkbox" id="showCrosshair">
+                            Show Crosshair
+                        </label>
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 12px;">
+                        <label style="display: block; margin-bottom: 4px;">Load Spreadsheet:</label>
+                        <input type="file" id="csvFileInput" accept=".csv,.xlsx" style="font-size: 11px; width: 100%;">
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label style="display: block;">Point Scale: <span id="pointScaleValue">1.0x</span></label>
+                        <div class="slider-row">
+                            <input type="range" id="pointScale" min="0.01" max="10" step="0.01" value="1">
+                            <button type="button" class="reset-btn" id="resetPointScale"
+                                title="Reset to auto-detected pitch">↻</button>
+                        </div>
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label style="display: block;">Point Size: <span id="pointSizeValue">20px</span></label>
+                        <input type="range" id="pointSize" min="1" max="20" step="1" value="20" style="width: 100%;">
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label style="display: block;">Point Offset X: <span id="pointOffsetXValue">17</span></label>
+                        <input type="range" id="pointOffsetX" min="-500" max="500" step="1" value="17"
+                            style="width: 100%;">
+                    </div>
+                    <div class="input-wrapper" style="width: 100%; margin-top: 8px;">
+                        <label style="display: block;">Point Offset Y: <span id="pointOffsetYValue">30</span></label>
+                        <input type="range" id="pointOffsetY" min="-500" max="500" step="1" value="30"
+                            style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="section-title">View Controls</div>
+                <div class="zoom-controls">
+                    <button type="button" class="zoom-btn" id="zoomOut">−</button>
+                    <div class="zoom-label" id="zoomLevel">100%</div>
+                    <button type="button" class="zoom-btn" id="zoomIn">+</button>
+                </div>
+                <div style="font-size: 10px; color: #888; text-align: center; margin-top: 4px;">
+                    Scroll to zoom • Drag to pan<br>
+                    Double-click cell to edit B number
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="input-wrapper" style="width: 100%; margin-bottom: 10px;">
+                    <label>
+                        <input type="checkbox" id="exportPDF" checked>
+                        Also export PDF
+                    </label>
+                </div>
+
+                <button type="submit">
+                    ⬇️ Generate & Download Excel
+                </button>
+
+                <div class="error" id="errorBox"></div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <div>Generating Excel file...</div>
+                </div>
+
+                <div
+                    style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                    <a href="https://github.com/stephanschulz/spread-map" target="_blank" rel="noopener noreferrer"
+                        style="color: #667eea; text-decoration: none; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="flex-shrink: 0;">
+                            <path
+                                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                        </svg>
+                        GitHub Repository
+                    </a>
+                </div>
+            </form>
         </div><!-- end gui-content -->
     </div>
-    
+
     <script>
         // Global state for zoom and pan
         let zoom = 0.8;
@@ -540,15 +557,15 @@
         let isDragging = false;
         let lastMouseX = 0;
         let lastMouseY = 0;
-        
+
         // Global mouse position for crosshair
         let currentMouseX = -1;
         let currentMouseY = -1;
-        
+
         // Cache for pre-rendered grid image
         let cachedGridImage = null;
         let cachedGridConfig = null;
-        
+
         // Point cloud data
         let pointCloudData = [];
         let pointCloudLoaded = false;
@@ -570,7 +587,7 @@
         let draggingBoundary = null;
         let dragStartX = 0;
         let dragStartY = 0;
-        
+
         // Custom box positions (for dragged green rectangles)
         // Key: "universeNum-groupInUniverse", Value: { x, y } in grid pixel space
         let customBoxPositions = new Map();
@@ -650,7 +667,7 @@
                 const workbook = XLSX.read(arrayBuffer, { type: 'array', cellStyles: true });
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                
+
                 return { workbook, worksheet };
             } catch (error) {
                 console.error('Error parsing Excel file:', error);
@@ -664,11 +681,11 @@
                 // For Excel, check the header row
                 const { worksheet } = data;
                 const range = XLSX.utils.decode_range(worksheet['!ref']);
-                
+
                 // Check first row for column headers
                 let hasColumnHeaders = false;
                 let hasPointCloudHeaders = false;
-                
+
                 for (let C = range.s.c; C <= Math.min(range.s.c + 5, range.e.c); C++) {
                     const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
                     const cell = worksheet[cellAddress];
@@ -682,7 +699,7 @@
                         }
                     }
                 }
-                
+
                 return hasColumnHeaders ? 'exported-map' : (hasPointCloudHeaders ? 'point-cloud' : 'unknown');
             } else {
                 // For CSV, check the first line
@@ -700,22 +717,22 @@
         // Import exported map - reconstruct grid and points from cell content
         function importExportedMap(mapData) {
             console.log('Importing exported map:', mapData);
-            
+
             // Update form inputs
             const avgCols = Math.round(mapData.universes[0].reduce((sum, u) => sum + u.cols, 0) / mapData.universesH);
             const avgRows = Math.round(mapData.universes.reduce((sum, row) => sum + row[0].rows, 0) / mapData.universesV);
-            
+
             document.getElementById('cols').value = avgCols;
             document.getElementById('rows').value = avgRows;
             document.getElementById('universes_h').value = mapData.universesH;
             document.getElementById('universes_v').value = mapData.universesV;
-            
+
             // Rebuild universe grid
             universeGrid.universesH = mapData.universesH;
             universeGrid.universesV = mapData.universesV;
             universeGrid.universes = mapData.universes;
             universeGrid.showCellText = true; // Show cell text since this is an imported map
-            
+
             // Import custom cell data from cell content
             cellCustomData.clear();
             if (mapData.customCellData) {
@@ -724,7 +741,7 @@
                 });
                 console.log('Imported', cellCustomData.size, 'cells with custom data');
             }
-            
+
             // Import cell-to-box assignments from B numbers in cells
             cellToBoxNumber.clear();
             if (mapData.cellBoxAssignments) {
@@ -733,7 +750,7 @@
                 });
                 console.log('Imported', cellToBoxNumber.size, 'cell-to-box assignments');
             }
-            
+
             // Import box positions from the "Box-N" cells in the XLSX
             // This ensures green boxes appear in exactly the same positions as in the exported file
             customBoxPositions.clear();
@@ -748,14 +765,14 @@
                 console.log('Imported', customBoxPositions.size, 'box positions from Box-N cells');
                 // Debug: log all imported box positions
                 customBoxPositions.forEach((pos, key) => {
-                    console.log(`  Box position ${key}: row=${Math.floor(pos.y/60)}, col=${Math.floor(pos.x/60)}`);
+                    console.log(`  Box position ${key}: row=${Math.floor(pos.y / 60)}, col=${Math.floor(pos.x / 60)}`);
                 });
             } else {
                 console.log('No box positions found in XLSX, will calculate from group centers');
             }
-            
+
             console.log('Universe grid rebuilt:', universeGrid);
-            
+
             // Convert point positions to point cloud data
             pointCloudData = [];
             const baseCellSize = 60;
@@ -799,7 +816,7 @@
                 };
 
                 console.log('Import - points stored with direct cell positions, bounds:', pointCloudBounds);
-                
+
                 // Detect pitch from imported points
                 const uniqueY = [...new Set(pointCloudData.map(p => p.y))].sort((a, b) => a - b);
                 let minYDiff = Infinity;
@@ -810,7 +827,7 @@
                     }
                 }
                 pointCloudPitch.y = minYDiff;
-                
+
                 const uniqueX = [...new Set(pointCloudData.map(p => p.x))].sort((a, b) => a - b);
                 let minXDiff = Infinity;
                 for (let i = 1; i < uniqueX.length; i++) {
@@ -820,9 +837,9 @@
                     }
                 }
                 pointCloudPitch.x = minXDiff;
-                
+
                 pointCloudLoaded = true;
-                
+
                 // Set point scale to 1 since imported points are in cell/grid coordinates
                 document.getElementById('pointScale').value = 1.0;
                 document.getElementById('pointScaleValue').textContent = '1.0x';
@@ -881,7 +898,7 @@
                 const u1Points = pointCloudData.filter(p => p.importedUniverseNum === 1 && p.importedBoxNum === 1);
                 console.log('IMPORT - U1-B1 points from pointCloudData:', u1Points.length, 'points');
                 if (u1Points.length > 0) {
-                    console.log('IMPORT - U1-B1 cell positions:', u1Points.map(p => ({cellRow: p.cellRow, cellCol: p.cellCol})));
+                    console.log('IMPORT - U1-B1 cell positions:', u1Points.map(p => ({ cellRow: p.cellRow, cellCol: p.cellCol })));
                 }
             } else {
                 pointCloudLoaded = false;
@@ -898,38 +915,43 @@
         function parseExportedMap(worksheet) {
             const range = XLSX.utils.decode_range(worksheet['!ref']);
             console.log('Parsing exported map, range:', range);
-            
+
             // Count columns (C1, C2, C3...)
             const totalCols = range.e.c; // 0-based, so actual count is this value
-            
+
             // Count rows (R1, R2, R3...)
             const totalRows = range.e.r; // 0-based, so actual count is this value
-            
+
             console.log('Grid dimensions:', totalCols, 'cols x', totalRows, 'rows');
-            
+
             // Map to store universe info: universeNum -> {cells: [{row, col, hasPoint, pointLeft}], minRow, maxRow, minCol, maxCol}
             const universeMap = new Map();
             const customCellData = new Map(); // key: "row,col", value: {index, universe, box, note}
             const boxCells = new Map(); // key: "universeNum-boxNum", value: {row, col} - cells with "Box-N" text
             const cellBoxAssignments = new Map(); // key: "row,col", value: boxNum - B number assignments
-            
+
             // Parse all data cells (skip header row and column)
             for (let R = 1; R <= range.e.r; R++) {
                 for (let C = 1; C <= range.e.c; C++) {
                     const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
                     const cell = worksheet[cellAddress];
-                    
+
                     if (cell && cell.v) {
                         const cellText = String(cell.v);
                         const lines = cellText.split('\n');
-                        
-                        // Parse custom cell data if using new format
-                        const parsedData = parseCellContent(cellText);
+
+                        // Filter out Box marker lines so they don't get parsed as cell content (index/notes)
+                        // This prevents "Box-U#-N" text from persisting in the cell data when a box is moved
+                        const cleanLines = lines.filter(l => !l.match(/^Box-(U\d+-)?\d+$/));
+                        const cleanCellText = cleanLines.join('\n');
+
+                        // Parse custom cell data using the cleaned text
+                        const parsedData = parseCellContent(cleanCellText);
                         if (parsedData.index || parsedData.universe || parsedData.box || parsedData.note) {
                             const cellKey = `${R - 1},${C - 1}`; // Convert to 0-based
                             customCellData.set(cellKey, parsedData);
                         }
-                        
+
                         // Look for universe number (e.g., "U3" or "U3-B2")
                         let universeNum = null;
                         // Check for dot marker (● or bullet character variations)
@@ -939,12 +961,36 @@
                         let boxCellNum = null;   // Box-N marker (green box position)
                         let isBoxCell = false;
 
+
                         for (const line of lines) {
-                            // Check for "Box-N" text (green box marker cell)
-                            const boxCellMatch = line.match(/^Box-(\d+)$/);
-                            if (boxCellMatch) {
+                            let currentLineIsBox = false;
+
+                            // Check for "Box-U#-N" text first (new detailed format)
+                            // Format: Box-U<UniverseNum>-<GroupNum>
+                            const detailedBoxMatch = line.match(/^Box-U(\d+)-(\d+)$/);
+                            if (detailedBoxMatch) {
                                 isBoxCell = true;
-                                boxCellNum = parseInt(boxCellMatch[1]);
+                                currentLineIsBox = true;
+                                const uNum = parseInt(detailedBoxMatch[1]);
+                                boxCellNum = parseInt(detailedBoxMatch[2]);
+
+                                // For detailed boxes, we explicitly know the universe
+                                // We can store this directly or use it to override the inferred universe
+                                // However, the current logic relies on universeNum being set below by the cell position's U marker
+                                // But since this is a box position, we should trust the explicit marker for the box itself
+
+                                // We'll store a special "explicit universe" for this box
+                                // This solves the bug where dragging a U1 box into U2 grid space made it become a U2 box
+                                // We handle this when storing the boxCells map entry below
+                            }
+                            // Check for legacy "Box-N" text (backward compatibility)
+                            else {
+                                const boxCellMatch = line.match(/^Box-(\d+)$/);
+                                if (boxCellMatch) {
+                                    isBoxCell = true;
+                                    currentLineIsBox = true;
+                                    boxCellNum = parseInt(boxCellMatch[1]);
+                                }
                             }
 
                             // Check for universe number
@@ -956,7 +1002,7 @@
                             // Check for B number assignment (e.g., "B5" standalone or "U1-B5" combined)
                             // Don't match "Box-N" lines (already handled above)
                             // Only set boxNum if not already found (prevents notes from overwriting)
-                            if (!boxCellMatch && boxNum === null) {
+                            if (!currentLineIsBox && boxNum === null) {
                                 const bMatch = line.match(/B(\d+)/);
                                 if (bMatch) {
                                     boxNum = parseInt(bMatch[1]);
@@ -965,24 +1011,35 @@
                         }
 
                         // Store box cell position (where green box should be placed)
-                        // Use boxCellNum (from Box-N) for the key, not boxNum (from B# assignment)
-                        if (isBoxCell && universeNum !== null && boxCellNum !== null) {
-                            const boxKey = `${universeNum}-${boxCellNum}`;
-                            boxCells.set(boxKey, { row: R - 1, col: C - 1 }); // 0-based
+                        if (isBoxCell && boxCellNum !== null) {
+                            // If we have an explicit universe from the detailed Box-U#-N format, use it
+                            // Otherwise fallback to the universe inferred from the cell's "U#" text or position
+                            let finalUniverseNum = universeNum;
+
+                            const detailedBoxMatch = lines.find(l => l.match(/^Box-U(\d+)-(\d+)$/));
+                            if (detailedBoxMatch) {
+                                const match = detailedBoxMatch.match(/^Box-U(\d+)-(\d+)$/);
+                                finalUniverseNum = parseInt(match[1]);
+                            }
+
+                            if (finalUniverseNum !== null) {
+                                const boxKey = `${finalUniverseNum}-${boxCellNum}`;
+                                boxCells.set(boxKey, { row: R - 1, col: C - 1 }); // 0-based
+                            }
                         }
-                        
+
                         // Store cell-to-box assignment
                         if (boxNum !== null && universeNum !== null) {
                             const cellKey = `${R - 1},${C - 1}`;
                             cellBoxAssignments.set(cellKey, boxNum);
                         }
-                        
+
                         // Check if point is on left or right (handle different bullet chars)
                         if (hasPoint && lines.length > 0) {
                             const firstLine = lines[0].trim();
                             pointLeft = firstLine.startsWith('●') || firstLine.startsWith('•') || firstLine.startsWith('·');
                         }
-                        
+
                         if (universeNum) {
                             if (!universeMap.has(universeNum)) {
                                 universeMap.set(universeNum, {
@@ -993,7 +1050,7 @@
                                     maxCol: C
                                 });
                             }
-                            
+
                             const uniData = universeMap.get(universeNum);
                             uniData.cells.push({ row: R, col: C, hasPoint, pointLeft, boxNum });
                             uniData.minRow = Math.min(uniData.minRow, R);
@@ -1004,34 +1061,34 @@
                     }
                 }
             }
-            
+
             console.log('Found', boxCells.size, 'box positions and', cellBoxAssignments.size, 'cell-to-box assignments');
-            
+
             console.log('Found', universeMap.size, 'universes');
-            
+
             // Determine universe grid layout
             // Find max universe number to determine total count
             const maxUniverseNum = Math.max(...Array.from(universeMap.keys()));
-            
+
             // Calculate grid dimensions for universes
             // We need to determine universesH and universesV from the layout
             // Strategy: find the universe positions and infer the grid
-            
+
             // Get position of each universe (top-left corner)
             const universePositions = new Map();
             universeMap.forEach((data, num) => {
                 universePositions.set(num, { row: data.minRow, col: data.minCol });
             });
-            
+
             // Find unique row and column positions
             const uniqueRows = [...new Set(Array.from(universePositions.values()).map(p => p.row))].sort((a, b) => a - b);
             const uniqueCols = [...new Set(Array.from(universePositions.values()).map(p => p.col))].sort((a, b) => a - b);
-            
+
             const universesV = uniqueRows.length;
             const universesH = uniqueCols.length;
-            
+
             console.log('Universe grid:', universesH, 'x', universesV);
-            
+
             // Build universe grid structure
             const universes = [];
             for (let uRow = 0; uRow < universesV; uRow++) {
@@ -1040,14 +1097,14 @@
                     // Find which universe is at this position
                     const targetRow = uniqueRows[uRow];
                     const targetCol = uniqueCols[uCol];
-                    
+
                     let foundUniverse = null;
                     universeMap.forEach((data, num) => {
                         if (data.minRow === targetRow && data.minCol === targetCol) {
                             foundUniverse = { num, data };
                         }
                     });
-                    
+
                     if (foundUniverse) {
                         const cols = foundUniverse.data.maxCol - foundUniverse.data.minCol + 1;
                         const rows = foundUniverse.data.maxRow - foundUniverse.data.minRow + 1;
@@ -1059,7 +1116,7 @@
                 }
                 universes.push(rowArray);
             }
-            
+
             // Extract point locations
             const points = [];
             universeMap.forEach((data, num) => {
@@ -1076,7 +1133,7 @@
                     }
                 });
             });
-            
+
             const pointsWithBoxNum = points.filter(p => p.boxNum !== null && p.boxNum !== undefined).length;
             console.log('Extracted', points.length, 'points,', pointsWithBoxNum, 'have B numbers');
 
@@ -1109,12 +1166,12 @@
         // Parse CSV text into point cloud data
         function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
-            
+
             // Skip header line
             pointCloudData = [];
             let minX = Infinity, maxX = -Infinity;
             let minY = Infinity, maxY = -Infinity;
-            
+
             for (let i = 1; i < lines.length; i++) {
                 const parts = lines[i].split(',');
                 if (parts.length >= 3) {
@@ -1129,7 +1186,7 @@
                     }
                 }
             }
-            
+
             // Detect pitch (fixed spacing) in Y direction
             // Find unique Y values and calculate minimum non-zero difference
             const uniqueY = [...new Set(pointCloudData.map(p => p.y))].sort((a, b) => a - b);
@@ -1141,7 +1198,7 @@
                 }
             }
             pointCloudPitch.y = minYDiff;
-            
+
             // Same for X direction
             const uniqueX = [...new Set(pointCloudData.map(p => p.x))].sort((a, b) => a - b);
             let minXDiff = Infinity;
@@ -1152,22 +1209,22 @@
                 }
             }
             pointCloudPitch.x = minXDiff;
-            
+
             // Store bounds for normalization
             pointCloudBounds = { minX, maxX, minY, maxY };
             pointCloudLoaded = true;
-            
+
             console.log('Point cloud loaded:', pointCloudData.length, 'points');
             console.log('X range:', minX, 'to', maxX, '(width:', maxX - minX, ')');
             console.log('Y range:', minY, 'to', maxY, '(height:', maxY - minY, ')');
             console.log('Detected pitch - X:', pointCloudPitch.x.toFixed(3), 'Y:', pointCloudPitch.y.toFixed(3));
-            
+
             // Calculate ideal point scale to match cell size
             // If pitch * baseCellSize * pointScale = baseCellSize, then pointScale = 1 / pitch
             const baseCellSize = 60;
             const idealScale = 1 / pointCloudPitch.y; // Use Y pitch as reference
             console.log('Ideal point scale to match cells:', idealScale.toFixed(3));
-            
+
             // Auto-set the point scale if not already manually adjusted
             const currentScale = parseFloat(document.getElementById('pointScale').value);
             if (Math.abs(currentScale - 1.0) < 0.01) { // Only auto-adjust if still at default
@@ -1299,7 +1356,7 @@
             });
 
 
-            
+
             // For each universe, group points by B number (manual or automatic)
             pointsByUniverse.forEach((universePoints, universeNum) => {
                 // First, check for manual B number assignments
@@ -1333,7 +1390,7 @@
                         pointsWithoutBox.push(pointData);
                     }
                 });
-                
+
                 // Group points with manual assignments by their box number
                 const manualGroups = new Map();
                 pointsWithManualBox.forEach(pointData => {
@@ -1342,7 +1399,7 @@
                     }
                     manualGroups.get(pointData.boxNum).push(pointData);
                 });
-                
+
                 // For points without manual assignments, sort and auto-group
                 pointsWithoutBox.sort((a, b) => {
                     if (a.cellRow !== b.cellRow) {
@@ -1357,25 +1414,25 @@
                 if (manualGroups.size > 0) {
                     nextBoxNum = Math.max(...Array.from(manualGroups.keys())) + 1;
                 }
-                
+
                 for (let i = 0; i < pointsWithoutBox.length; i += groupSize) {
                     const groupPointsData = pointsWithoutBox.slice(i, i + groupSize);
                     const boxNum = nextBoxNum;
                     nextBoxNum++;
-                    
+
                     // Map each cell in this group to its box number
                     groupPointsData.forEach(pointData => {
                         const key = `${pointData.cellRow},${pointData.cellCol}`;
                         cellToBoxNumber.set(key, boxNum);
                     });
-                    
+
                     // Add to manual groups for processing
                     if (!manualGroups.has(boxNum)) {
                         manualGroups.set(boxNum, []);
                     }
                     manualGroups.get(boxNum).push(...groupPointsData);
                 }
-                
+
                 // Create cable groups from all groups (manual and auto)
                 manualGroups.forEach((groupPointsData, boxNum) => {
                     const groupPoints = groupPointsData.map(p => p.point);
@@ -1416,7 +1473,7 @@
             });
 
         }
-        
+
         // Load point cloud data from CSV file
         async function loadPointCloud() {
             try {
@@ -1429,7 +1486,7 @@
                 pointCloudLoaded = false;
             }
         }
-        
+
         // Generate universe colors
         function generateUniverseColors(totalUniverses) {
             const baseColors = [
@@ -1440,29 +1497,29 @@
                 'FFB6C1', '00CED1', 'FFA07A', '9ACD32', 'FF7F50', '48D1CC',
                 'FFD700', '9932CC', 'FF8C00', '00FA9A', 'DA70D6', '32CD32',
             ];
-            
+
             const colors = {};
             for (let i = 0; i < totalUniverses; i++) {
                 colors[i + 1] = baseColors[i % baseColors.length];
             }
             return colors;
         }
-        
+
         // Draw point cloud overlay
         function drawPointCloud(ctx, gridOffsetX, gridOffsetY, gridScale, pointScale, pointSize, pointOffsetX, pointOffsetY) {
             // Base cell size from the pre-rendered grid
             const baseCellSize = 60;
-            
+
             // Calculate CSV data range
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-            
-            
+
+
             ctx.save();
-            
+
             let drawnCount = 0;
             let visibleCount = 0;
-            
+
             // Draw each point
             pointCloudData.forEach((point, idx) => {
                 let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
@@ -1518,12 +1575,12 @@
                 // This makes points zoom/pan with the map
                 const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
                 const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
-                
+
                 // Check if point is visible on canvas
-                const isVisible = px >= -50 && px <= ctx.canvas.width + 50 && 
-                                  py >= -50 && py <= ctx.canvas.height + 50;
+                const isVisible = px >= -50 && px <= ctx.canvas.width + 50 &&
+                    py >= -50 && py <= ctx.canvas.height + 50;
                 if (isVisible) visibleCount++;
-                
+
                 // Draw point as a circle (scale size with grid zoom)
                 const scaledPointSize = pointSize * gridScale;
                 ctx.beginPath();
@@ -1533,12 +1590,12 @@
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.lineWidth = Math.max(1, gridScale * 0.5);
                 ctx.stroke();
-                
+
                 drawnCount++;
-                
+
             });
-            
-            
+
+
             // Draw a reference cross at the point cloud origin
             const originX = gridOffsetX + (pointOffsetX * gridScale);
             const originY = gridOffsetY + ((csvHeight * baseCellSize * pointScale + pointOffsetY) * gridScale);
@@ -1550,7 +1607,7 @@
             ctx.moveTo(originX, originY - 30);
             ctx.lineTo(originX, originY + 30);
             ctx.stroke();
-            
+
             ctx.restore();
         }
 
@@ -1603,7 +1660,7 @@
                 // Check for custom box position
                 const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
                 let boxScreenX, boxScreenY;
-                
+
                 if (customBoxPositions.has(boxKey)) {
                     // Use custom position (stored in grid pixel space)
                     const customPos = customBoxPositions.get(boxKey);
@@ -1611,7 +1668,7 @@
                     boxScreenY = gridOffsetY + (customPos.y * gridScale);
                 } else {
                     // Use calculated center position
-                const centerScreen = pointToScreen(group.center);
+                    const centerScreen = pointToScreen(group.center);
                     boxScreenX = centerScreen.x;
                     boxScreenY = centerScreen.y;
                 }
@@ -1634,7 +1691,7 @@
                 const markerHeight = Math.max(16, gridScale * 20);
                 const markerX = boxScreenX - markerWidth / 2;
                 const markerY = boxScreenY - markerHeight / 2;
-                
+
                 // Store marker bounds for hit detection
                 group.markerBounds = {
                     x: markerX,
@@ -1644,11 +1701,11 @@
                     screenX: boxScreenX,
                     screenY: boxScreenY
                 };
-                
+
                 // Green fill
                 ctx.fillStyle = 'rgba(34, 197, 94, 0.9)'; // Green
                 ctx.fillRect(markerX, markerY, markerWidth, markerHeight);
-                
+
                 // Black outline
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
                 ctx.lineWidth = Math.max(2, gridScale * 2);
@@ -1707,34 +1764,34 @@
             const headerSize = 30 * scale; // Size of header cells
             const gridWidth = totalCols * baseCellSize * scale;
             const gridHeight = totalRows * baseCellSize * scale;
-            
+
             ctx.save();
             ctx.fillStyle = 'rgba(50, 50, 60, 0.9)';
-            
+
             // Top column headers background
             ctx.fillRect(offsetX, offsetY - headerSize, gridWidth, headerSize);
-            
+
             // Bottom column headers background
             ctx.fillRect(offsetX, offsetY + gridHeight, gridWidth, headerSize);
-            
+
             // Left row headers background
             ctx.fillRect(offsetX - headerSize, offsetY, headerSize, gridHeight);
-            
+
             // Right row headers background
             ctx.fillRect(offsetX + gridWidth, offsetY, headerSize, gridHeight);
-            
+
             // Corner cells
             ctx.fillRect(offsetX - headerSize, offsetY - headerSize, headerSize, headerSize); // Top-left
             ctx.fillRect(offsetX + gridWidth, offsetY - headerSize, headerSize, headerSize); // Top-right
             ctx.fillRect(offsetX - headerSize, offsetY + gridHeight, headerSize, headerSize); // Bottom-left
             ctx.fillRect(offsetX + gridWidth, offsetY + gridHeight, headerSize, headerSize); // Bottom-right
-            
+
             // Text style
             ctx.fillStyle = '#fff';
             ctx.font = `bold ${Math.max(8, 10 * scale)}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            
+
             // Column headers (C1, C2, etc.) - top and bottom
             for (let col = 0; col < totalCols; col++) {
                 const x = offsetX + (col + 0.5) * baseCellSize * scale;
@@ -1744,7 +1801,7 @@
                 // Bottom
                 ctx.fillText(colLabel, x, offsetY + gridHeight + headerSize / 2);
             }
-            
+
             // Row headers (R1, R2, etc.) - left and right
             for (let row = 0; row < totalRows; row++) {
                 const y = offsetY + (row + 0.5) * baseCellSize * scale;
@@ -1754,11 +1811,11 @@
                 // Right
                 ctx.fillText(rowLabel, offsetX + gridWidth + headerSize / 2, y);
             }
-            
+
             // Draw header borders
             ctx.strokeStyle = '#666';
             ctx.lineWidth = 1;
-            
+
             // Top column header border
             ctx.strokeRect(offsetX, offsetY - headerSize, gridWidth, headerSize);
             // Bottom column header border
@@ -1767,51 +1824,51 @@
             ctx.strokeRect(offsetX - headerSize, offsetY, headerSize, gridHeight);
             // Right row header border
             ctx.strokeRect(offsetX + gridWidth, offsetY, headerSize, gridHeight);
-            
+
             // Corner borders
             ctx.strokeRect(offsetX - headerSize, offsetY - headerSize, headerSize, headerSize);
             ctx.strokeRect(offsetX + gridWidth, offsetY - headerSize, headerSize, headerSize);
             ctx.strokeRect(offsetX - headerSize, offsetY + gridHeight, headerSize, headerSize);
             ctx.strokeRect(offsetX + gridWidth, offsetY + gridHeight, headerSize, headerSize);
-            
+
             ctx.restore();
         }
-        
+
         // Draw crosshair with 50px gap around mouse cursor and labels at 100px
         function drawCrosshair(ctx, mouseX, mouseY, canvasWidth, canvasHeight, cellRow, cellCol) {
             if (mouseX < 0 || mouseY < 0) return;
-            
+
             const gap = 50; // Gap around mouse cursor
             const labelDistance = 100; // Distance from mouse for labels
-            
+
             ctx.save();
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'; // 50% transparent black
             ctx.lineWidth = 1;
-            
+
             // Vertical line (top part)
             ctx.beginPath();
             ctx.moveTo(mouseX, 0);
             ctx.lineTo(mouseX, mouseY - gap);
             ctx.stroke();
-            
+
             // Vertical line (bottom part)
             ctx.beginPath();
             ctx.moveTo(mouseX, mouseY + gap);
             ctx.lineTo(mouseX, canvasHeight);
             ctx.stroke();
-            
+
             // Horizontal line (left part)
             ctx.beginPath();
             ctx.moveTo(0, mouseY);
             ctx.lineTo(mouseX - gap, mouseY);
             ctx.stroke();
-            
+
             // Horizontal line (right part)
             ctx.beginPath();
             ctx.moveTo(mouseX + gap, mouseY);
             ctx.lineTo(canvasWidth, mouseY);
             ctx.stroke();
-            
+
             // 45° diagonal line (top-right direction) - going from mouse up and to the right
             ctx.beginPath();
             const diag1StartX = mouseX + gap * Math.cos(Math.PI / 4);
@@ -1828,7 +1885,7 @@
                 ctx.lineTo(canvasWidth, mouseY - distToRight);
             }
             ctx.stroke();
-            
+
             // 45° diagonal line (bottom-left direction) - going from mouse down and to the left
             ctx.beginPath();
             const diag2StartX = mouseX - gap * Math.cos(Math.PI / 4);
@@ -1845,43 +1902,43 @@
                 ctx.lineTo(0, mouseY + distToLeft);
             }
             ctx.stroke();
-            
+
             // Draw row and column labels if we have valid cell coordinates
             if (cellRow !== null && cellCol !== null && cellRow >= 0 && cellCol >= 0) {
                 ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                
+
                 const rowLabel = `R${cellRow + 1}`;
                 const colLabel = `C${cellCol + 1}`;
-                
+
                 // Draw label background and text helper
                 const drawLabel = (text, x, y) => {
                     const padding = 4;
                     const metrics = ctx.measureText(text);
                     const textWidth = metrics.width;
                     const textHeight = 14;
-                    
+
                     // Background
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(x - textWidth/2 - padding, y - textHeight/2 - padding, textWidth + padding*2, textHeight + padding*2);
-                    
+                    ctx.fillRect(x - textWidth / 2 - padding, y - textHeight / 2 - padding, textWidth + padding * 2, textHeight + padding * 2);
+
                     // Text
                     ctx.fillStyle = '#fff';
                     ctx.fillText(text, x, y);
                 };
-                
+
                 // Column label on vertical line (above gap)
                 if (mouseY - labelDistance > 0) {
                     drawLabel(colLabel, mouseX, mouseY - labelDistance);
                 }
-                
+
                 // Row label on horizontal line (left of gap)
                 if (mouseX - labelDistance > 0) {
                     drawLabel(rowLabel, mouseX - labelDistance, mouseY);
                 }
             }
-            
+
             ctx.restore();
         }
 
@@ -1906,33 +1963,33 @@
                     // Calculate cell position
                     const x = cellCol * baseCellSize;
                     const y = cellRow * baseCellSize;
-                            const cellWidth = baseCellSize;
-                            const cellHeight = baseCellSize;
+                    const cellWidth = baseCellSize;
+                    const cellHeight = baseCellSize;
 
-                            // Transform to screen coordinates
-                            const screenX = offsetX + (x * scale);
-                            const screenY = offsetY + (y * scale);
-                            const screenWidth = cellWidth * scale;
-                            const screenHeight = cellHeight * scale;
+                    // Transform to screen coordinates
+                    const screenX = offsetX + (x * scale);
+                    const screenY = offsetY + (y * scale);
+                    const screenWidth = cellWidth * scale;
+                    const screenHeight = cellHeight * scale;
 
-                            // Determine if cell has a B-number assigned
-                            const cellKey = `${cellRow},${cellCol}`;
-                            const customData = cellCustomData.get(cellKey);
-                            const boxNum = cellToBoxNumber.get(cellKey);
-                            const hasBoxNumber = (customData && customData.box) || boxNum !== undefined;
-                            
-                            // Cells without B-number are 50% more transparent
-                            ctx.globalAlpha = hasBoxNumber ? mapAlpha : mapAlpha * 0.5;
+                    // Determine if cell has a B-number assigned
+                    const cellKey = `${cellRow},${cellCol}`;
+                    const customData = cellCustomData.get(cellKey);
+                    const boxNum = cellToBoxNumber.get(cellKey);
+                    const hasBoxNumber = (customData && customData.box) || boxNum !== undefined;
 
-                            // Fill cell with universe color
-                            ctx.fillStyle = '#' + hexColor;
-                            ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+                    // Cells without B-number are 50% more transparent
+                    ctx.globalAlpha = hasBoxNumber ? mapAlpha : mapAlpha * 0.5;
 
-                            // Draw cell border
-                            ctx.strokeStyle = '#555';
-                            ctx.lineWidth = Math.max(0.5, scale * 0.5);
-                            ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
-                    
+                    // Fill cell with universe color
+                    ctx.fillStyle = '#' + hexColor;
+                    ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+
+                    // Draw cell border
+                    ctx.strokeStyle = '#555';
+                    ctx.lineWidth = Math.max(0.5, scale * 0.5);
+                    ctx.strokeRect(screenX, screenY, screenWidth, screenHeight);
+
                     // Draw cell ID in top-left corner (for debugging)
                     if (scale > 0.2) {
                         ctx.fillStyle = 'rgba(0, 0, 128, 0.7)';
@@ -1942,70 +1999,70 @@
                         ctx.fillText(`${cellRow + 1},${cellCol + 1}`, screenX + 2, screenY + 2);
                     }
 
-                            // Draw cell text only if enabled
-                            if (universeGrid.showCellText && scale > 0.3) {
-                         // Note: cellKey, customData, boxNum already defined above for alpha calculation
-                         
-                         if (customData) {
-                             // Draw custom formatted cell content (without & prefix)
-                             ctx.fillStyle = '#000';
-                             ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                             ctx.textAlign = 'center';
-                             
-                             let yOffset = screenY + 5 * scale;
-                             const lineHeight = Math.max(10, scale * 11);
-                             
-                             if (customData.index) {
-                                 ctx.textBaseline = 'top';
-                                 ctx.fillText(customData.index, screenX + screenWidth / 2, yOffset);
-                                 yOffset += lineHeight;
-                             }
-                             if (customData.universe) {
-                                 ctx.font = `bold ${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.fillText(`U${customData.universe}`, screenX + screenWidth / 2, yOffset);
-                                 yOffset += lineHeight;
-                             }
-                             if (customData.box) {
-                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.fillText(`B${customData.box}`, screenX + screenWidth / 2, yOffset);
-                                 yOffset += lineHeight;
-                             } else if (boxNum !== undefined) {
-                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.fillText(`B${boxNum}`, screenX + screenWidth / 2, yOffset);
-                                 yOffset += lineHeight;
-                             } else {
-                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
-                                 ctx.textBaseline = 'bottom';
-                                 ctx.fillText('B', screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
-                             }
-                             if (customData.note) {
-                                 ctx.font = `${Math.max(6, scale * 7)}px Arial`;
-                                 ctx.fillText(customData.note, screenX + screenWidth / 2, yOffset);
-                             }
-                         } else {
-                             // Default format
-                                ctx.fillStyle = '#000';
-                                ctx.font = `${Math.max(8, scale * 9)}px Arial`;
-                                ctx.textAlign = 'center';
+                    // Draw cell text only if enabled
+                    if (universeGrid.showCellText && scale > 0.3) {
+                        // Note: cellKey, customData, boxNum already defined above for alpha calculation
+
+                        if (customData) {
+                            // Draw custom formatted cell content (without & prefix)
+                            ctx.fillStyle = '#000';
+                            ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                            ctx.textAlign = 'center';
+
+                            let yOffset = screenY + 5 * scale;
+                            const lineHeight = Math.max(10, scale * 11);
+
+                            if (customData.index) {
                                 ctx.textBaseline = 'top';
-                             ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
-
-                                ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
-                                ctx.textBaseline = 'middle';
-                                ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
-
+                                ctx.fillText(customData.index, screenX + screenWidth / 2, yOffset);
+                                yOffset += lineHeight;
+                            }
+                            if (customData.universe) {
+                                ctx.font = `bold ${Math.max(7, scale * 8)}px Arial`;
+                                ctx.fillText(`U${customData.universe}`, screenX + screenWidth / 2, yOffset);
+                                yOffset += lineHeight;
+                            }
+                            if (customData.box) {
+                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                ctx.fillText(`B${customData.box}`, screenX + screenWidth / 2, yOffset);
+                                yOffset += lineHeight;
+                            } else if (boxNum !== undefined) {
+                                ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                                ctx.fillText(`B${boxNum}`, screenX + screenWidth / 2, yOffset);
+                                yOffset += lineHeight;
+                            } else {
                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
                                 ctx.textBaseline = 'bottom';
-                             const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
-                             ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
-                         }
+                                ctx.fillText('B', screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
                             }
+                            if (customData.note) {
+                                ctx.font = `${Math.max(6, scale * 7)}px Arial`;
+                                ctx.fillText(customData.note, screenX + screenWidth / 2, yOffset);
+                            }
+                        } else {
+                            // Default format
+                            ctx.fillStyle = '#000';
+                            ctx.font = `${Math.max(8, scale * 9)}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+
+                            ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(`U${universeNum}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+
+                            ctx.font = `${Math.max(7, scale * 8)}px Arial`;
+                            ctx.textBaseline = 'bottom';
+                            const bLabel = boxNum !== undefined ? `B${boxNum}` : 'B';
+                            ctx.fillText(bLabel, screenX + screenWidth / 2, screenY + screenHeight - 5 * scale);
                         }
                     }
+                }
+            }
 
             // Draw universe boundaries
-                    ctx.strokeStyle = '#000';
-                    ctx.lineWidth = Math.max(2, scale * 3);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = Math.max(2, scale * 3);
 
             // Draw boundaries between different universes
             for (let cellRow = 0; cellRow < totalRows; cellRow++) {
@@ -2022,10 +2079,10 @@
                         const rightX = offsetX + ((x + baseCellSize) * scale);
                         const topY = offsetY + (y * scale);
                         const bottomY = offsetY + ((y + baseCellSize) * scale);
-                    ctx.beginPath();
-                    ctx.moveTo(rightX, topY);
-                    ctx.lineTo(rightX, bottomY);
-                    ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(rightX, topY);
+                        ctx.lineTo(rightX, bottomY);
+                        ctx.stroke();
                     }
 
                     // Check bottom edge
@@ -2034,10 +2091,10 @@
                         const leftX = offsetX + (x * scale);
                         const rightX = offsetX + ((x + baseCellSize) * scale);
                         const bottomY = offsetY + ((y + baseCellSize) * scale);
-                    ctx.beginPath();
-                    ctx.moveTo(leftX, bottomY);
-                    ctx.lineTo(rightX, bottomY);
-                    ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(leftX, bottomY);
+                        ctx.lineTo(rightX, bottomY);
+                        ctx.stroke();
                     }
                 }
             }
@@ -2080,7 +2137,7 @@
                 }
             }
         }
-        
+
         // Draw the grid with zoom and pan (dynamic rendering)
         function drawGridPreview(universesH, universesV, colors, colsPerUniverse, rowsPerUniverse) {
             const canvas = document.getElementById('gridCanvas');
@@ -2136,7 +2193,7 @@
                 drawDynamicGrid(ctx, offsetX, offsetY, scale, colors, mapAlpha);
                 ctx.globalAlpha = 1.0; // Reset alpha for other elements
             }
-            
+
             // Draw cable groups if enabled
             const showCables = document.getElementById('showCableGroups')?.checked;
             if (showCables && pointCloudLoaded && cableGroups.length > 0) {
@@ -2155,13 +2212,13 @@
                 const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                 drawPointCloud(ctx, offsetX, offsetY, scale, pointScale, pointSize, pointOffsetX, pointOffsetY);
             }
-            
+
             // Draw row and column headers if enabled
             const showHeaders = document.getElementById('showRowColHeaders')?.checked;
             if (showHeaders) {
                 drawRowColHeaders(ctx, offsetX, offsetY, scale, totalCols, totalRows);
             }
-            
+
             // Draw crosshair if enabled
             const showCrosshair = document.getElementById('showCrosshair')?.checked;
             if (showCrosshair && currentMouseX >= 0 && currentMouseY >= 0) {
@@ -2170,21 +2227,21 @@
                 const gridY = (currentMouseY - offsetY) / scale;
                 const cellCol = Math.floor(gridX / baseCellSize);
                 const cellRow = Math.floor(gridY / baseCellSize);
-                
+
                 // Only pass valid cell coordinates (within grid bounds)
                 const validCellCol = (cellCol >= 0 && cellCol < totalCols) ? cellCol : null;
                 const validCellRow = (cellRow >= 0 && cellRow < totalRows) ? cellRow : null;
-                
+
                 drawCrosshair(ctx, currentMouseX, currentMouseY, canvas.width, canvas.height, validCellRow, validCellCol);
             }
-            
+
             // Update zoom label
             const zoomLabel = document.getElementById('zoomLevel');
             if (zoomLabel) {
                 zoomLabel.textContent = Math.round(zoom * 100) + '%';
             }
         }
-        
+
         // Update preview
         function updatePreview() {
             try {
@@ -2217,51 +2274,51 @@
                 }
                 const cellsPerUniverse = Math.round(totalCellsInAllUniverses / totalUniverses);
                 const totalCells = totalCols * totalRows;
-                
+
                 // Update stats
                 const elem1 = document.getElementById('totalUniverses');
                 const elem2 = document.getElementById('gridSize');
                 const elem3 = document.getElementById('cellsPerUniverse');
                 const elem4 = document.getElementById('totalCells');
-                
+
                 if (elem1) {
                     elem1.textContent = totalUniverses;
                 } else {
                     console.error('totalUniverses element not found');
                 }
-                
+
                 if (elem2) {
                     elem2.textContent = `${totalRows + 1} × ${totalCols + 1}`;
                 } else {
                     console.error('gridSize element not found');
                 }
-                
+
                 if (elem3) {
                     elem3.textContent = cellsPerUniverse.toLocaleString();
                 } else {
                     console.error('cellsPerUniverse element not found');
                 }
-                
+
                 if (elem4) {
                     elem4.textContent = totalCells.toLocaleString();
                 } else {
                     console.error('totalCells element not found');
                 }
-                
+
                 // Calculate cable groups if we have points (needed for box numbers in cells)
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     calculateCableGroups();
                 }
-                
+
                 // Draw visual preview with cells
                 const colors = generateUniverseColors(totalUniverses);
                 drawGridPreview(universesH, universesV, colors, cols, rows);
-                
+
             } catch (error) {
                 console.error('Preview update error:', error);
             }
         }
-        
+
         // Generate cell label with custom data support
         function generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum = null, cellRow = null, cellCol = null) {
             // Check for custom cell data
@@ -2270,7 +2327,7 @@
                 const cellKey = `${cellRow},${cellCol}`;
                 customData = cellCustomData.get(cellKey);
             }
-            
+
             if (customData) {
                 // Use custom data with combined U-B format (same as default)
                 const indexLabel = customData.index || `${colInUniverse + 1}`;
@@ -2298,38 +2355,38 @@
                 return result;
             } else {
                 // Default format
-            const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
-            const universeLabel = `U${universeNum}`;
+                const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
+                const universeLabel = `U${universeNum}`;
                 const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
-            return `${colLabel}\n${universeLabel}-${bLabel}\n`;
+                return `${colLabel}\n${universeLabel}-${bLabel}\n`;
             }
         }
-        
+
         // Generate map data using actual universe grid structure (respects custom boundaries)
         function generateMapData() {
             // Calculate total dimensions from actual universe grid
             const totalCols = getTotalCols();
             const totalRows = getTotalRows();
-            
+
             const grid = [];
-            
+
             // Header row
             const headerRow = [''];
             for (let col = 0; col < totalCols; col++) {
                 headerRow.push(`C${col + 1}`);
             }
             grid.push(headerRow);
-            
+
             // Data rows - using dynamic universe grid
             for (let row = 0; row < totalRows; row++) {
                 const rowData = [`R${row + 1}`];
-                
+
                 // For each column, determine which universe and position within that universe
                 for (let col = 0; col < totalCols; col++) {
                     // Find which universe this cell belongs to
                     let cellValue = '';
                     let foundUniverse = false;
-                    
+
                     for (let uRow = 0; uRow < universeGrid.universesV && !foundUniverse; uRow++) {
                         for (let uCol = 0; uCol < universeGrid.universesH && !foundUniverse; uCol++) {
                             // Calculate X position by summing widths in the SAME ROW
@@ -2337,43 +2394,43 @@
                             for (let c = 0; c < uCol; c++) {
                                 currentX += getUniverseCols(uRow, c);
                             }
-                            
+
                             // Calculate Y position by summing heights in the SAME COLUMN
                             let currentY = 0;
                             for (let r = 0; r < uRow; r++) {
                                 currentY += getUniverseRows(r, uCol);
                             }
-                            
+
                             const colsInUniverse = getUniverseCols(uRow, uCol);
                             const rowsInUniverse = getUniverseRows(uRow, uCol);
-                            
+
                             // Check if this cell is in this universe
                             if (col >= currentX && col < currentX + colsInUniverse &&
                                 row >= currentY && row < currentY + rowsInUniverse) {
-                                
+
                                 const colInUniverse = col - currentX;
                                 const rowInUniverse = row - currentY + 1; // +1 because B1, B2, etc.
                                 const universeNum = (uRow * universeGrid.universesH) + uCol + 1;
-                                
+
                                 // Get box number for this cell
                                 const cellKey = `${row},${col}`;
                                 const boxNum = cellToBoxNumber.get(cellKey);
-                                
+
                                 cellValue = generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum, row, col);
                                 foundUniverse = true;
                             }
                         }
                     }
-                    
+
                     rowData.push(cellValue);
                 }
-                
+
                 grid.push(rowData);
             }
-            
+
             return grid;
         }
-        
+
         // RGB to hex
         function rgbToHex(r, g, b) {
             return [r, g, b].map(x => {
@@ -2381,7 +2438,7 @@
                 return hex.length === 1 ? '0' + hex : hex;
             }).join('').toUpperCase();
         }
-        
+
         // Hex to RGB
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -2391,43 +2448,43 @@
                 b: parseInt(result[3], 16)
             } : null;
         }
-        
+
         // Apply transparency to color
         function applyTransparency(hexColor, opacity = 0.8) {
             const rgb = hexToRgb(hexColor);
             if (!rgb) return hexColor;
-            
+
             // Blend with white background
             const r = Math.round(rgb.r * opacity + 255 * (1 - opacity));
             const g = Math.round(rgb.g * opacity + 255 * (1 - opacity));
             const b = Math.round(rgb.b * opacity + 255 * (1 - opacity));
-            
+
             return rgbToHex(r, g, b);
         }
-        
+
         // Generate Excel file
         function generateExcel(event) {
             event.preventDefault();
-            
+
             const loading = document.getElementById('loading');
             const submitBtn = document.querySelector('button[type="submit"]');
             const errorBox = document.getElementById('errorBox');
-            
+
             loading.classList.add('show');
             submitBtn.disabled = true;
             errorBox.classList.remove('show');
-            
+
             try {
                 const cols = parseInt(document.getElementById('cols').value);
                 const rows = parseInt(document.getElementById('rows').value);
                 const universesH = parseInt(document.getElementById('universes_h').value);
                 const universesV = parseInt(document.getElementById('universes_v').value);
-                
+
                 // Ensure cable groups are calculated (uses same logic as visual display)
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     calculateCableGroups();
                 }
-                
+
                 // Map points to cells using EXACT same logic as visual rendering
                 const cellsWithPoints = new Map(); // key: "row,col", value: { left: bool, boxNum: number }
                 if (pointCloudLoaded && pointCloudData.length > 0) {
@@ -2437,7 +2494,7 @@
                     const baseCellSize = 60; // Same as rendering
                     const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-                    
+
                     pointCloudData.forEach((point, idx) => {
                         let cellCol, cellRow;
                         let isOffsetLeft = true;
@@ -2487,9 +2544,9 @@
                         // Include all points, even those without B number (boxNum will be undefined)
                         cellsWithPoints.set(key, { left: isOffsetLeft, boxNum: boxNum });
                     });
-                    
+
                 }
-                
+
                 // Calculate which cells contain green boxes
                 const cellsWithBoxes = new Map(); // key: "excelRow,excelCol", value: { universeNum, groupNum }
                 if (cableGroups.length > 0) {
@@ -2498,7 +2555,7 @@
                     const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const baseCellSize = 60;
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-                    
+
                     console.log('EXPORT - Building cellsWithBoxes, customBoxPositions count:', customBoxPositions.size);
                     cableGroups.forEach(group => {
                         const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
@@ -2588,39 +2645,39 @@
 
                 // Generate the grid data
                 const grid = generateMapData();
-                
+
                 // Generate colors for universes
                 const totalUniverses = universesH * universesV;
                 const colors = generateUniverseColors(totalUniverses);
-                
+
                 // Create workbook with cell styles option
                 const wb = XLSX.utils.book_new();
                 wb.Props = {
                     Title: "Spread-Map",
                     Author: "Spread-Map Generator"
                 };
-                
+
                 // Create worksheet manually to have better control
                 const ws = {};
                 const range = {
                     s: { c: 0, r: 0 },
                     e: { c: grid[0].length - 1, r: grid.length - 1 }
                 };
-                
+
                 // Fill worksheet with data and styling
                 for (let R = 0; R < grid.length; R++) {
                     for (let C = 0; C < grid[R].length; C++) {
                         const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
                         let cellValue = grid[R][C];
-                        
+
                         // Check if this cell has a point
                         const pointKey = `${R},${C}`;
                         const cellKey = `${R - 1},${C - 1}`; // Convert to 0-based for cellCustomData
                         const customData = cellCustomData.get(cellKey);
-                        
+
                         if (cellsWithPoints.has(pointKey) && R > 0 && C > 0) {
                             const pointInfo = cellsWithPoints.get(pointKey);
-                            
+
                             // Both custom and default format now use combined U#-B# on line 2
                             const lines = cellValue.split('\n');
                             if (lines.length >= 2) {
@@ -2639,21 +2696,24 @@
                                 cellValue = lines.join('\n');
                             }
                         }
-                        
+
                         // Check if this cell contains a green box (cable group center)
                         const boxCellKey = `${R},${C}`;
                         if (cellsWithBoxes.has(boxCellKey) && R > 0 && C > 0) {
                             const boxInfo = cellsWithBoxes.get(boxCellKey);
                             // Add box label to cell content
-                            cellValue = `Box-${boxInfo.groupNum}\n${cellValue}`;
+                            // CRITICAL FIX: Include Universe ID in the box marker to ensure correct universe assignment
+                            // regardless of which cell/universe area the box is actually placed in.
+                            // Format: Box-U<UniNum>-<GroupNum> (e.g., Box-U1-1)
+                            cellValue = `Box-U${boxInfo.universeNum}-${boxInfo.groupNum}\n${cellValue}`;
                         }
-                        
+
                         const cell = {
                             v: cellValue,
                             t: 's', // string type
                             s: {}
                         };
-                        
+
                         // Common styles
                         cell.s = {
                             alignment: {
@@ -2669,7 +2729,7 @@
                             },
                             font: { sz: 9, name: 'Arial' }
                         };
-                        
+
                         // Header styling
                         if (R === 0 || C === 0) {
                             cell.s.fill = {
@@ -2708,7 +2768,7 @@
                                     }
                                 }
                             }
-                            
+
                             // Override styling for cells containing green boxes
                             if (cellsWithBoxes.has(boxCellKey)) {
                                 cell.s.fill = {
@@ -2724,13 +2784,13 @@
                                 };
                             }
                         }
-                        
+
                         ws[cellAddress] = cell;
                     }
                 }
-                
+
                 ws['!ref'] = XLSX.utils.encode_range(range);
-                
+
                 // Set column widths and row heights for square cells
                 // Excel uses different units: row height in points, column width in character units
                 // To create square cells: 50pt height ≈ 7.5 character width
@@ -2739,16 +2799,16 @@
                     colWidths.push({ wch: 7.5 });
                 }
                 ws['!cols'] = colWidths;
-                
+
                 const rowHeights = [];
                 for (let i = 0; i < grid.length; i++) {
                     rowHeights.push({ hpt: 50 });
                 }
                 ws['!rows'] = rowHeights;
-                
+
                 // Add worksheet to workbook
                 XLSX.utils.book_append_sheet(wb, ws, 'Spread-Map');
-                
+
                 // Generate file and download with cellStyles option
                 XLSX.writeFile(wb, 'spread-map.xlsx', { cellStyles: true, bookType: 'xlsx' });
 
@@ -2756,10 +2816,10 @@
                 if (document.getElementById('exportPDF').checked) {
                     generatePDF();
                 }
-                
+
                 loading.classList.remove('show');
                 submitBtn.disabled = false;
-                
+
             } catch (error) {
                 console.error('Generation error:', error);
                 errorBox.textContent = '⚠️ Error: ' + error.message;
@@ -2768,38 +2828,38 @@
                 submitBtn.disabled = false;
             }
         }
-        
+
         // Generate PDF from the full map (not zoomed view)
         function generatePDF() {
             try {
                 const { jsPDF } = window.jspdf;
-                
+
                 // Calculate full map dimensions
                 const baseCellSize = 60;
                 const totalCols = getTotalCols();
                 const totalRows = getTotalRows();
                 const gridPixelWidth = totalCols * baseCellSize;
                 const gridPixelHeight = totalRows * baseCellSize;
-                
+
                 // Add space for edge labels
                 const labelMargin = 30; // Space for row/column labels
                 const canvasWidth = gridPixelWidth + (2 * labelMargin);
                 const canvasHeight = gridPixelHeight + (2 * labelMargin);
-                
+
                 // Create a temporary canvas for the full map
                 const tempCanvas = document.createElement('canvas');
                 const scale = 2; // High resolution for quality
                 tempCanvas.width = canvasWidth * scale;
                 tempCanvas.height = canvasHeight * scale;
                 const ctx = tempCanvas.getContext('2d');
-                
+
                 // Scale for high resolution
                 ctx.scale(scale, scale);
-                
+
                 // Fill background
                 ctx.fillStyle = '#2c3e50';
                 ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-                
+
                 // Draw column labels (top and bottom)
                 ctx.fillStyle = 'white';
                 ctx.font = 'bold 12px Arial';
@@ -2812,7 +2872,7 @@
                     // Bottom labels
                     ctx.fillText(`C${col + 1}`, x, canvasHeight - labelMargin / 2);
                 }
-                
+
                 // Draw row labels (left and right)
                 for (let row = 0; row < totalRows; row++) {
                     const y = labelMargin + row * baseCellSize + baseCellSize / 2;
@@ -2821,50 +2881,50 @@
                     // Right labels
                     ctx.fillText(`R${row + 1}`, canvasWidth - labelMargin / 2, y);
                 }
-                
+
                 // Generate colors
                 const universesH = parseInt(document.getElementById('universes_h').value);
                 const universesV = parseInt(document.getElementById('universes_v').value);
                 const totalUniverses = universesH * universesV;
                 const colors = generateUniverseColors(totalUniverses);
-                
+
                 // Draw cells at full size (no zoom, no pan) - offset by labelMargin
                 for (let cellRow = 0; cellRow < totalRows; cellRow++) {
                     for (let cellCol = 0; cellCol < totalCols; cellCol++) {
                         const cellUniverse = getCellUniverse(cellCol, cellRow);
                         if (!cellUniverse) continue;
-                        
+
                         const universeNum = cellUniverse.universeNum;
                         const hexColor = colors[universeNum] || 'CCCCCC';
-                        
+
                         const x = labelMargin + cellCol * baseCellSize;
                         const y = labelMargin + cellRow * baseCellSize;
-                        
+
                         // Fill cell
                         ctx.fillStyle = '#' + hexColor;
                         ctx.fillRect(x, y, baseCellSize, baseCellSize);
-                        
+
                         // Draw border
                         ctx.strokeStyle = '#555';
                         ctx.lineWidth = 0.5;
                         ctx.strokeRect(x, y, baseCellSize, baseCellSize);
-                        
+
                         // Draw cell ID
                         ctx.fillStyle = 'rgba(0, 0, 128, 0.7)';
                         ctx.font = '6px monospace';
                         ctx.textAlign = 'left';
                         ctx.textBaseline = 'top';
                         ctx.fillText(`${cellRow + 1},${cellCol + 1}`, x + 2, y + 2);
-                        
+
                         // Draw cell content
                         const cellKey = `${cellRow},${cellCol}`;
                         const customData = cellCustomData.get(cellKey);
                         const boxNum = cellToBoxNumber.get(cellKey);
-                        
+
                         ctx.fillStyle = '#000';
                         ctx.font = '8px Arial';
                         ctx.textAlign = 'center';
-                        
+
                         if (customData) {
                             let yOffset = y + 12;
                             if (customData.index) {
@@ -2897,7 +2957,7 @@
                         }
                     }
                 }
-                
+
                 // Draw universe boundaries - offset by labelMargin
                 ctx.strokeStyle = '#000';
                 ctx.lineWidth = 3;
@@ -2905,10 +2965,10 @@
                     for (let cellCol = 0; cellCol < totalCols; cellCol++) {
                         const cellUniverse = getCellUniverse(cellCol, cellRow);
                         if (!cellUniverse) continue;
-                        
+
                         const x = labelMargin + cellCol * baseCellSize;
                         const y = labelMargin + cellRow * baseCellSize;
-                        
+
                         const rightNeighbor = getCellUniverse(cellCol + 1, cellRow);
                         if (!rightNeighbor || rightNeighbor.universeNum !== cellUniverse.universeNum) {
                             ctx.beginPath();
@@ -2916,7 +2976,7 @@
                             ctx.lineTo(x + baseCellSize, y + baseCellSize);
                             ctx.stroke();
                         }
-                        
+
                         const bottomNeighbor = getCellUniverse(cellCol, cellRow + 1);
                         if (!bottomNeighbor || bottomNeighbor.universeNum !== cellUniverse.universeNum) {
                             ctx.beginPath();
@@ -2926,7 +2986,7 @@
                         }
                     }
                 }
-                
+
                 // Draw points and cable groups if loaded - offset by labelMargin
                 if (pointCloudLoaded && pointCloudData.length > 0) {
                     const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
@@ -2934,7 +2994,7 @@
                     const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
                     const pointSize = parseFloat(document.getElementById('pointSize')?.value || 7);
                     const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-                    
+
                     // Helper to convert point to grid position (with labelMargin offset)
                     function pointToGrid(point) {
                         const relativeX = point.x - pointCloudBounds.minX;
@@ -2944,12 +3004,12 @@
                         const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY + pointOffsetY + labelMargin;
                         return { x: gridPixelX, y: gridPixelYFlipped };
                     }
-                    
+
                     // Draw cable group lines
                     cableGroups.forEach(group => {
                         const boxKey = `${group.universeNum}-${group.groupInUniverse}`;
                         let boxX, boxY;
-                        
+
                         if (customBoxPositions.has(boxKey)) {
                             // Custom position is in grid pixel space - add labelMargin
                             boxX = customBoxPositions.get(boxKey).x + labelMargin;
@@ -2959,10 +3019,10 @@
                             boxX = centerPos.x;
                             boxY = centerPos.y;
                         }
-                        
+
                         ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
                         ctx.lineWidth = 1.5;
-                        
+
                         group.points.forEach(point => {
                             const pos = pointToGrid(point);
                             ctx.beginPath();
@@ -2970,23 +3030,23 @@
                             ctx.lineTo(boxX, boxY);
                             ctx.stroke();
                         });
-                        
+
                         // Draw box
                         const markerWidth = 40;
                         const markerHeight = 20;
                         ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
-                        ctx.fillRect(boxX - markerWidth/2, boxY - markerHeight/2, markerWidth, markerHeight);
+                        ctx.fillRect(boxX - markerWidth / 2, boxY - markerHeight / 2, markerWidth, markerHeight);
                         ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
                         ctx.lineWidth = 2;
-                        ctx.strokeRect(boxX - markerWidth/2, boxY - markerHeight/2, markerWidth, markerHeight);
-                        
+                        ctx.strokeRect(boxX - markerWidth / 2, boxY - markerHeight / 2, markerWidth, markerHeight);
+
                         ctx.fillStyle = 'white';
                         ctx.font = 'bold 10px Arial';
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         ctx.fillText(`U${group.universeNum}-${group.groupInUniverse}`, boxX, boxY);
                     });
-                    
+
                     // Draw points
                     pointCloudData.forEach(point => {
                         const pos = pointToGrid(point);
@@ -2996,9 +3056,9 @@
                         const cellKey = `${cellRow},${cellCol}`;
                         const customData = cellCustomData.get(cellKey);
                         const hasBoxNumber = cellToBoxNumber.has(cellKey);
-                        
+
                         if (customData && customData.box === '' && !hasBoxNumber) return;
-                        
+
                         ctx.beginPath();
                         ctx.arc(pos.x, pos.y, pointSize, 0, Math.PI * 2);
                         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -3008,52 +3068,52 @@
                         ctx.stroke();
                     });
                 }
-                
+
                 // Determine PDF orientation based on full canvas (with labels)
                 const isLandscape = canvasWidth > canvasHeight;
                 const orientation = isLandscape ? 'landscape' : 'portrait';
-                
+
                 // Create PDF
                 const pdf = new jsPDF({
                     orientation: orientation,
                     unit: 'mm',
                     format: 'a3'
                 });
-                
+
                 const pageWidth = pdf.internal.pageSize.getWidth();
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 const pdfMargin = 10;
                 const availableWidth = pageWidth - (2 * pdfMargin);
                 const availableHeight = pageHeight - (2 * pdfMargin);
-                
+
                 const scaleX = availableWidth / canvasWidth;
                 const scaleY = availableHeight / canvasHeight;
                 const pdfScale = Math.min(scaleX, scaleY);
-                
+
                 const imgWidth = canvasWidth * pdfScale;
                 const imgHeight = canvasHeight * pdfScale;
                 const offsetX = (pageWidth - imgWidth) / 2;
                 const offsetY = (pageHeight - imgHeight) / 2;
-                
+
                 // Convert canvas to image
                 const imgData = tempCanvas.toDataURL('image/png', 1.0);
                 pdf.addImage(imgData, 'PNG', offsetX, offsetY, imgWidth, imgHeight);
-                
+
                 // Add title
                 pdf.setFontSize(10);
                 pdf.setTextColor(100);
                 pdf.text('Spread-Map Export', pdfMargin, pdfMargin - 2);
-                
+
                 pdf.save('spread-map.pdf');
-                
+
             } catch (error) {
                 console.error('PDF generation error:', error);
             }
         }
-        
+
         // Event listeners
         document.getElementById('mapForm').addEventListener('submit', generateExcel);
-        
+
         // Auto-update for all inputs except grid layout fields and CSV upload
         document.querySelectorAll('input:not(#csvFileInput):not(#cols):not(#rows):not(#universes_h):not(#universes_v)').forEach(input => {
             input.addEventListener('input', () => {
@@ -3065,12 +3125,12 @@
                 saveSettings();
             });
         });
-        
+
         // Grid layout fields - only save on change, don't auto-update preview
         ['cols', 'rows', 'universes_h', 'universes_v'].forEach(id => {
             document.getElementById(id).addEventListener('change', saveSettings);
         });
-        
+
         // Apply button for grid layout changes
         document.getElementById('applyGridBtn').addEventListener('click', () => {
             // Enable cell text generation
@@ -3088,9 +3148,9 @@
                 universeGrid.universesH !== universesH ||
                 universeGrid.universesV !== universesV ||
                 (universeGrid.universes.length > 0 &&
-                 universeGrid.universes[0].length > 0 &&
-                 (universeGrid.universes[0][0].cols !== cols ||
-                  universeGrid.universes[0][0].rows !== rows));
+                    universeGrid.universes[0].length > 0 &&
+                    (universeGrid.universes[0][0].cols !== cols ||
+                        universeGrid.universes[0][0].rows !== rows));
 
             if (dimensionsChanged) {
                 // Reset universe boundaries to uniform dimensions
@@ -3108,9 +3168,9 @@
             updatePreview();
             saveSettings();
         });
-        
+
         // Spreadsheet file upload handler (CSV or Excel)
-        document.getElementById('csvFileInput').addEventListener('change', function(e) {
+        document.getElementById('csvFileInput').addEventListener('change', function (e) {
             const file = e.target.files[0];
             const fileInput = e.target; // Save reference to reset after processing
             if (file) {
@@ -3118,7 +3178,7 @@
                 const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
 
                 const reader = new FileReader();
-                reader.onload = function(event) {
+                reader.onload = function (event) {
                     try {
                         if (isExcel) {
                             // Parse Excel file
@@ -3137,7 +3197,7 @@
                                 const worksheet = data.worksheet;
                                 const csvData = XLSX.utils.sheet_to_csv(worksheet);
                                 parseCSV(csvData);
-                        updatePreview();
+                                updatePreview();
                                 console.log('Point cloud Excel loaded successfully');
                             } else {
                                 throw new Error('Unknown Excel file format');
@@ -3167,79 +3227,79 @@
                 if (isExcel) {
                     reader.readAsArrayBuffer(file);
                 } else {
-                reader.readAsText(file);
+                    reader.readAsText(file);
                 }
             }
         });
-        
+
         // Point cloud scale slider value display
-        document.getElementById('pointScale').addEventListener('input', function() {
+        document.getElementById('pointScale').addEventListener('input', function () {
             document.getElementById('pointScaleValue').textContent = parseFloat(this.value).toFixed(2) + 'x';
         });
-        
+
         // Point size slider value display
-        document.getElementById('pointSize').addEventListener('input', function() {
+        document.getElementById('pointSize').addEventListener('input', function () {
             document.getElementById('pointSizeValue').textContent = this.value + 'px';
         });
-        
+
         // Point offset sliders value display
-        document.getElementById('pointOffsetX').addEventListener('input', function() {
+        document.getElementById('pointOffsetX').addEventListener('input', function () {
             document.getElementById('pointOffsetXValue').textContent = this.value;
         });
-        
-        document.getElementById('pointOffsetY').addEventListener('input', function() {
+
+        document.getElementById('pointOffsetY').addEventListener('input', function () {
             document.getElementById('pointOffsetYValue').textContent = this.value;
         });
-        
+
         // Map alpha slider value display
-        document.getElementById('mapAlpha').addEventListener('input', function() {
+        document.getElementById('mapAlpha').addEventListener('input', function () {
             document.getElementById('mapAlphaValue').textContent = this.value + '%';
         });
-        
+
         // GUI toggle functionality
         const guiContainer = document.getElementById('guiContainer');
         const guiToggle = document.getElementById('guiToggle');
         const guiHeader = document.getElementById('guiHeader');
-        
+
         function toggleGui() {
             guiContainer.classList.toggle('collapsed');
             guiToggle.textContent = guiContainer.classList.contains('collapsed') ? '▶' : '▼';
             // Save state
             localStorage.setItem('guiCollapsed', guiContainer.classList.contains('collapsed'));
         }
-        
-        guiToggle.addEventListener('click', function(e) {
+
+        guiToggle.addEventListener('click', function (e) {
             e.stopPropagation();
             toggleGui();
         });
-        
+
         guiHeader.addEventListener('click', toggleGui);
-        
+
         // Restore GUI collapsed state
         if (localStorage.getItem('guiCollapsed') === 'true') {
             guiContainer.classList.add('collapsed');
             guiToggle.textContent = '▶';
         }
-        
+
         // Row/column headers checkbox
-        document.getElementById('showRowColHeaders').addEventListener('change', function() {
+        document.getElementById('showRowColHeaders').addEventListener('change', function () {
             saveSettings();
             updatePreview();
         });
-        
+
         // Crosshair checkbox
-        document.getElementById('showCrosshair').addEventListener('change', function() {
+        document.getElementById('showCrosshair').addEventListener('change', function () {
             saveSettings();
             updatePreview();
         });
 
         // Export PDF checkbox
-        document.getElementById('exportPDF').addEventListener('change', function() {
+        document.getElementById('exportPDF').addEventListener('change', function () {
             saveSettings();
         });
 
         // Reset point scale button
-        document.getElementById('resetPointScale').addEventListener('click', function() {
+        document.getElementById('resetPointScale').addEventListener('click', function () {
             if (pointCloudPitch.y > 0) {
                 const idealScale = 1 / pointCloudPitch.y;
                 document.getElementById('pointScale').value = idealScale.toFixed(3);
@@ -3273,14 +3333,14 @@
             };
             localStorage.setItem('spreadMapSettings', JSON.stringify(settings));
         }
-        
+
         // Load settings from localStorage
         function loadSettings() {
             try {
                 const saved = localStorage.getItem('spreadMapSettings');
                 if (saved) {
                     const settings = JSON.parse(saved);
-                    
+
                     // Restore values
                     if (settings.cols) document.getElementById('cols').value = settings.cols;
                     if (settings.rows) document.getElementById('rows').value = settings.rows;
@@ -3308,7 +3368,7 @@
                 console.error('Failed to load settings:', error);
             }
         }
-        
+
         function initApp() {
             console.log('=== Initializing App ===');
             console.log('Canvas exists:', !!document.getElementById('gridCanvas'));
@@ -3318,49 +3378,49 @@
                 cellsPerUniverse: !!document.getElementById('cellsPerUniverse'),
                 totalCells: !!document.getElementById('totalCells')
             });
-            
+
             // Load saved settings
             loadSettings();
-            
+
             // Load point cloud data
             loadPointCloud();
-            
+
             // Initial preview
             updatePreview();
-            
+
             console.log('=== App Initialized ===');
         }
-        
+
         // Wait for DOM to be fully loaded
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initApp);
         } else {
             initApp();
         }
-        
+
         // Fallback - also try after a delay
         setTimeout(initApp, 100);
-        
+
         // Redraw on window resize
         let resizeTimeout;
-        window.addEventListener('resize', function() {
+        window.addEventListener('resize', function () {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(updatePreview, 200);
         });
-        
+
         // Zoom controls
-        document.getElementById('zoomIn').addEventListener('click', function() {
+        document.getElementById('zoomIn').addEventListener('click', function () {
             zoom = Math.max(0.8, Math.min(zoom * 1.2, 20));
             updatePreview();
         });
-        
-        document.getElementById('zoomOut').addEventListener('click', function() {
+
+        document.getElementById('zoomOut').addEventListener('click', function () {
             zoom = Math.max(zoom / 1.2, 0.8);
             updatePreview();
         });
-        
+
         // Mouse wheel zoom (zoom to cursor position)
-        document.getElementById('gridCanvas').addEventListener('wheel', function(e) {
+        document.getElementById('gridCanvas').addEventListener('wheel', function (e) {
             e.preventDefault();
 
             const canvas = e.target;
@@ -3417,7 +3477,7 @@
             zoom = newZoom;
             updatePreview();
         }, { passive: false });
-        
+
         // Detect if mouse is near a boundary line segment
         function detectBoundaryAtPosition(mouseX, mouseY) {
             const canvas = document.getElementById('gridCanvas');
@@ -3522,10 +3582,10 @@
             }
             return null;
         }
-        
+
         // Mouse drag to pan OR drag boundaries OR drag boxes
         const canvas = document.getElementById('gridCanvas');
-        canvas.addEventListener('mousedown', function(e) {
+        canvas.addEventListener('mousedown', function (e) {
             const rect = canvas.getBoundingClientRect();
             // Scale mouse coordinates to match canvas internal resolution
             const cssToCanvasX = canvas.width / rect.width;
@@ -3560,24 +3620,24 @@
             }
         });
 
-        canvas.addEventListener('mousemove', function(e) {
+        canvas.addEventListener('mousemove', function (e) {
             const rect = canvas.getBoundingClientRect();
             // Scale mouse coordinates to match canvas internal resolution
             const cssToCanvasX = canvas.width / rect.width;
             const cssToCanvasY = canvas.height / rect.height;
             const mouseX = (e.clientX - rect.left) * cssToCanvasX;
             const mouseY = (e.clientY - rect.top) * cssToCanvasY;
-            
+
             // Update global mouse position for crosshair
             currentMouseX = mouseX;
             currentMouseY = mouseY;
-            
+
             // Redraw if crosshair is enabled (for smooth crosshair tracking)
             const showCrosshair = document.getElementById('showCrosshair')?.checked;
             if (showCrosshair && !isDragging && !draggingBoundary && !draggingBox) {
                 updatePreview();
             }
-            
+
             // Handle box dragging
             if (draggingBox) {
                 const baseCellSize = 60;
@@ -3591,18 +3651,18 @@
                 const scaleY = availableHeight / gridPixelHeight;
                 const baseScale = Math.min(scaleX, scaleY);
                 const scale = baseScale * zoom;
-                
+
                 const gridWidth = gridPixelWidth * scale;
                 const gridHeight = gridPixelHeight * scale;
                 const baseOffsetX = (canvas.width - gridWidth) / 2;
                 const baseOffsetY = (canvas.height - gridHeight) / 2;
                 const offsetX = baseOffsetX + panX;
                 const offsetY = baseOffsetY + panY;
-                
+
                 // Convert mouse position to grid pixel space
                 const gridPixelX = (mouseX - offsetX) / scale;
                 const gridPixelY = (mouseY - offsetY) / scale;
-                
+
                 // Store custom position
                 const boxKey = `${draggingBox.group.universeNum}-${draggingBox.group.groupInUniverse}`;
                 const cellCol = Math.floor(gridPixelX / baseCellSize);
@@ -3706,29 +3766,29 @@
                 if (box) {
                     canvas.style.cursor = 'move';
                 } else {
-                const boundary = detectBoundaryAtPosition(mouseX, mouseY);
-                if (boundary) {
-                    canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
-                } else {
-                    canvas.style.cursor = 'grab';
+                    const boundary = detectBoundaryAtPosition(mouseX, mouseY);
+                    if (boundary) {
+                        canvas.style.cursor = boundary.type === 'vertical' ? 'ew-resize' : 'ns-resize';
+                    } else {
+                        canvas.style.cursor = 'grab';
                     }
                 }
             }
         });
 
-        canvas.addEventListener('mouseup', function() {
+        canvas.addEventListener('mouseup', function () {
             draggingBoundary = null;
             draggingBox = null;
             isDragging = false;
             canvas.style.cursor = 'grab';
         });
 
-        canvas.addEventListener('mouseleave', function() {
+        canvas.addEventListener('mouseleave', function () {
             draggingBoundary = null;
             draggingBox = null;
             isDragging = false;
             canvas.style.cursor = 'grab';
-            
+
             // Reset crosshair position when mouse leaves canvas
             currentMouseX = -1;
             currentMouseY = -1;
@@ -3737,11 +3797,11 @@
                 updatePreview();
             }
         });
-        
+
         // Edit cell fields on double-click
         let editingCell = null;
         let editDialog = null;
-        
+
         // Parse cell content to extract values
         function parseCellContent(cellValue) {
             let lines = cellValue ? cellValue.split('\n') : [];
@@ -3823,13 +3883,13 @@
 
             return { index, universe, box, note };
         }
-        
+
         function createEditDialog(x, y, cellData, cellKey) {
             // Remove existing dialog if any
             if (editDialog) {
                 editDialog.remove();
             }
-            
+
             // Create dialog container
             editDialog = document.createElement('div');
             editDialog.style.position = 'fixed';
@@ -3845,13 +3905,13 @@
             editDialog.style.backdropFilter = 'blur(10px)';
             editDialog.style.color = 'white';
             editDialog.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.3)';
-            
+
             // Create form
             const form = document.createElement('div');
             form.style.display = 'flex';
             form.style.flexDirection = 'column';
             form.style.gap = '8px';
-            
+
             // Title showing cell ID
             const title = document.createElement('div');
             title.style.textAlign = 'center';
@@ -3870,7 +3930,7 @@
             }
             title.textContent = `Cell: ${displayKey}`;
             form.appendChild(title);
-            
+
             // Index field (#)
             const indexGroup = document.createElement('div');
             indexGroup.style.display = 'flex';
@@ -3898,7 +3958,7 @@
             indexGroup.appendChild(indexLabel);
             indexGroup.appendChild(indexSymbol);
             indexGroup.appendChild(indexInput);
-            
+
             // Universe field (U)
             const universeGroup = document.createElement('div');
             universeGroup.style.display = 'flex';
@@ -3926,7 +3986,7 @@
             universeGroup.appendChild(universeLabel);
             universeGroup.appendChild(universeSymbol);
             universeGroup.appendChild(universeInput);
-            
+
             // Box field (B)
             const boxGroup = document.createElement('div');
             boxGroup.style.display = 'flex';
@@ -3954,7 +4014,7 @@
             boxGroup.appendChild(boxLabel);
             boxGroup.appendChild(boxSymbol);
             boxGroup.appendChild(boxInput);
-            
+
             // Note field (?)
             const noteGroup = document.createElement('div');
             noteGroup.style.display = 'flex';
@@ -3982,13 +4042,13 @@
             noteGroup.appendChild(noteLabel);
             noteGroup.appendChild(noteSymbol);
             noteGroup.appendChild(noteInput);
-            
+
             // Buttons
             const buttonGroup = document.createElement('div');
             buttonGroup.style.display = 'flex';
             buttonGroup.style.gap = '6px';
             buttonGroup.style.marginTop = '4px';
-            
+
             const saveBtn = document.createElement('button');
             saveBtn.textContent = 'Save';
             saveBtn.style.flex = '1';
@@ -3999,7 +4059,7 @@
             saveBtn.style.borderRadius = '3px';
             saveBtn.style.cursor = 'pointer';
             saveBtn.onclick = finishEditing;
-            
+
             const cancelBtn = document.createElement('button');
             cancelBtn.textContent = 'Cancel';
             cancelBtn.style.flex = '1';
@@ -4010,23 +4070,23 @@
             cancelBtn.style.borderRadius = '3px';
             cancelBtn.style.cursor = 'pointer';
             cancelBtn.onclick = cancelEditing;
-            
+
             buttonGroup.appendChild(saveBtn);
             buttonGroup.appendChild(cancelBtn);
-            
+
             form.appendChild(indexGroup);
             form.appendChild(universeGroup);
             form.appendChild(boxGroup);
             form.appendChild(noteGroup);
             form.appendChild(buttonGroup);
             editDialog.appendChild(form);
-            
+
             document.body.appendChild(editDialog);
             indexInput.focus();
             indexInput.select();
-            
+
             // Handle Escape key
-            const escapeHandler = function(e) {
+            const escapeHandler = function (e) {
                 if (e.key === 'Escape') {
                     cancelEditing();
                     document.removeEventListener('keydown', escapeHandler);
@@ -4034,13 +4094,13 @@
             };
             document.addEventListener('keydown', escapeHandler);
         }
-        
+
         // Store custom cell data
         let cellCustomData = new Map(); // key: "row,col", value: {index, universe, box, note}
-        
+
         // Track manually created points (not from CSV)
         let createdPoints = new Set(); // Set of cellKeys that have manually created points
-        
+
         // Create a new point for a cell based on grid structure
         // Store in CSV coordinate format so it transforms with scale/offset like original points
         function createPointForCell(cellRow, cellCol, cellKey) {
@@ -4048,59 +4108,59 @@
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
             const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
             const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
-            
+
             // Check if point cloud is loaded (need bounds for coordinate conversion)
             if (!pointCloudLoaded || !pointCloudBounds) {
                 console.warn('createPointForCell: No point cloud loaded, cannot create point');
                 return;
             }
-            
+
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-            
+
             // Determine the stagger pattern by analyzing existing points in the same row
             // Find points in the same grid row to determine if this row is left or right staggered
             let isLeftStagger = true; // Default
             let foundStaggerPattern = false;
-            
+
             // Look for existing non-created points to determine stagger pattern
             for (const point of pointCloudData) {
                 if (point.isCreated) continue; // Skip created points
-                
+
                 // Calculate this point's grid row
                 const relativeY = point.y - pointCloudBounds.minY;
                 const gridPixelY = relativeY * baseCellSize * pointScale;
                 const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
                 const gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY;
                 const pointGridRow = Math.floor(gridPixelYWithOffset / baseCellSize);
-                
+
                 if (pointGridRow === cellRow) {
                     // Found a point in the same row - check its X position within the cell
                     const relativeX = point.x - pointCloudBounds.minX;
                     const gridPixelX = relativeX * baseCellSize * pointScale;
                     const gridPixelXWithOffset = gridPixelX + pointOffsetX;
                     const pointGridCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                    
+
                     // Position within cell (0-1 range)
                     const posInCell = (gridPixelXWithOffset / baseCellSize) - pointGridCol;
-                    
+
                     // If position is < 0.5, it's left-staggered; if >= 0.5, it's right-staggered
                     isLeftStagger = posInCell < 0.5;
                     foundStaggerPattern = true;
                     break;
                 }
             }
-            
+
             // If no point found in same row, look at adjacent rows to extrapolate
             if (!foundStaggerPattern) {
                 for (const point of pointCloudData) {
                     if (point.isCreated) continue;
-                    
+
                     const relativeY = point.y - pointCloudBounds.minY;
                     const gridPixelY = relativeY * baseCellSize * pointScale;
                     const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
                     const gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY;
                     const pointGridRow = Math.floor(gridPixelYWithOffset / baseCellSize);
-                    
+
                     // Get this point's stagger
                     const relativeX = point.x - pointCloudBounds.minX;
                     const gridPixelX = relativeX * baseCellSize * pointScale;
@@ -4108,7 +4168,7 @@
                     const pointGridCol = Math.floor(gridPixelXWithOffset / baseCellSize);
                     const posInCell = (gridPixelXWithOffset / baseCellSize) - pointGridCol;
                     const pointIsLeftStagger = posInCell < 0.5;
-                    
+
                     // Calculate row difference - stagger alternates each row
                     const rowDiff = Math.abs(cellRow - pointGridRow);
                     if (rowDiff % 2 === 0) {
@@ -4122,25 +4182,25 @@
                     break;
                 }
             }
-            
+
             // Calculate target X position with stagger
             // Left stagger: point is left of center (xOffset ~= 0.25)
             // Right stagger: point is right of center (xOffset ~= 0.75)
             const xOffset = isLeftStagger ? 0.25 : 0.75;
             const targetGridPixelX = (cellCol + xOffset) * baseCellSize;
             const targetGridPixelY = (cellRow + 0.5) * baseCellSize;
-            
+
             // Reverse the transformation to get CSV coordinates
             const gridPixelX = targetGridPixelX - pointOffsetX;
             const relativeX = gridPixelX / (baseCellSize * pointScale);
             const csvX = relativeX + pointCloudBounds.minX;
-            
+
             const gridPixelYFlipped = targetGridPixelY - pointOffsetY;
             const gridPixelY = (csvHeight * baseCellSize * pointScale) - gridPixelYFlipped;
             const relativeY = gridPixelY / (baseCellSize * pointScale);
             const csvY = relativeY + pointCloudBounds.minY;
-            
-            
+
+
             // Add the new point to pointCloudData in CSV coordinate format
             const newPoint = {
                 x: csvX,
@@ -4148,16 +4208,16 @@
                 isCreated: true,
                 cellKey: cellKey
             };
-            
+
             pointCloudData.push(newPoint);
             createdPoints.add(cellKey);
-            
+
         }
-        
+
         // Remove a manually created point for a cell
         function removeCreatedPointForCell(cellKey) {
             if (!createdPoints.has(cellKey)) return;
-            
+
             // Find and remove the point with this cellKey
             const index = pointCloudData.findIndex(p => p.isCreated && p.cellKey === cellKey);
             if (index !== -1) {
@@ -4165,42 +4225,42 @@
                 createdPoints.delete(cellKey);
             }
         }
-        
+
         function finishEditing() {
             if (!editingCell || !editDialog) return;
-            
+
             const indexInput = document.getElementById('editIndex');
             const universeInput = document.getElementById('editUniverse');
             const boxInput = document.getElementById('editBox');
             const noteInput = document.getElementById('editNote');
-            
+
             if (!indexInput || !universeInput || !boxInput || !noteInput) {
                 cancelEditing();
                 return;
             }
-            
+
             // Use the actual cell key (based on point position) if available
             const cellKey = editingCell.actualCellKey || `${editingCell.cellRow},${editingCell.cellCol}`;
-            
-            
+
+
             // Get values
             const index = indexInput.value.trim();
             const universe = universeInput.value.trim();
             const box = boxInput.value.trim();
             const note = noteInput.value.trim();
-            
+
             // Store custom data if any field has a value
             // If B is empty but other fields have values, we store box: '' to mark it as "explicitly no box"
             if (index || universe || box || note) {
                 // Store custom data - include box even if empty string to mark it as "explicitly no box"
                 cellCustomData.set(cellKey, { index, universe, box: box, note });
-                
+
                 // Update box number mapping if box is set
                 if (box) {
                     const boxNum = parseInt(box);
                     if (!isNaN(boxNum) && boxNum > 0) {
                         cellToBoxNumber.set(cellKey, boxNum);
-                        
+
                         // If this cell had no point and a B number was added, CREATE a new point
                         if (!editingCell.hasPoint) {
                             createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey);
@@ -4212,7 +4272,7 @@
                 } else {
                     // B is explicitly empty - clear box assignment and don't auto-assign
                     cellToBoxNumber.delete(cellKey);
-                    
+
                     // If the cell had a point that was CREATED (not from CSV), remove it
                     removeCreatedPointForCell(cellKey);
                 }
@@ -4220,22 +4280,22 @@
                 // Clear all custom data if all fields are empty
                 cellCustomData.delete(cellKey);
                 cellToBoxNumber.delete(cellKey);
-                
+
                 // Remove any created point
                 removeCreatedPointForCell(cellKey);
             }
-            
+
             // Recalculate cable groups to update green dot positions and groupings
             if (pointCloudLoaded && pointCloudData.length > 0) {
                 calculateCableGroups();
             }
-            
+
             // Redraw to show updated cell content
             updatePreview();
-            
+
             cancelEditing();
         }
-        
+
         function cancelEditing() {
             if (editDialog) {
                 editDialog.remove();
@@ -4243,7 +4303,7 @@
             }
             editingCell = null;
         }
-        
+
         // Detect which cell was clicked
         function getCellAtPosition(mouseX, mouseY) {
             const canvas = document.getElementById('gridCanvas');
@@ -4252,29 +4312,29 @@
             const totalRows = getTotalRows();
             const gridPixelWidth = totalCols * baseCellSize;
             const gridPixelHeight = totalRows * baseCellSize;
-            
+
             const availableWidth = canvas.width * 0.9;
             const availableHeight = canvas.height * 0.9;
             const scaleX = availableWidth / gridPixelWidth;
             const scaleY = availableHeight / gridPixelHeight;
             const baseScale = Math.min(scaleX, scaleY);
             const scale = baseScale * zoom;
-            
+
             const gridWidth = gridPixelWidth * scale;
             const gridHeight = gridPixelHeight * scale;
             const baseOffsetX = (canvas.width - gridWidth) / 2;
             const baseOffsetY = (canvas.height - gridHeight) / 2;
             const offsetX = baseOffsetX + panX;
             const offsetY = baseOffsetY + panY;
-            
+
             // Convert mouse position to grid coordinates
             const gridX = (mouseX - offsetX) / scale;
             const gridY = (mouseY - offsetY) / scale;
-            
+
             const cellCol = Math.floor(gridX / baseCellSize);
             const cellRow = Math.floor(gridY / baseCellSize);
-            
-            
+
+
             if (cellCol >= 0 && cellCol < totalCols && cellRow >= 0 && cellRow < totalRows) {
                 const cellUniverse = getCellUniverse(cellCol, cellRow);
                 if (cellUniverse) {
@@ -4289,52 +4349,52 @@
             }
             return null;
         }
-        
+
         // Find the point that is visually closest to the clicked screen position
         // Returns { pointIndex, cellKey } or null if no point near the click
         function findPointAtScreenPosition(screenX, screenY, gridOffsetX, gridOffsetY, gridScale) {
             if (!pointCloudLoaded || pointCloudData.length === 0) {
                 return null;
             }
-            
+
             const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
             const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
             const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
             const baseCellSize = 60;
             const csvWidth = pointCloudBounds.maxX - pointCloudBounds.minX;
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-            
+
             // Find the point closest to the clicked screen position
             let closestPoint = null;
             let closestDistance = Infinity;
             const maxDistance = baseCellSize * gridScale; // Max distance = one cell size in screen pixels
-            
+
             for (let i = 0; i < pointCloudData.length; i++) {
                 const point = pointCloudData[i];
                 const relativeX = point.x - pointCloudBounds.minX;
                 const relativeY = point.y - pointCloudBounds.minY;
-                
+
                 const gridPixelX = relativeX * baseCellSize * pointScale;
                 const gridPixelY = relativeY * baseCellSize * pointScale;
                 const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                
+
                 const gridPixelXWithOffset = gridPixelX + pointOffsetX;
                 const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
-                
+
                 // Calculate screen position (same as in drawPointCloud)
                 const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
                 const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
-                
+
                 // Distance from clicked position to this point's screen position
                 const dist = Math.sqrt(Math.pow(px - screenX, 2) + Math.pow(py - screenY, 2));
-                
+
                 if (dist < closestDistance && dist < maxDistance) {
                     closestDistance = dist;
-                    
+
                     // Calculate the point's cell key (same as elsewhere)
                     const pointCellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
                     const pointCellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
-                    
+
                     closestPoint = {
                         pointIndex: i,
                         cellKey: `${pointCellRow},${pointCellCol}`,
@@ -4344,26 +4404,26 @@
                     };
                 }
             }
-            
+
             if (closestPoint) {
                 return {
                     pointIndex: closestPoint.pointIndex,
                     cellKey: closestPoint.cellKey
                 };
             }
-            
+
             return null;
         }
-        
+
         // Legacy function - kept for compatibility
         function findPointInCell(cellRow, cellCol) {
             return null;
         }
-        
-        canvas.addEventListener('dblclick', function(e) {
+
+        canvas.addEventListener('dblclick', function (e) {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const rect = canvas.getBoundingClientRect();
             // Scale mouse coordinates to match canvas internal resolution
             const cssToCanvasX = canvas.width / rect.width;
@@ -4372,12 +4432,12 @@
             const rawMouseY = e.clientY - rect.top;
             const mouseX = rawMouseX * cssToCanvasX;
             const mouseY = rawMouseY * cssToCanvasY;
-            
-            
+
+
             const cell = getCellAtPosition(mouseX, mouseY);
             if (cell) {
                 editingCell = cell;
-                
+
                 // Calculate the grid transform parameters (same as in drawGridPreview)
                 const baseCellSize = 60;
                 const totalCols = getTotalCols();
@@ -4390,27 +4450,27 @@
                 const scaleY = availableHeight / gridPixelHeight;
                 const baseScale = Math.min(scaleX, scaleY);
                 const currentScale = baseScale * zoom;
-                
+
                 const gridWidth = gridPixelWidth * currentScale;
                 const gridHeight = gridPixelHeight * currentScale;
                 const baseOffsetX = (canvas.width - gridWidth) / 2;
                 const baseOffsetY = (canvas.height - gridHeight) / 2;
                 const gridOffsetX = baseOffsetX + panX;
                 const gridOffsetY = baseOffsetY + panY;
-                
+
                 // Find point using screen coordinates (accounts for zoom, pan, and point transform)
                 const pointInfo = findPointAtScreenPosition(mouseX, mouseY, gridOffsetX, gridOffsetY, currentScale);
-                
+
                 // Use the clicked cell's key (NOT the point's key - we want to edit the cell we clicked on)
                 const clickedCellKey = `${cell.cellRow},${cell.cellCol}`;
                 const cellKey = clickedCellKey;
-                
+
                 // Store the actual cell key for use in finishEditing
                 editingCell.actualCellKey = cellKey;
                 editingCell.hasPoint = pointInfo !== null && pointInfo.cellKey === clickedCellKey;
-                
+
                 let cellData = cellCustomData.get(cellKey);
-                
+
                 // If no custom data, parse from current cell content or use defaults
                 if (!cellData) {
                     // Get the cell's universe info
@@ -4420,14 +4480,14 @@
                         const rowInUniverse = cellUniverse.cellInUniverseRow;
                         const universeNum = cellUniverse.universeNum;
                         const currentBoxNum = cellToBoxNumber.get(cellKey);
-                        
+
                         // Get the current cell label to parse the first line (index)
                         const currentLabel = generateCellLabel(rowInUniverse + 1, colInUniverse, universeNum, currentBoxNum, cell.cellRow, cell.cellCol);
                         const lines = currentLabel.split('\n');
                         const firstLine = lines[0] ? lines[0].trim() : '';
                         // Remove dot if present
                         const indexValue = firstLine.replace(/●\s*/g, '').replace(/\s*●/g, '').trim();
-                        
+
                         // Try to parse existing cell format
                         cellData = {
                             index: indexValue || (colInUniverse + 1).toString(), // Use first line or fallback to column
@@ -4439,20 +4499,19 @@
                         cellData = { index: '', universe: '', box: '', note: '' };
                     }
                 }
-                
+
                 // Position dialog near the cell (reuse grid transform values from above)
                 const cellScreenX = gridOffsetX + (cell.cellCol * baseCellSize * currentScale);
                 const cellScreenY = gridOffsetY + (cell.cellRow * baseCellSize * currentScale);
-                
+
                 // Position dialog at center of cell, offset to avoid covering it
                 const dialogX = rect.left + cellScreenX + (baseCellSize * currentScale) / 2 - 100;
                 const dialogY = rect.top + cellScreenY + (baseCellSize * currentScale) / 2 - 100;
-                
+
                 createEditDialog(dialogX, dialogY, cellData, cellKey);
             }
         });
     </script>
 </body>
+
 </html>
-
-
