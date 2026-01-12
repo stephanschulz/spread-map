@@ -799,6 +799,7 @@
                         isImported: true,
                         cellRow: point.gridRow,      // 0-indexed row in grid
                         cellCol: point.gridCol,      // 0-indexed column in grid
+                        cellKey: `${point.gridRow},${point.gridCol}`, // Ensure unique ID for removal/editing
                         xStagger: xStagger,          // Small offset for stagger pattern
                         importedBoxNum: point.boxNum,
                         importedUniverseNum: point.universeNum
@@ -954,8 +955,12 @@
 
                         // Look for universe number (e.g., "U3" or "U3-B2")
                         let universeNum = null;
-                        // Check for dot marker (● or bullet character variations)
-                        let hasPoint = cellText.includes('●') || cellText.includes('•') || cellText.includes('·');
+                        // NEW: B (with or without number) is the MASTER switch for having a point
+                        // We check the clean text (excluding Box-N markers)
+                        let hasPoint = cleanCellText.match(/\bB\d*\b/i) !== null;
+
+                        // Dot marker is ONLY for stagger
+                        let hasDotMarker = cellText.includes('●') || cellText.includes('•') || cellText.includes('·');
                         let pointLeft = false;
                         let boxNum = null;       // B# assignment for this cell
                         let boxCellNum = null;   // Box-N marker (green box position)
@@ -1035,9 +1040,13 @@
                         }
 
                         // Check if point is on left or right (handle different bullet chars)
-                        if (hasPoint && lines.length > 0) {
+                        // This only sets pointLeft if a dot is actually present
+                        if (hasDotMarker && lines.length > 0) {
                             const firstLine = lines[0].trim();
                             pointLeft = firstLine.startsWith('●') || firstLine.startsWith('•') || firstLine.startsWith('·');
+                        } else if (hasPoint) {
+                            // Fallback if B exists but no dot - use default staggered look (parity-based or just left)
+                            pointLeft = true;
                         }
 
                         if (universeNum) {
@@ -2063,7 +2072,12 @@
                             } else if (boxNum !== undefined) {
                                 bLabel = `B${boxNum}`;
                             } else {
-                                bLabel = 'B';
+                                // Only show 'B' if this cell actually has a point
+                                // Check if any point in pointCloudData maps to this cell
+                                const point = pointCloudData.find(p => p.cellKey === cellKey);
+                                if (point) {
+                                    bLabel = 'B';
+                                }
                             }
 
                             if (bLabel) {
@@ -2375,10 +2389,10 @@
                     vDiv.style.color = 'rgba(255,255,255,0.3)';
                     vDiv.style.fontFamily = 'monospace';
                     vDiv.style.fontSize = '12px';
-                    vDiv.textContent = 'v.2025.01.09.6';
+                    vDiv.textContent = 'v.2025.01.09.9';
                     document.body.appendChild(vDiv);
                 } else {
-                    versionDisplay.textContent = 'v.2025.01.09.6';
+                    versionDisplay.textContent = 'v.2025.01.09.9';
                 }
 
                 // Calculate cable groups if we have points (needed for box numbers in cells)
@@ -2408,16 +2422,25 @@
                 // Use custom data with combined U-B format (same as default)
                 const indexLabel = customData.index || `${colInUniverse + 1}`;
                 const universeLabel = customData.universe ? `U${customData.universe}` : `U${universeNum}`;
-                let bLabel;
+                let bLabel = '';
                 if (customData.box) {
                     bLabel = `B${customData.box}`;
                 } else if (boxNum !== null && boxNum !== undefined) {
                     bLabel = `B${boxNum}`;
                 } else {
-                    bLabel = 'B';
+                    // Only show 'B' if this cell actually has a point
+                    const cellKey = `${cellRow},${cellCol}`;
+                    const point = pointCloudData.find(p => p.cellKey === cellKey);
+                    if (point) {
+                        bLabel = 'B';
+                    }
                 }
-                // Use 3-line format: index\nU#\nB#
-                let result = `${indexLabel}\n${universeLabel}\n${bLabel}\n`;
+
+                // Construct result - only add B line if bLabel is non-empty
+                let result = `${indexLabel}\n${universeLabel}\n`;
+                if (bLabel) {
+                    result += bLabel + '\n';
+                }
 
                 // Append note if it exists and is a genuine user note (not just cell content patterns)
                 if (customData.note) {
@@ -2431,10 +2454,26 @@
                 return result;
             } else {
                 // Default format
-                const colLabel = `${colInUniverse + 1}`;  // 1-20 across the row
+                const colLabel = `${colInUniverse + 1}`;
                 const universeLabel = `U${universeNum}`;
-                const bLabel = boxNum !== null ? `B${boxNum}` : 'B';
-                return `${colLabel}\n${universeLabel}\n${bLabel}\n`;
+
+                // Only show 'B' if this cell actually has a point
+                let bLabel = '';
+                if (boxNum !== null) {
+                    bLabel = `B${boxNum}`;
+                } else if (cellRow !== null && cellCol !== null) {
+                    const cellKey = `${cellRow},${cellCol}`;
+                    const point = pointCloudData.find(p => p.cellKey === cellKey);
+                    if (point) {
+                        bLabel = 'B';
+                    }
+                }
+
+                let result = `${colLabel}\n${universeLabel}\n`;
+                if (bLabel) {
+                    result += bLabel + '\n';
+                }
+                return result;
             }
         }
 
@@ -4517,19 +4556,32 @@
 
             for (let i = 0; i < pointCloudData.length; i++) {
                 const point = pointCloudData[i];
-                const relativeX = point.x - pointCloudBounds.minX;
-                const relativeY = point.y - pointCloudBounds.minY;
+                let px, py;
 
-                const gridPixelX = relativeX * baseCellSize * pointScale;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                if (point.isImported) {
+                    // Calculation for imported points (matches drawPointCloud)
+                    const screenXPos = gridOffsetX + (point.cellCol * baseCellSize * gridScale);
+                    const screenYPos = gridOffsetY + (point.cellRow * baseCellSize * gridScale);
 
-                const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                    // Center of cell + stagger
+                    px = screenXPos + (baseCellSize * 0.5 * gridScale) + (point.xStagger * baseCellSize * gridScale);
+                    py = screenYPos + (baseCellSize * 0.5 * gridScale);
+                } else {
+                    // Calculation for CSV points
+                    const relativeX = point.x - pointCloudBounds.minX;
+                    const relativeY = point.y - pointCloudBounds.minY;
 
-                // Calculate screen position (same as in drawPointCloud)
-                const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
-                const py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
+                    const gridPixelX = relativeX * baseCellSize * pointScale;
+                    const gridPixelY = relativeY * baseCellSize * pointScale;
+                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                    const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                    const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+
+                    // Calculate screen position
+                    px = gridOffsetX + (gridPixelXWithOffset * gridScale);
+                    py = gridOffsetY + (gridPixelYFlippedWithOffset * gridScale);
+                }
 
                 // Distance from clicked position to this point's screen position
                 const dist = Math.sqrt(Math.pow(px - screenX, 2) + Math.pow(py - screenY, 2));
@@ -4537,13 +4589,26 @@
                 if (dist < closestDistance && dist < maxDistance) {
                     closestDistance = dist;
 
-                    // Calculate the point's cell key (same as elsewhere)
-                    const pointCellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                    const pointCellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                    // Use the stored cell key or calculate it
+                    let cellKey;
+                    if (point.cellKey) {
+                        cellKey = point.cellKey;
+                    } else {
+                        // Calculate for CSV points
+                        const relativeX = point.x - pointCloudBounds.minX;
+                        const relativeY = point.y - pointCloudBounds.minY;
+                        const gridPixelX = relativeX * baseCellSize * pointScale;
+                        const gridPixelY = relativeY * baseCellSize * pointScale;
+                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                        const pr = Math.floor((gridPixelYFlipped + pointOffsetY) / baseCellSize);
+                        const pc = Math.floor((gridPixelX + pointOffsetX) / baseCellSize);
+                        cellKey = `${pr},${pc}`;
+                    }
 
                     closestPoint = {
                         pointIndex: i,
-                        cellKey: `${pointCellRow},${pointCellCol}`,
+                        cellKey: cellKey,
                         screenX: px,
                         screenY: py,
                         distance: dist
