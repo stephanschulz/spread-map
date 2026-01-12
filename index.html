@@ -1566,34 +1566,35 @@
                 let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
                 let cellCol, cellRow;
 
-                if (point.isImported) {
-                    // Imported points: place directly at cell positions (no CSV transformation)
-                    // Cell center is at (col + 0.5) * baseCellSize, (row + 0.5) * baseCellSize
+                if (point.isImported || (point.cellCol !== undefined && point.cellRow !== undefined)) {
+                    // Force row-based stagger: Odd row indices (R1, R3) = Left
                     cellCol = point.cellCol;
                     cellRow = point.cellRow;
-                    const xStagger = point.xStagger || 0;
+                    const isLeft = (cellRow % 2 === 0);
+                    const xStagger = isLeft ? -0.2 : 0.2;
                     gridPixelXWithOffset = (cellCol + 0.5 + xStagger) * baseCellSize;
                     gridPixelYFlippedWithOffset = (cellRow + 0.5) * baseCellSize;
                 } else {
-                    // CSV points: use original transformation with scale and offset
+                    // CSV points: apply same row-based stagger for visual consistency and line alignment
                     const relativeX = point.x - pointCloudBounds.minX;
                     const relativeY = point.y - pointCloudBounds.minY;
-
-                    // Convert to "grid pixel space" (as if in the high-res rendered image)
-                    // Scale to match cell size, apply point scale adjustment
                     const gridPixelX = relativeX * baseCellSize * pointScale;
                     const gridPixelY = relativeY * baseCellSize * pointScale;
-
-                    // Flip Y coordinate
                     const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
 
-                    // Apply offsets in grid space (before scale so they zoom with the map)
                     gridPixelXWithOffset = gridPixelX + pointOffsetX;
                     gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
 
-                    // Convert to cell indices
+                    // Calculate row to determine stagger
                     cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
                     cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+
+                    const isLeft = (cellRow % 2 === 0);
+                    const xStagger = isLeft ? -0.2 : 0.2;
+
+                    // Center the CSV point in the cell's staggered position 
+                    gridPixelXWithOffset = (cellCol + 0.5 + xStagger) * baseCellSize;
+                    gridPixelYFlippedWithOffset = (cellRow + 0.5) * baseCellSize;
                 }
 
                 const cellKey = `${cellRow},${cellCol}`;
@@ -1664,30 +1665,38 @@
             function pointToScreen(point) {
                 let gridPixelXWithOffset, gridPixelYFlippedWithOffset;
 
-                if (point.isImported) {
-                    // Imported points/centers: place directly at cell positions
+                if (point.isImported || (point.x !== undefined && point.y !== undefined && pointCloudBounds)) {
+                    // For both imported and CSV points, calculate staggered cell position
+                    let c, r;
                     if (point.cellCol !== undefined && point.cellRow !== undefined) {
-                        // Individual point with explicit cell position
-                        const xStagger = point.xStagger || 0;
-                        gridPixelXWithOffset = (point.cellCol + 0.5 + xStagger) * baseCellSize;
-                        gridPixelYFlippedWithOffset = (point.cellRow + 0.5) * baseCellSize;
+                        c = point.cellCol;
+                        r = point.cellRow;
+                    } else if (pointCloudBounds) {
+                        // Calculate cell for CSV point
+                        const relativeX = point.x - pointCloudBounds.minX;
+                        const relativeY = point.y - pointCloudBounds.minY;
+                        const gridPixelX = relativeX * baseCellSize * pointScale;
+                        const gridPixelY = relativeY * baseCellSize * pointScale;
+                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                        c = Math.floor((gridPixelX + pointOffsetX) / baseCellSize);
+                        r = Math.floor((gridPixelYFlipped + pointOffsetY) / baseCellSize);
+                    }
+
+                    if (r !== undefined && c !== undefined) {
+                        // All points now use row-based stagger logic (Odd = Left, Even = Right)
+                        const isLeft = (r % 2 === 0);
+                        const xStagger = isLeft ? -0.2 : 0.2;
+                        gridPixelXWithOffset = (c + 0.5 + xStagger) * baseCellSize;
+                        gridPixelYFlippedWithOffset = (r + 0.5) * baseCellSize;
                     } else {
                         // Center point: x,y are already cell-based coordinates
                         gridPixelXWithOffset = point.x * baseCellSize;
                         gridPixelYFlippedWithOffset = point.y * baseCellSize;
                     }
                 } else {
-                    // CSV points: use original transformation with scale and offset
-                    const relativeX = point.x - pointCloudBounds.minX;
-                    const relativeY = point.y - pointCloudBounds.minY;
-
-                    const gridPixelX = relativeX * baseCellSize * pointScale;
-                    const gridPixelY = relativeY * baseCellSize * pointScale;
-
-                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-
-                    gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                    gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+                    // Fallback (rarely used now)
+                    gridPixelXWithOffset = point.x * baseCellSize;
+                    gridPixelYFlippedWithOffset = point.y * baseCellSize;
                 }
 
                 const px = gridOffsetX + (gridPixelXWithOffset * gridScale);
@@ -2050,19 +2059,29 @@
                             ctx.fillStyle = '#000';
 
                             // 1. Draw Index (Top)
-                            if (customData.index) {
+                            if (customData.index || (colInUniverse + 1)) {
+                                let indexText = customData.index || `${colInUniverse + 1}`;
+
+                                // Add dot if this cell has a point
+                                const hasPoint = pointCloudData.some(p => p.cellKey === cellKey);
+                                if (hasPoint) {
+                                    const isLeft = (cellRow % 2 === 0);
+                                    indexText = isLeft ? `● ${indexText}` : `${indexText} ●`;
+                                }
+
                                 ctx.font = `${Math.max(7, scale * 8)}px Arial`;
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'top';
-                                ctx.fillText(customData.index, screenX + screenWidth / 2, screenY + 5 * scale);
+                                ctx.fillText(indexText, screenX + screenWidth / 2, screenY + 5 * scale);
                             }
 
                             // 2. Draw Universe (Middle)
-                            if (customData.universe) {
+                            if (customData.universe || universeNum) {
+                                const uText = customData.universe ? `U${customData.universe}` : `U${universeNum}`;
                                 ctx.font = `bold ${Math.max(7, scale * 8)}px Arial`;
                                 ctx.textAlign = 'center';
                                 ctx.textBaseline = 'middle';
-                                ctx.fillText(`U${customData.universe}`, screenX + screenWidth / 2, screenY + screenHeight / 2);
+                                ctx.fillText(uText, screenX + screenWidth / 2, screenY + screenHeight / 2);
                             }
 
                             // 3. Draw Box (Bottom)
@@ -2073,9 +2092,7 @@
                                 bLabel = `B${boxNum}`;
                             } else {
                                 // Only show 'B' if this cell actually has a point
-                                // Check if any point in pointCloudData maps to this cell
-                                const point = pointCloudData.find(p => p.cellKey === cellKey);
-                                if (point) {
+                                if (pointCloudData.some(p => p.cellKey === cellKey)) {
                                     bLabel = 'B';
                                 }
                             }
@@ -2115,10 +2132,18 @@
                         } else {
                             // Default format
                             ctx.fillStyle = '#000';
+
+                            // Check if this cell has a point to add dot
+                            let indexText = `${cellUniverse.cellInUniverseCol + 1}`;
+                            if (pointCloudData.some(p => p.cellKey === cellKey)) {
+                                const isLeft = (cellRow % 2 === 0);
+                                indexText = isLeft ? `● ${indexText}` : `${indexText} ●`;
+                            }
+
                             ctx.font = `${Math.max(8, scale * 9)}px Arial`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'top';
-                            ctx.fillText(`${cellUniverse.cellInUniverseCol + 1}`, screenX + screenWidth / 2, screenY + 5 * scale);
+                            ctx.fillText(indexText, screenX + screenWidth / 2, screenY + 5 * scale);
 
                             ctx.font = `bold ${Math.max(8, scale * 9)}px Arial`;
                             ctx.textBaseline = 'middle';
@@ -2389,10 +2414,10 @@
                     vDiv.style.color = 'rgba(255,255,255,0.3)';
                     vDiv.style.fontFamily = 'monospace';
                     vDiv.style.fontSize = '12px';
-                    vDiv.textContent = 'v.2025.01.09.10';
+                    vDiv.textContent = 'v.2025.01.09.14';
                     document.body.appendChild(vDiv);
                 } else {
-                    versionDisplay.textContent = 'v.2025.01.09.10';
+                    versionDisplay.textContent = 'v.2025.01.09.14';
                 }
 
                 // Calculate cable groups if we have points (needed for box numbers in cells)
@@ -2413,27 +2438,26 @@
         function generateCellLabel(rowInUniverse, colInUniverse, universeNum, boxNum = null, cellRow = null, cellCol = null) {
             // Check for custom cell data
             let customData = null;
+            let cellKey = null;
             if (cellRow !== null && cellCol !== null) {
-                const cellKey = `${cellRow},${cellCol}`;
+                cellKey = `${cellRow},${cellCol}`;
                 customData = cellCustomData.get(cellKey);
             }
 
             if (customData) {
                 // Use custom data with combined U-B format (same as default)
-                const indexLabel = customData.index || `${colInUniverse + 1}`;
+                let indexLabel = customData.index || `${colInUniverse + 1}`;
                 const universeLabel = customData.universe ? `U${customData.universe}` : `U${universeNum}`;
+
+                const hasPoint = pointCloudData.some(p => p.cellKey === cellKey || (p.cellRow === cellRow && p.cellCol === cellCol));
+
                 let bLabel = '';
                 if (customData.box) {
                     bLabel = `B${customData.box}`;
                 } else if (boxNum !== null && boxNum !== undefined) {
                     bLabel = `B${boxNum}`;
-                } else {
-                    // Only show 'B' if this cell actually has a point
-                    const cellKey = `${cellRow},${cellCol}`;
-                    const point = pointCloudData.find(p => p.cellKey === cellKey);
-                    if (point) {
-                        bLabel = 'B';
-                    }
+                } else if (hasPoint) {
+                    bLabel = 'B';
                 }
 
                 // Construct result - only add B line if bLabel is non-empty
@@ -2640,11 +2664,8 @@
                             cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
                             cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
 
-                            // Determine stagger from CSV row
-                            if (!point.isCreated && pointCloudPitch && pointCloudPitch.y > 0) {
-                                const csvRowIndex = Math.floor((point.y - pointCloudBounds.minY) / pointCloudPitch.y);
-                                isOffsetLeft = csvRowIndex % 2 !== 0;  // Odd rows = left
-                            }
+                            // Force row-based stagger for XLSX: R1, R3 (cellRow 0, 2) = Left
+                            isOffsetLeft = (cellRow % 2 === 0);
                         }
 
                         // Add 1 to account for header row/col in Excel
@@ -4239,6 +4260,9 @@
                 (customBoxPositions && customBoxPositions.size > 0) ||
                 (cellCustomData && cellCustomData.size > 0);
 
+            // Force row-based stagger: Odd row indices (R1, R3) = Left
+            const isLeftStagger = (cellRow % 2 === 0);
+
             if (hasImportedPoints) {
                 // Create a "Grid Mode" point
                 const newPoint = {
@@ -4249,7 +4273,7 @@
                     cellCol: cellCol,
                     x: cellCol, // Placeholder
                     y: cellRow, // Placeholder
-                    leftStagger: true, // Default
+                    leftStagger: isLeftStagger,
                     importedUniverseNum: universeNum // Explicitly assign universe to ensure correct grouping
                 };
                 pointCloudData.push(newPoint);
@@ -4269,72 +4293,6 @@
             }
 
             const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
-
-            // Determine the stagger pattern by analyzing existing points in the same row
-            // Find points in the same grid row to determine if this row is left or right staggered
-            let isLeftStagger = true; // Default
-            let foundStaggerPattern = false;
-
-            // Look for existing non-created points to determine stagger pattern
-            for (const point of pointCloudData) {
-                if (point.isCreated) continue; // Skip created points
-
-                // Calculate this point's grid row
-                const relativeY = point.y - pointCloudBounds.minY;
-                const gridPixelY = relativeY * baseCellSize * pointScale;
-                const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                const gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY;
-                const pointGridRow = Math.floor(gridPixelYWithOffset / baseCellSize);
-
-                if (pointGridRow === cellRow) {
-                    // Found a point in the same row - check its X position within the cell
-                    const relativeX = point.x - pointCloudBounds.minX;
-                    const gridPixelX = relativeX * baseCellSize * pointScale;
-                    const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                    const pointGridCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-
-                    // Position within cell (0-1 range)
-                    const posInCell = (gridPixelXWithOffset / baseCellSize) - pointGridCol;
-
-                    // If position is < 0.5, it's left-staggered; if >= 0.5, it's right-staggered
-                    isLeftStagger = posInCell < 0.5;
-                    foundStaggerPattern = true;
-                    break;
-                }
-            }
-
-            // If no point found in same row, look at adjacent rows to extrapolate
-            if (!foundStaggerPattern) {
-                for (const point of pointCloudData) {
-                    if (point.isCreated) continue;
-
-                    const relativeY = point.y - pointCloudBounds.minY;
-                    const gridPixelY = relativeY * baseCellSize * pointScale;
-                    const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
-                    const gridPixelYWithOffset = gridPixelYFlipped + pointOffsetY;
-                    const pointGridRow = Math.floor(gridPixelYWithOffset / baseCellSize);
-
-                    // Get this point's stagger
-                    const relativeX = point.x - pointCloudBounds.minX;
-                    const gridPixelX = relativeX * baseCellSize * pointScale;
-                    const gridPixelXWithOffset = gridPixelX + pointOffsetX;
-                    const pointGridCol = Math.floor(gridPixelXWithOffset / baseCellSize);
-                    const posInCell = (gridPixelXWithOffset / baseCellSize) - pointGridCol;
-                    const pointIsLeftStagger = posInCell < 0.5;
-
-                    // Calculate row difference - stagger alternates each row
-                    const rowDiff = Math.abs(cellRow - pointGridRow);
-                    if (rowDiff % 2 === 0) {
-                        // Same stagger pattern
-                        isLeftStagger = pointIsLeftStagger;
-                    } else {
-                        // Opposite stagger pattern
-                        isLeftStagger = !pointIsLeftStagger;
-                    }
-                    foundStaggerPattern = true;
-                    break;
-                }
-            }
 
             // Calculate target X position with stagger
             // Left stagger: point is left of center (xOffset ~= 0.25)
@@ -4571,13 +4529,28 @@
                 const point = pointCloudData[i];
                 let px, py;
 
-                if (point.isImported) {
-                    // Calculation for imported points (matches drawPointCloud)
-                    const screenXPos = gridOffsetX + (point.cellCol * baseCellSize * gridScale);
-                    const screenYPos = gridOffsetY + (point.cellRow * baseCellSize * gridScale);
+                if (point.isImported || (point.x !== undefined && point.y !== undefined && pointCloudBounds)) {
+                    // Force row-based stagger for consistent hit detection
+                    let r, c;
+                    if (point.cellRow !== undefined && point.cellCol !== undefined) {
+                        r = point.cellRow;
+                        c = point.cellCol;
+                    } else {
+                        const relativeX = point.x - pointCloudBounds.minX;
+                        const relativeY = point.y - pointCloudBounds.minY;
+                        const gridPixelX = relativeX * baseCellSize * pointScale;
+                        const gridPixelY = relativeY * baseCellSize * pointScale;
+                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+                        c = Math.floor((gridPixelX + pointOffsetX) / baseCellSize);
+                        r = Math.floor((gridPixelYFlipped + pointOffsetY) / baseCellSize);
+                    }
 
-                    // Center of cell + stagger
-                    px = screenXPos + (baseCellSize * 0.5 * gridScale) + (point.xStagger * baseCellSize * gridScale);
+                    const isLeft = (r % 2 === 0);
+                    const xStagger = isLeft ? -0.2 : 0.2;
+                    const screenXPos = gridOffsetX + (c * baseCellSize * gridScale);
+                    const screenYPos = gridOffsetY + (r * baseCellSize * gridScale);
+
+                    px = screenXPos + (baseCellSize * 0.5 * gridScale) + (xStagger * baseCellSize * gridScale);
                     py = screenYPos + (baseCellSize * 0.5 * gridScale);
                 } else {
                     // Calculation for CSV points
@@ -4819,12 +4792,46 @@
                     if (countAfter > countBefore) console.error("  FAIL: Duplicate point created during edit!");
                     else console.log("  Pass: No point duplication detected.");
 
+                    // --- STEP 4: Move Box (Simulate Custom Positioning) ---
+                    console.log("TEST STEP 4: Moving Box U1-1 to cell 6,18");
+                    const boxKey1_1 = "1-1";
+                    customBoxPositions.set(boxKey1_1, { x: 18.5, y: 6.5 }); // Grid center of cell 6,18
+
+                    // --- STEP 5: Export Simulation ---
+                    console.log("TEST STEP 5: Simulating Export");
+                    const exportedData = generateMapData();
+                    const u1_r10_c21 = exportedData[10][21]; // R10, C21 is data index 9,20
+                    console.log(`  Export Check (9,20): ${u1_r10_c21.replace(/\n/g, ' | ')}`);
+                    if (!u1_r10_c21.includes("B\n")) console.error("  FAIL: Exported cell 9,20 missing 'B' label!");
+                    if (u1_r10_c21.includes("B1")) console.error("  FAIL: Exported cell 9,20 should show 'B', not 'B1'!");
+
+                    // --- STEP 6: Import Simulation ---
+                    console.log("TEST STEP 6: Simulating Import of Exported Data");
+                    // We reset state and mock the XLSX loading
+                    cellCustomData.clear();
+                    cellToBoxNumber.clear();
+                    customBoxPositions.clear();
+
+                    // Mock parseExportedMap results
+                    const mockParsedData = parseExportedMap(exportedData);
+                    console.log(`  Import Check: Parsed ${mockParsedData.points.length} points and ${mockParsedData.boxPositions.size} boxes.`);
+
+                    importExportedMap(mockParsedData.points, mockParsedData.cells, mockParsedData.boxPositions);
+
+                    const finalBoxMove = customBoxPositions.get("1-1");
+                    console.log(`  Final State Check: Box 1-1 x=${finalBoxMove?.x}, y=${finalBoxMove?.y}`);
+                    if (!finalBoxMove || finalBoxMove.x !== 18.5) console.error("  FAIL: Box position not recovered after import!");
+
                     // Cleanup
                     document.getElementById = originalGetElement;
                     window.editDialog = originalEditDialog;
+                    updatePreview(); // Sync UI with final test state
                     console.log("%c--- TEST COMPLETE ---", "color: #27ae60; font-weight: bold; font-size: 14px;");
-                    console.log("You can now verify the visual changes on the grid.");
+                    console.log("You can now verify the visual changes on the grid. Box 1-1 should be at R7,C19 (6,18).");
                 } catch (err) {
+                    // Cleanup in case of error
+                    document.getElementById = originalGetElement;
+                    window.editDialog = originalEditDialog;
                     console.error("TEST ERROR:", err);
                 }
             }
