@@ -1671,8 +1671,9 @@
                     if (point.cellCol !== undefined && point.cellRow !== undefined) {
                         c = point.cellCol;
                         r = point.cellRow;
-                    } else if (pointCloudBounds) {
-                        // Calculate cell for CSV point
+                    } else if (pointCloudBounds && !point.isImported) {
+                        // Calculate cell ONLY for CSV points (individual points from cloud)
+                        // Cluster centers (isImported=true) already have x,y in cell units
                         const relativeX = point.x - pointCloudBounds.minX;
                         const relativeY = point.y - pointCloudBounds.minY;
                         const gridPixelX = relativeX * baseCellSize * pointScale;
@@ -2414,10 +2415,10 @@
                     vDiv.style.color = 'rgba(255,255,255,0.3)';
                     vDiv.style.fontFamily = 'monospace';
                     vDiv.style.fontSize = '12px';
-                    vDiv.textContent = 'v.2025.01.09.14';
+                    vDiv.textContent = 'v.2025.01.09.15';
                     document.body.appendChild(vDiv);
                 } else {
-                    versionDisplay.textContent = 'v.2025.01.09.14';
+                    versionDisplay.textContent = 'v.2025.01.09.15';
                 }
 
                 // Calculate cable groups if we have points (needed for box numbers in cells)
@@ -4821,6 +4822,22 @@
                     const finalBoxMove = customBoxPositions.get("1-1");
                     console.log(`  Final State Check: Box 1-1 x=${finalBoxMove?.x}, y=${finalBoxMove?.y}`);
                     if (!finalBoxMove || finalBoxMove.x !== 18.5) console.error("  FAIL: Box position not recovered after import!");
+
+                    // --- STEP 7: Center coordinate isolation check ---
+                    console.log("TEST STEP 7: Verifying manual point center calculation (CSV isolation)");
+                    calculateCableGroups(); // Recalculate based on imported state
+                    const groupU1_2 = cableGroups.find(g => g.universeNum === 1 && g.groupInUniverse === 2);
+                    if (!groupU1_2) console.error("  FAIL: Cable group U1-2 not found!");
+                    else {
+                        const screenPos = pointToScreen(groupU1_2.center);
+                        // Group U1-2 was created for cell 8,20 in Step 3
+                        const expectedX = (20 + 0.5) * baseCellSize;
+                        if (Math.abs(screenPos.x - expectedX) > 1) {
+                            console.error(`  FAIL: Green box misplaced! Expected x=${expectedX}, got ${screenPos.x}. Likely coordinate leakage.`);
+                        } else {
+                            console.log("  Pass: Green box correctly placed at cell coordinates (CSV isolation verified).");
+                        }
+                    }
 
                     // Cleanup
                     document.getElementById = originalGetElement;
