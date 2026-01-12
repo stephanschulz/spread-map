@@ -2389,10 +2389,10 @@
                     vDiv.style.color = 'rgba(255,255,255,0.3)';
                     vDiv.style.fontFamily = 'monospace';
                     vDiv.style.fontSize = '12px';
-                    vDiv.textContent = 'v.2025.01.09.9';
+                    vDiv.textContent = 'v.2025.01.09.10';
                     document.body.appendChild(vDiv);
                 } else {
-                    versionDisplay.textContent = 'v.2025.01.09.9';
+                    versionDisplay.textContent = 'v.2025.01.09.10';
                 }
 
                 // Calculate cable groups if we have points (needed for box numbers in cells)
@@ -4230,6 +4230,9 @@
 
         // Create a new point for a cell
         function createPointForCell(cellRow, cellCol, cellKey, universeNum) {
+            // CRITICAL SAFETY: Remove any existing point for this cell first to prevent duplication
+            removePointForCell(cellKey);
+
             // Check if we are in "Imported Mode" (have imported points OR imported map structure)
             // If so, create a point using direct grid coordinates for stability
             const hasImportedPoints = pointCloudData.some(p => p.isImported) ||
@@ -4439,26 +4442,36 @@
 
                 // Update box number mapping if box is set
                 if (box) {
+                    const boxTrimmed = box.toString().trim();
+                    const isJustB = /^B$/i.test(boxTrimmed);
+
                     // Remove B/b prefix and whitespace
-                    const boxNum = parseInt(box.toString().replace(/^[Bb]\s*/, '').trim());
+                    const boxNum = parseInt(boxTrimmed.replace(/^[Bb]\s*/, '').trim());
+
                     if (!isNaN(boxNum) && boxNum > 0) {
                         cellToBoxNumber.set(cellKey, boxNum);
 
                         // If this cell had no point and a B number was added, CREATE a new point
                         if (!editingCell.hasPoint) {
-                            // Pass the universe number from the editing cell context to ensure correct grouping
+                            createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey, editingCell.universeNum);
+                        }
+                    } else if (isJustB) {
+                        // "B" (standalone) means "Point exists but auto-assign box"
+                        // Clear any fixed box assignment
+                        cellToBoxNumber.delete(cellKey);
+
+                        // Ensure point exists
+                        if (!editingCell.hasPoint) {
                             createPointForCell(editingCell.cellRow, editingCell.cellCol, cellKey, editingCell.universeNum);
                         }
                     } else {
-                        // Invalid box number, clear association and remove point
+                        // Other invalid box content - clear association and remove point
                         cellToBoxNumber.delete(cellKey);
                         removePointForCell(cellKey);
                     }
                 } else {
-                    // B is explicitly empty - clear box assignment and don't auto-assign
+                    // B is explicitly empty - clear box assignment and remove point
                     cellToBoxNumber.delete(cellKey);
-
-                    // If the cell had a point that was CREATED (not from CSV), remove it
                     removePointForCell(cellKey);
                 }
             } else {
@@ -4722,6 +4735,100 @@
                 createEditDialog(dialogX, dialogY, cellData, cellKey);
             }
         });
+
+        // Regression Test Helper for User Workflow (B1/B logic and duplication)
+        window.TestRunner = {
+            runWorkflowTest: function () {
+                console.log("%c--- STARTING WORKFLOW REGRESSION TEST ---", "color: #3498db; font-weight: bold; font-size: 14px;");
+
+                try {
+                    if (pointCloudData.length === 0) {
+                        console.warn("Please load a point cloud first (e.g., layout-test.csv)");
+                        return;
+                    }
+
+                    // 1. Mocking the edit dialog values
+                    const originalGetElement = document.getElementById;
+                    const mockInputs = {
+                        'editIndex': { value: "" },
+                        'editUniverse': { value: "1" },
+                        'editBox': { value: "" },
+                        'editNote': { value: "" }
+                    };
+
+                    document.getElementById = function (id) {
+                        if (mockInputs[id]) return mockInputs[id];
+                        return originalGetElement.call(document, id);
+                    };
+
+                    // Global variable needed for finishEditing
+                    let originalEditDialog = window.editDialog;
+                    window.editDialog = document.createElement('div');
+
+                    // --- STEP 1: Cell 9,20 (B1 -> B) ---
+                    console.log("TEST STEP 1: Changing Cell 9,20 from B1 to B");
+                    const cell9_20_key = "9,20";
+                    editingCell = {
+                        cellRow: 9,
+                        cellCol: 20,
+                        universeNum: 1,
+                        hasPoint: true,
+                        actualCellKey: cell9_20_key
+                    };
+                    mockInputs.editIndex.value = "20";
+                    mockInputs.editBox.value = "B";
+
+                    finishEditing();
+
+                    const box9_20 = cellToBoxNumber.get(cell9_20_key);
+                    const point9_20 = pointCloudData.find(p => (p.cellKey === cell9_20_key) || (p.cellRow === 9 && p.cellCol === 20));
+                    console.log(`  Result 9,20: box assignment = ${box9_20}, has point = ${!!point9_20}`);
+                    if (box9_20 !== undefined) console.error("  FAIL: 9,20 should have no fixed box assignment (auto-assign)");
+                    if (!point9_20) console.error("  FAIL: 9,20 should still have a point (B is master switch)");
+
+                    // --- STEP 2: Cell 8,20 (B -> B1) ---
+                    console.log("TEST STEP 2: Changing Cell 8,20 from B to B1");
+                    const cell8_20_key = "8,20";
+                    // Check if 8,20 already has a point
+                    const existing8_20 = pointCloudData.find(p => (p.cellKey === cell8_20_key) || (p.cellRow === 8 && p.cellCol === 20));
+
+                    editingCell = {
+                        cellRow: 8,
+                        cellCol: 20,
+                        universeNum: 1,
+                        hasPoint: !!existing8_20,
+                        actualCellKey: cell8_20_key
+                    };
+                    mockInputs.editIndex.value = "20";
+                    mockInputs.editBox.value = "B1";
+
+                    finishEditing();
+
+                    const box8_20 = cellToBoxNumber.get(cell8_20_key);
+                    const point8_20 = pointCloudData.find(p => (p.cellKey === cell8_20_key) || (p.cellRow === 8 && p.cellCol === 20));
+                    console.log(`  Result 8,20: box assignment = ${box8_20}, has point = ${!!point8_20}`);
+                    if (box8_20 !== 1) console.error("  FAIL: 8,20 should have box assignment 1");
+
+                    // --- STEP 3: Check for Duplication (The B7 -> B6 case) ---
+                    console.log("TEST STEP 3: Simulation check - Double update on 8,20 (B1 -> B2)");
+                    const countBefore = pointCloudData.length;
+                    editingCell.hasPoint = true;
+                    mockInputs.editBox.value = "B2";
+                    finishEditing();
+                    const countAfter = pointCloudData.length;
+                    if (countAfter > countBefore) console.error("  FAIL: Duplicate point created during edit!");
+                    else console.log("  Pass: No point duplication detected.");
+
+                    // Cleanup
+                    document.getElementById = originalGetElement;
+                    window.editDialog = originalEditDialog;
+                    console.log("%c--- TEST COMPLETE ---", "color: #27ae60; font-weight: bold; font-size: 14px;");
+                    console.log("You can now verify the visual changes on the grid.");
+                } catch (err) {
+                    console.error("TEST ERROR:", err);
+                }
+            }
+        };
     </script>
 </body>
 
