@@ -527,6 +527,10 @@
                     ⬇️ Generate & Download Excel
                 </button>
 
+                <button type="button" id="exportCSVBtn" style="width: 100%; margin-top: 8px; padding: 8px; background: #10b981; color: white; border: none; border-radius: 3px; font-size: 12px; cursor: pointer; font-weight: 500;">
+                    📄 Export Staggered Points CSV
+                </button>
+
                 <div class="error" id="errorBox"></div>
 
                 <div class="loading" id="loading">
@@ -3255,8 +3259,106 @@
             }
         }
 
+        // Export CSV with all staggered points
+        function exportStaggeredPointsCSV() {
+            try {
+                if (!pointCloudLoaded || !pointCloudBounds) {
+                    alert('Please load a point cloud CSV first');
+                    return;
+                }
+
+                const baseCellSize = 60;
+                const pointScale = parseFloat(document.getElementById('pointScale')?.value || 1);
+                const pointOffsetX = parseFloat(document.getElementById('pointOffsetX')?.value || 17);
+                const pointOffsetY = parseFloat(document.getElementById('pointOffsetY')?.value || 30);
+                const csvHeight = pointCloudBounds.maxY - pointCloudBounds.minY;
+
+                // Get grid dimensions
+                const totalCols = getTotalCols();
+                const totalRows = getTotalRows();
+
+                // Create a map of cell keys to track which cells have original CSV points
+                // Original CSV points are those loaded from CSV (have x,y but no isCreated or isImported flags)
+                const originalCSVCells = new Set();
+                pointCloudData.forEach((point) => {
+                    // Original CSV points: have x,y coordinates but are NOT created or imported
+                    if (point.x !== undefined && point.y !== undefined && 
+                        !point.isCreated && !point.isImported) {
+                        // Calculate cell position for this original CSV point
+                        const relativeX = point.x - pointCloudBounds.minX;
+                        const relativeY = point.y - pointCloudBounds.minY;
+                        const gridPixelX = relativeX * baseCellSize * pointScale;
+                        const gridPixelY = relativeY * baseCellSize * pointScale;
+                        const gridPixelYFlipped = (csvHeight * baseCellSize * pointScale) - gridPixelY;
+
+                        const gridPixelXWithOffset = gridPixelX + pointOffsetX;
+                        const gridPixelYFlippedWithOffset = gridPixelYFlipped + pointOffsetY;
+
+                        const cellCol = Math.floor(gridPixelXWithOffset / baseCellSize);
+                        const cellRow = Math.floor(gridPixelYFlippedWithOffset / baseCellSize);
+                        const cellKey = `${cellRow},${cellCol}`;
+                        originalCSVCells.add(cellKey);
+                    }
+                });
+
+                // Generate all grid points with staggered positions
+                const csvRows = [];
+                csvRows.push('ID,px,py,USED'); // Header
+
+                let pointId = 1;
+                for (let row = 0; row < totalRows; row++) {
+                    for (let col = 0; col < totalCols; col++) {
+                        // Calculate staggered position
+                        const isLeft = (row % 2 === 0);
+                        const xStagger = isLeft ? -0.2 : 0.2;
+                        
+                        // Grid pixel position with stagger
+                        const gridPixelXWithOffset = (col + 0.5 + xStagger) * baseCellSize;
+                        const gridPixelYFlippedWithOffset = (row + 0.5) * baseCellSize;
+
+                        // Convert back to CSV coordinates
+                        const gridPixelX = gridPixelXWithOffset - pointOffsetX;
+                        const relativeX = gridPixelX / (baseCellSize * pointScale);
+                        const csvX = relativeX + pointCloudBounds.minX;
+
+                        const gridPixelYFlipped = gridPixelYFlippedWithOffset - pointOffsetY;
+                        const gridPixelY = (csvHeight * baseCellSize * pointScale) - gridPixelYFlipped;
+                        const relativeY = gridPixelY / (baseCellSize * pointScale);
+                        const csvY = relativeY + pointCloudBounds.minY;
+
+                        // Check if this cell has an original CSV point
+                        const cellKey = `${row},${col}`;
+                        const used = originalCSVCells.has(cellKey) ? 1 : 0;
+
+                        csvRows.push(`${pointId},${csvX},${csvY},${used}`);
+                        pointId++;
+                    }
+                }
+
+                // Create CSV content
+                const csvContent = csvRows.join('\n');
+
+                // Create download link
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', 'staggered-points.csv');
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                console.log(`Exported ${pointId - 1} staggered points to CSV`);
+            } catch (error) {
+                console.error('CSV export error:', error);
+                alert('Error exporting CSV: ' + error.message);
+            }
+        }
+
         // Event listeners
         document.getElementById('mapForm').addEventListener('submit', generateExcel);
+        document.getElementById('exportCSVBtn').addEventListener('click', exportStaggeredPointsCSV);
 
         // Auto-update for all inputs except grid layout fields and CSV upload
         document.querySelectorAll('input:not(#csvFileInput):not(#cols):not(#rows):not(#universes_h):not(#universes_v)').forEach(input => {

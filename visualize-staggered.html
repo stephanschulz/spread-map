@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staggered Points Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+
+        #canvas {
+            display: block;
+            cursor: grab;
+            background: #2a2a2a;
+        }
+
+        #canvas:active {
+            cursor: grabbing;
+        }
+
+        .controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+
+        .controls h3 {
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .stats {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+        }
+
+        .stat-item {
+            margin: 5px 0;
+            font-size: 11px;
+        }
+
+        .zoom-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        button {
+            padding: 5px 10px;
+            background: #4a9eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        button:hover {
+            background: #5aaeff;
+        }
+
+        .legend {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #444;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 11px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="controls">
+        <h3>Staggered Points Visualizer</h3>
+        <div class="zoom-controls">
+            <button onclick="zoomIn()">Zoom In</button>
+            <button onclick="zoomOut()">Zoom Out</button>
+            <button onclick="resetView()">Reset</button>
+        </div>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #000;"></div>
+                <span>USED = 1 (Original CSV points)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #888;"></div>
+                <span>USED = 0 (Grid points)</span>
+            </div>
+        </div>
+        <div class="stats" id="stats">
+            <div class="stat-item">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let points = [];
+        let bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // Resize canvas to fill window
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Load and parse CSV
+        async function loadCSV() {
+            try {
+                const response = await fetch('staggered-points.csv');
+                const text = await response.text();
+                const lines = text.trim().split('\n');
+                
+                // Skip header
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(',');
+                    if (parts.length >= 4) {
+                        const id = parseInt(parts[0]);
+                        const px = parseFloat(parts[1]);
+                        const py = parseFloat(parts[2]);
+                        const used = parseInt(parts[3]);
+                        
+                        if (!isNaN(px) && !isNaN(py)) {
+                            points.push({ id, x: px, y: py, used });
+                            
+                            bounds.minX = Math.min(bounds.minX, px);
+                            bounds.maxX = Math.max(bounds.maxX, px);
+                            bounds.minY = Math.min(bounds.minY, py);
+                            bounds.maxY = Math.max(bounds.maxY, py);
+                        }
+                    }
+                }
+
+                // Calculate initial scale and offset to fit all points
+                const width = bounds.maxX - bounds.minX;
+                const height = bounds.maxY - bounds.minY;
+                const padding = 50;
+                
+                const scaleX = (canvas.width - 2 * padding) / width;
+                const scaleY = (canvas.height - 2 * padding) / height;
+                scale = Math.min(scaleX, scaleY, 10); // Cap max scale
+                
+                offsetX = (canvas.width - width * scale) / 2 - bounds.minX * scale;
+                // For Y flip: we'll draw with y = canvas.height - (point.y - bounds.minY) * scale - offsetY
+                // So offsetY should position from the top
+                offsetY = (canvas.height - height * scale) / 2;
+
+                updateStats();
+                draw();
+            } catch (error) {
+                console.error('Error loading CSV:', error);
+                document.getElementById('stats').innerHTML = 
+                    '<div class="stat-item" style="color: #ff4444;">Error loading CSV file</div>';
+            }
+        }
+
+        function updateStats() {
+            const usedCount = points.filter(p => p.used === 1).length;
+            const unusedCount = points.filter(p => p.used === 0).length;
+            
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-item"><strong>Total Points:</strong> ${points.length}</div>
+                <div class="stat-item"><strong>USED = 1:</strong> ${usedCount}</div>
+                <div class="stat-item"><strong>USED = 0:</strong> ${unusedCount}</div>
+                <div class="stat-item"><strong>Scale:</strong> ${scale.toFixed(2)}x</div>
+            `;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw points
+            points.forEach(point => {
+                const x = point.x * scale + offsetX;
+                // Flip Y axis: CSV has Y increasing upward, canvas has Y increasing downward
+                // Transform: canvasY = canvas.height - (point.y - bounds.minY) * scale - offsetY
+                const y = canvas.height - (point.y - bounds.minY) * scale - offsetY;
+                
+                // Skip points outside viewport for performance
+                if (x < -10 || x > canvas.width + 10 || y < -10 || y > canvas.height + 10) {
+                    return;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                
+                // Color based on USED value
+                if (point.used === 1) {
+                    ctx.fillStyle = '#000000'; // Black for original CSV points
+                } else {
+                    ctx.fillStyle = '#888888'; // Light grey for grid points
+                }
+                
+                ctx.fill();
+            });
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            scale *= 1.2;
+            updateStats();
+            draw();
+        }
+
+        function zoomOut() {
+            scale /= 1.2;
+            updateStats();
+            draw();
+        }
+
+        function resetView() {
+            const width = bounds.maxX - bounds.minX;
+            const height = bounds.maxY - bounds.minY;
+            const padding = 50;
+            
+            const scaleX = (canvas.width - 2 * padding) / width;
+            const scaleY = (canvas.height - 2 * padding) / height;
+            scale = Math.min(scaleX, scaleY, 10);
+            
+            offsetX = (canvas.width - width * scale) / 2 - bounds.minX * scale;
+            // For Y flip: we'll draw with y = canvas.height - (point.y - bounds.minY) * scale - offsetY
+            offsetY = (canvas.height - height * scale) / 2;
+            
+            updateStats();
+            draw();
+        }
+
+        // Pan with mouse drag
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                offsetX += e.clientX - lastMouseX;
+                // Y panning is reversed because we flip Y in draw()
+                offsetY -= e.clientY - lastMouseY;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                draw();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Zoom with mouse wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+            
+            // Get point under mouse in world coordinates (accounting for Y flip)
+            const worldX = (mouseX - offsetX) / scale;
+            const flippedMouseY = canvas.height - mouseY;
+            const worldY = (flippedMouseY - offsetY) / scale + bounds.minY;
+            
+            // Zoom
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= zoomFactor;
+            
+            // Adjust offset to zoom towards mouse position (accounting for Y flip)
+            offsetX = mouseX - worldX * scale;
+            offsetY = flippedMouseY - (worldY - bounds.minY) * scale;
+            
+            updateStats();
+            draw();
+        });
+
+        // Load CSV on page load
+        loadCSV();
+    </script>
+</body>
+</html>
+
